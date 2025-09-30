@@ -36,8 +36,9 @@ Slauth provides enterprise-grade authentication capabilities similar to Supabase
 
 ### Multi-Tenant Architecture
 - **Multiple Isolated Services**: Create separate auth services for customers, vendors, staff, admins
+- **Cross-Service Access Control**: Use RequestValidator() to control which service can access which resources
+- **Flexible Admin Hierarchy**: Staff manages customers/vendors, admins manage everything - all controlled by validators
 - **Independent Configurations**: Each service has its own OAuth apps, CAPTCHA settings, SMS providers
-- **Flexible Admin Hierarchy**: Staff manages customers/vendors, admins manage everything
 - **Runtime Configuration**: All settings stored in database, modifiable without code changes
 
 ### Developer Experience
@@ -100,7 +101,7 @@ func main() {
 
 Slauth's standout feature is its **multi-tenant architecture** - create multiple isolated auth services for different user types with independent configurations.
 
-### Multi-Service Setup
+### Multi-Service Setup with Cross-Service Access Control
 
 ```go
 package main
@@ -145,18 +146,117 @@ func main() {
     vendorAuth.HandleAuthRequest(r.Group("/vendor/auth"))
     vendorAuth.HandleAdminRequest(r.Group("/vendor/admin"))
     
-    // Staff authentication service (manages customers and vendors)
+    // Staff authentication service
     staffAuth := auth.NewService("staff", jwtSecret, appSecret)
     staffAuth.HandleAuthRequest(r.Group("/staff/auth"))
     staffAuth.HandleAdminRequest(r.Group("/staff/admin"))
     
-    // Admin authentication service (manages everything)
+    // Admin authentication service
     adminAuth := auth.NewService("admin", jwtSecret, appSecret)
     adminAuth.HandleAuthRequest(r.Group("/admin/auth"))
     adminAuth.HandleAdminRequest(r.Group("/admin/admin"))
     
+    // ========== Cross-Service Access Control ==========
+    
+    // Customer protected routes - only customers can access
+    customerRoutes := r.Group("/api/customer")
+    customerRoutes.Use(customerAuth.RequestValidator()) // Validates customer JWT
+    {
+        customerRoutes.GET("/orders", getMyOrders)           // Customer's own orders
+        customerRoutes.GET("/profile", getMyProfile)         // Customer's profile
+        customerRoutes.POST("/tickets", createTicket)        // Customer support
+    }
+    
+    // Staff manages customers - staff can access customer management
+    staffManageCustomers := r.Group("/api/staff/customers")
+    staffManageCustomers.Use(staffAuth.RequestValidator()) // Validates staff JWT
+    {
+        staffManageCustomers.GET("", listAllCustomers)       // Staff views all customers
+        staffManageCustomers.GET("/:id", getCustomerDetail)  // Staff views customer detail
+        staffManageCustomers.PUT("/:id", updateCustomer)     // Staff updates customer
+    }
+    
+    // Staff manages vendors - staff can access vendor management
+    staffManageVendors := r.Group("/api/staff/vendors")
+    staffManageVendors.Use(staffAuth.RequestValidator()) // Validates staff JWT
+    {
+        staffManageVendors.GET("", listAllVendors)
+        staffManageVendors.PUT("/:id/approve", approveVendor)
+    }
+    
+    // Admin manages everything - admin has full access
+    adminRoutes := r.Group("/api/admin")
+    adminRoutes.Use(adminAuth.RequestValidator()) // Validates admin JWT
+    {
+        adminRoutes.GET("/users", getAllUsers)               // All users from all domains
+        adminRoutes.GET("/staff", getAllStaff)               // Manage staff accounts
+        adminRoutes.POST("/system/config", updateConfig)     // System configuration
+    }
+    
     log.Fatal(http.ListenAndServe(":8080", r))
 }
+
+func getMyOrders(c *gin.Context) { /* Customer's orders */ }
+func getMyProfile(c *gin.Context) { /* Customer's profile */ }
+func createTicket(c *gin.Context) { /* Support ticket */ }
+func listAllCustomers(c *gin.Context) { /* Staff manages customers */ }
+func getCustomerDetail(c *gin.Context) { /* Staff views customer */ }
+func updateCustomer(c *gin.Context) { /* Staff updates customer */ }
+func listAllVendors(c *gin.Context) { /* Staff manages vendors */ }
+func approveVendor(c *gin.Context) { /* Staff approves vendor */ }
+func getAllUsers(c *gin.Context) { /* Admin views all */ }
+func getAllStaff(c *gin.Context) { /* Admin manages staff */ }
+func updateConfig(c *gin.Context) { /* Admin config */ }
+```
+
+### RequestValidator - The Key to Cross-Service Access
+
+The `RequestValidator()` method is the **core mechanism** for implementing flexible access control:
+
+```go
+// RequestValidator validates JWT tokens from a specific auth service
+validator := authService.RequestValidator()
+```
+
+**How it works:**
+
+1. **Customer routes protected by customer validator**:
+   ```go
+   customerRoutes.Use(customerAuth.RequestValidator())
+   // ✅ Only customer JWT tokens are valid
+   // ❌ Staff/Admin tokens are rejected
+   ```
+
+2. **Staff manages customers using staff validator**:
+   ```go
+   staffManageCustomers.Use(staffAuth.RequestValidator())
+   // ✅ Only staff JWT tokens are valid
+   // ✅ Staff can access customer management endpoints
+   // ❌ Customer tokens are rejected (customers can't manage other customers)
+   ```
+
+3. **Admin has universal access**:
+   ```go
+   adminRoutes.Use(adminAuth.RequestValidator())
+   // ✅ Only admin JWT tokens are valid
+   // ✅ Admin can manage all services
+   ```
+
+**Real-world example:**
+
+```
+Customer Portal (customer.example.com):
+  - Login: POST /customer/auth/signup      (no auth)
+  - My Orders: GET /api/customer/orders    (customerAuth.RequestValidator())
+  
+Staff Dashboard (staff.example.com):
+  - Login: POST /staff/auth/signin         (no auth)
+  - Manage Customers: GET /api/staff/customers  (staffAuth.RequestValidator())
+  - Manage Vendors: GET /api/staff/vendors      (staffAuth.RequestValidator())
+  
+Admin Panel (admin.example.com):
+  - Login: POST /admin/auth/signin         (no auth)
+  - System Config: POST /api/admin/config  (adminAuth.RequestValidator())
 ```
 
 ### Independent Configuration
