@@ -77,7 +77,7 @@ func main() {
     if err := auth.Start(); err != nil {
         panic(err)
     }
-    
+
     // Create Gin router
     r := gin.Default()
     
@@ -218,28 +218,151 @@ The `RequestValidator()` method is the **core mechanism** for implementing flexi
 validator := authService.RequestValidator()
 ```
 
+#### Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Auth Services - Independent JWT Issuers"
+        CA[Customer Auth Service<br/>Google, Facebook OAuth]
+        VA[Vendor Auth Service<br/>LinkedIn, Google OAuth]
+        SA[Staff Auth Service<br/>Email/Password]
+        AA[Admin Auth Service<br/>Email/Password]
+    end
+    
+    subgraph "JWT Tokens"
+        CT[Customer Token]
+        VT[Vendor Token]
+        ST[Staff Token]
+        AT[Admin Token]
+    end
+    
+    subgraph "Protected Resources with RequestValidator"
+        subgraph "Customer Self-Service"
+            CO[/api/customer/orders<br/>customerAuth.RequestValidator]
+            CP[/api/customer/profile<br/>customerAuth.RequestValidator]
+        end
+        
+        subgraph "Staff Management"
+            SMC[/api/staff/customers<br/>staffAuth.RequestValidator<br/>Manage Customer Accounts]
+            SMV[/api/staff/vendors<br/>staffAuth.RequestValidator<br/>Manage Vendor Accounts]
+        end
+        
+        subgraph "Admin Control"
+            AMU[/api/admin/users<br/>adminAuth.RequestValidator<br/>Manage All Users]
+            AMS[/api/admin/staff<br/>adminAuth.RequestValidator<br/>Manage Staff]
+            AMC[/api/admin/config<br/>adminAuth.RequestValidator<br/>System Config]
+        end
+    end
+    
+    CA -->|Issues| CT
+    VA -->|Issues| VT
+    SA -->|Issues| ST
+    AA -->|Issues| AT
+    
+    CT -.->|Valid| CO
+    CT -.->|Valid| CP
+    CT -.->|Rejected| SMC
+    CT -.->|Rejected| AMU
+    
+    ST -.->|Rejected| CO
+    ST -.->|Valid| SMC
+    ST -.->|Valid| SMV
+    ST -.->|Rejected| AMU
+    
+    AT -.->|Rejected| CO
+    AT -.->|Rejected| SMC
+    AT -.->|Valid| AMU
+    AT -.->|Valid| AMS
+    AT -.->|Valid| AMC
+    
+    style CA fill:#e1f5ff
+    style VA fill:#e1f5ff
+    style SA fill:#fff3e0
+    style AA fill:#fce4ec
+    style CT fill:#e1f5ff
+    style VT fill:#e1f5ff
+    style ST fill:#fff3e0
+    style AT fill:#fce4ec
+    style CO fill:#e8f5e9
+    style CP fill:#e8f5e9
+    style SMC fill:#fff9c4
+    style SMV fill:#fff9c4
+    style AMU fill:#ffebee
+    style AMS fill:#ffebee
+    style AMC fill:#ffebee
+```
+
+#### Request Flow Example
+
+```mermaid
+sequenceDiagram
+    participant Customer
+    participant Staff
+    participant CustomerAuth
+    participant StaffAuth
+    participant CustomerAPI as /api/customer/orders
+    participant StaffAPI as /api/staff/customers
+
+    Note over Customer,StaffAPI: Scenario 1: Customer accesses own orders
+
+    Customer->>CustomerAuth: POST /customer/auth/signin
+    CustomerAuth-->>Customer: customer-token
+    Customer->>CustomerAPI: GET /api/customer/orders<br/>Authorization: Bearer customer-token
+    CustomerAPI->>CustomerAPI: customerAuth.RequestValidator()<br/>Validates customer-token
+    CustomerAPI-->>Customer: 200 OK - Order list
+
+    Note over Customer,StaffAPI: Scenario 2: Customer tries to access staff management
+
+    Customer->>StaffAPI: GET /api/staff/customers<br/>Authorization: Bearer customer-token
+    StaffAPI->>StaffAPI: staffAuth.RequestValidator()<br/>Rejects customer-token
+    StaffAPI-->>Customer: 401 Unauthorized
+
+    Note over Customer,StaffAPI: Scenario 3: Staff manages customer accounts
+
+    Staff->>StaffAuth: POST /staff/auth/signin
+    StaffAuth-->>Staff: staff-token
+    Staff->>StaffAPI: GET /api/staff/customers<br/>Authorization: Bearer staff-token
+    StaffAPI->>StaffAPI: staffAuth.RequestValidator()<br/>Validates staff-token
+    StaffAPI-->>Staff: 200 OK - All customers list
+    
+    Note over Customer,StaffAPI: Scenario 4: Staff cannot access customer's personal routes
+
+    Staff->>CustomerAPI: GET /api/customer/orders<br/>Authorization: Bearer staff-token
+    CustomerAPI->>CustomerAPI: customerAuth.RequestValidator()<br/>Rejects staff-token
+    CustomerAPI-->>Staff: 401 Unauthorized
+```
+
+#### Access Control Matrix
+
+| User Type | Customer Routes<br/>`customerAuth.RequestValidator()` | Staff Management Routes<br/>`staffAuth.RequestValidator()` | Admin Routes<br/>`adminAuth.RequestValidator()` |
+|-----------|:-----------------------------------------------------:|:----------------------------------------------------------:|:-----------------------------------------------:|
+| **Customer** | `/api/customer/orders`<br/>`/api/customer/profile` | Rejected | Rejected |
+| **Vendor** | Rejected | Rejected | Rejected |
+| **Staff** | Rejected | `/api/staff/customers`<br/>`/api/staff/vendors` | Rejected |
+| **Admin** | Rejected | Rejected | `/api/admin/users`<br/>`/api/admin/staff`<br/>`/api/admin/config` |
+
 **How it works:**
 
 1. **Customer routes protected by customer validator**:
    ```go
    customerRoutes.Use(customerAuth.RequestValidator())
-   // ✅ Only customer JWT tokens are valid
-   // ❌ Staff/Admin tokens are rejected
+   // Only customer JWT tokens are valid
+   // Staff/Admin tokens are rejected
    ```
 
 2. **Staff manages customers using staff validator**:
    ```go
    staffManageCustomers.Use(staffAuth.RequestValidator())
-   // ✅ Only staff JWT tokens are valid
-   // ✅ Staff can access customer management endpoints
-   // ❌ Customer tokens are rejected (customers can't manage other customers)
+   // Only staff JWT tokens are valid
+   // Staff can access customer management endpoints
+   // Customer tokens are rejected (customers can't manage other customers)
    ```
 
 3. **Admin has universal access**:
    ```go
    adminRoutes.Use(adminAuth.RequestValidator())
-   // ✅ Only admin JWT tokens are valid
-   // ✅ Admin can manage all services
+   // Only admin JWT tokens are valid
+   // Admin can manage all services
    ```
 
 **Real-world example:**
@@ -488,13 +611,13 @@ Key points:
 |---------|--------|---------------|-------|----------|
 | Deployment | Go Library | Hosted Service | Hosted Service | Java Server |
 | Language | Go | TypeScript | N/A | Java |
-| Multi-Tenant | ✅ Native | ❌ | ✅ (Paid) | ⚠️ Realms |
-| Self-Hosted | ✅ | ✅ | Limited | ✅ |
-| Custom Providers | ✅ | Limited | ❌ | ✅ |
-| Independent Configs | ✅ Per Service | ❌ | ⚠️ Limited | ⚠️ Per Realm |
+| Multi-Tenant | Native | No | Yes (Paid) | Realms |
+| Self-Hosted | Yes | Yes | Limited | Yes |
+| Custom Providers | Yes | Limited | No | Yes |
+| Independent Configs | Per Service | No | Limited | Per Realm |
 | License | Apache 2.0* | MIT | Proprietary | Apache 2.0 |
 | Database | Any (GORM) | PostgreSQL | N/A | Multiple |
-| Runtime Config | ✅ Database | ❌ Code Only | ⚠️ UI Only | ✅ |
+| Runtime Config | Database | Code Only | UI Only | Yes |
 
 ## Roadmap
 
