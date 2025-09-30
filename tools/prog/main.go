@@ -36,9 +36,7 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	// Create auth service for route registration
-	authConfig := auth.NewAuthServiceConfig()
-	userAuth := auth.NewService("docs", authConfig)
+	userAuth := auth.NewService("docs", "", "")
 
 	// Register both auth and admin routes
 	userAuth.HandleAuthRequest(r.Group("/auth"))

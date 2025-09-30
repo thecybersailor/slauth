@@ -45,6 +45,8 @@ github.com/dlclark/regexp2 v1.11.5 h1:Q/sSnsKerHeCkc/jSTNq1oCm7KiVgUMZRDUoRu0JQZ
 github.com/dlclark/regexp2 v1.11.5/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
+github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719 h1:lLMQ2OiH9Kw3R7oEQDVjpGq8qFt6U8jjj5p0GRle//0=
+github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719/go.mod h1:jeTFO3zr2mroh2y+PUwVCl8zljXBo8e73zbiHlNGWR0=
 github.com/flaboy/pin v0.9.8 h1:zeIEtbg+wlNZst75z3VC7TAuFeiFORhz1MNOA7IgKCo=
 github.com/flaboy/pin v0.9.8/go.mod h1:EUbYYvsw8XK7sy4Fy/pYF3wfefGEb2pnA2E/Jk8macg=
 github.com/gabriel-vasile/mimetype v1.4.2 h1:w5qFW6JKBz9Y393Y4q372O9A7cUSequkh1Q7OhCmWKU=

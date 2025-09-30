@@ -3,12 +3,12 @@ module github.com/thecybersailor/slauth/tests
 go 1.24.4
 
 require (
-	github.com/thecybersailor/slauth v0.0.0
-	github.com/flaboy/aira-core v0.0.0-20250924104211-e0cd47a364e5
+	github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719
 	github.com/flaboy/envconf v1.0.3
 	github.com/flaboy/pin v0.9.8
 	github.com/gin-gonic/gin v1.9.1
 	github.com/stretchr/testify v1.10.0
+	github.com/thecybersailor/slauth v0.0.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/driver/sqlite v1.6.0
@@ -71,5 +71,3 @@ require (
 )
 
 replace github.com/thecybersailor/slauth => ../
-
-replace github.com/flaboy/aira-core => ../../aira-core

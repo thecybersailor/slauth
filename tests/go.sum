@@ -25,6 +25,8 @@ github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/r
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
 github.com/dlclark/regexp2 v1.11.5 h1:Q/sSnsKerHeCkc/jSTNq1oCm7KiVgUMZRDUoRu0JQZQ=
 github.com/dlclark/regexp2 v1.11.5/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
+github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719 h1:lLMQ2OiH9Kw3R7oEQDVjpGq8qFt6U8jjj5p0GRle//0=
+github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719/go.mod h1:jeTFO3zr2mroh2y+PUwVCl8zljXBo8e73zbiHlNGWR0=
 github.com/flaboy/envconf v1.0.3 h1:XxMk1OIlfEhWM5erMeO76z2mffbat31yPoPAVeQGON4=
 github.com/flaboy/envconf v1.0.3/go.mod h1:Uc2yOxZEy74BtJ6w3+iMhE13T0z6btZZqeyP1ZbG2fU=
 github.com/flaboy/pin v0.9.8 h1:zeIEtbg+wlNZst75z3VC7TAuFeiFORhz1MNOA7IgKCo=
