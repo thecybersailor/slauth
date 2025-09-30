@@ -18,18 +18,29 @@ Slauth provides enterprise-grade authentication capabilities similar to Supabase
 ### Why Slauth?
 
 - **Library-First Design**: Integrate directly into your Go application instead of running a separate auth service
+- **Multi-Tenant Architecture**: Create multiple isolated auth services for different user types (customers, vendors, staff, admins) with independent configurations
 - **Highly Flexible**: Add custom authentication providers and extend functionality to match your requirements
-- **Production Ready**: 100% test coverage with support for PostgreSQL, MySQL, and SQLite
+- **Production Ready**: Comprehensive test coverage with support for PostgreSQL, MySQL, and SQLite
 - **Framework Agnostic**: Works with any Go web framework or HTTP router
 - **Full-Featured**: From basic auth to MFA, SAML, and OAuth - everything you need is included
 
 ## Features
 
+### Core Authentication
 - Email/Password Authentication
 - OAuth 2.0 Providers (Google, Facebook, and more)
 - SAML 2.0 SSO Integration
 - One-Time Password (OTP) via Email/SMS
 - Multi-Factor Authentication (TOTP)
+- Magic Link Authentication
+
+### Multi-Tenant Architecture
+- **Multiple Isolated Services**: Create separate auth services for customers, vendors, staff, admins
+- **Independent Configurations**: Each service has its own OAuth apps, CAPTCHA settings, SMS providers
+- **Flexible Admin Hierarchy**: Staff manages customers/vendors, admins manage everything
+- **Runtime Configuration**: All settings stored in database, modifiable without code changes
+
+### Developer Experience
 - Session Management with Auto-Refresh
 - Customizable Authentication Providers
 - Rate Limiting and Security Controls
@@ -37,6 +48,7 @@ Slauth provides enterprise-grade authentication capabilities similar to Supabase
 - Multiple Database Support (PostgreSQL, MySQL, SQLite)
 - Admin API for User Management
 - TypeScript SDK and Vue 3 UI Components
+- Comprehensive Test Suite
 
 ## Quick Start
 
@@ -46,71 +58,118 @@ Slauth provides enterprise-grade authentication capabilities similar to Supabase
 go get github.com/thecybersailor/slauth
 ```
 
-### Basic Usage
+### Basic Single-Tenant Setup
 
 ```go
 package main
 
 import (
+    "log"
+    "net/http"
+    
+    "github.com/gin-gonic/gin"
     "github.com/thecybersailor/slauth/pkg/auth"
-    "github.com/thecybersailor/slauth/pkg/config"
-    "gorm.io/driver/postgres"
-    "gorm.io/gorm"
 )
 
 func main() {
-    // Initialize database
-    db, err := gorm.Open(postgres.Open("your-database-url"), &gorm.Config{})
-    if err != nil {
+    // Initialize auth system
+    if err := auth.Start(); err != nil {
         panic(err)
     }
+    
+    // Create Gin router
+    r := gin.Default()
+    
+    // Global secrets (store securely in production)
+    jwtSecret := "your-jwt-secret-change-in-production"
+    appSecret := "your-app-secret-change-in-production"
+    
+    // Create auth service for your users
+    authService := auth.NewService("users", jwtSecret, appSecret)
+    
+    // Register auth routes
+    authService.HandleAuthRequest(r.Group("/auth"))   // User authentication endpoints
+    authService.HandleAdminRequest(r.Group("/admin")) // Admin management endpoints
+    
+    // Start server
+    log.Fatal(http.ListenAndServe(":8080", r))
+}
+```
 
-    // Configure authentication service
-    cfg := &config.ServiceConfig{
-        JWT: config.JWTConfig{
-            Secret: "your-secret-key",
-            Exp:    3600,
-        },
-        Security: config.SecurityConfig{
-            PasswordMinLength: 8,
-        },
+## Multi-Tenant Architecture
+
+Slauth's standout feature is its **multi-tenant architecture** - create multiple isolated auth services for different user types with independent configurations.
+
+### Multi-Service Setup
+
+```go
+package main
+
+import (
+    "log"
+    "net/http"
+    
+    "github.com/gin-gonic/gin"
+    "github.com/thecybersailor/slauth/pkg/auth"
+    "github.com/thecybersailor/slauth/pkg/providers/identidies/google"
+)
+
+func main() {
+    if err := auth.Start(); err != nil {
+        panic(err)
     }
-
-    // Create auth instance
-    authService := auth.NewAuthService(db, cfg)
-
-    // Use in your HTTP handlers
-    // See documentation for complete examples
+    
+    r := gin.Default()
+    
+    // Global secrets
+    jwtSecret := "your-jwt-secret"
+    appSecret := "your-app-secret"
+    
+    // Customer authentication service
+    customerAuth := auth.NewService("customer", jwtSecret, appSecret).
+        AddIdentityProvider(google.NewGoogleProvider(&google.GoogleOAuthConfig{
+            ClientID:     "customer-google-client-id",
+            ClientSecret: "customer-google-secret",
+        }))
+    
+    customerAuth.HandleAuthRequest(r.Group("/customer/auth"))
+    customerAuth.HandleAdminRequest(r.Group("/customer/admin"))
+    
+    // Vendor authentication service
+    vendorAuth := auth.NewService("vendor", jwtSecret, appSecret).
+        AddIdentityProvider(google.NewGoogleProvider(&google.GoogleOAuthConfig{
+            ClientID:     "vendor-google-client-id",
+            ClientSecret: "vendor-google-secret",
+        }))
+    
+    vendorAuth.HandleAuthRequest(r.Group("/vendor/auth"))
+    vendorAuth.HandleAdminRequest(r.Group("/vendor/admin"))
+    
+    // Staff authentication service (manages customers and vendors)
+    staffAuth := auth.NewService("staff", jwtSecret, appSecret)
+    staffAuth.HandleAuthRequest(r.Group("/staff/auth"))
+    staffAuth.HandleAdminRequest(r.Group("/staff/admin"))
+    
+    // Admin authentication service (manages everything)
+    adminAuth := auth.NewService("admin", jwtSecret, appSecret)
+    adminAuth.HandleAuthRequest(r.Group("/admin/auth"))
+    adminAuth.HandleAdminRequest(r.Group("/admin/admin"))
+    
+    log.Fatal(http.ListenAndServe(":8080", r))
 }
 ```
 
-### Sign Up a User
+### Independent Configuration
 
-```go
-result, err := authService.SignUp(ctx, &types.SignUpRequest{
-    Email:    "user@example.com",
-    Password: "SecurePass123!",
-})
-if err != nil {
-    // Handle error
-}
+Each service can have its own:
+- **OAuth providers** (different Google/Facebook apps for different user types)
+- **CAPTCHA settings** (stricter for public users, relaxed for staff)
+- **SMS providers** (different Twilio accounts or AWS SNS configurations)
+- **Security policies** (password requirements, MFA enforcement)
+- **Email templates** (customized branding per user type)
+- **Rate limits** (different limits for different user types)
 
-// Access token and user information
-accessToken := result.Session.AccessToken
-user := result.User
-```
-
-### Sign In
-
-```go
-result, err := authService.SignInWithPassword(ctx, &types.SignInRequest{
-    Email:    "user@example.com",
-    Password: "SecurePass123!",
-})
-if err != nil {
-    // Handle error
-}
-```
+All configurations are stored in the database and can be modified at runtime without code changes.
 
 ## Frontend Integration
 
@@ -122,24 +181,60 @@ Slauth provides official TypeScript and Vue.js packages for seamless frontend in
 npm install @cybersailor/slauth-ts
 ```
 
-```typescript
-import { createClient } from '@cybersailor/slauth-ts'
+#### Single-Tenant Frontend
 
-const auth = createClient({
-  url: 'http://localhost:8080',
-  apiKey: 'your-api-key'
+```typescript
+import { createClients } from '@cybersailor/slauth-ts'
+
+// Create auth and admin clients
+const { authClient, adminClient } = createClients({
+  auth: { url: 'http://localhost:8080/auth' },
+  admin: { url: 'http://localhost:8080/admin' },
+  autoRefreshToken: true,
+  persistSession: true,
 })
 
-// Sign up
-const { data, error } = await auth.signUp({
+// User authentication
+const { data, error } = await authClient.signUp({
   email: 'user@example.com',
   password: 'Password123!'
 })
 
-// Listen to auth state changes
-auth.onAuthStateChange((event, session) => {
-  console.log(event, session)
+// Admin operations
+const users = await adminClient.listUsers()
+```
+
+#### Multi-Tenant Frontend
+
+```typescript
+import { createClients } from '@cybersailor/slauth-ts'
+
+// Customer portal clients
+const { authClient: customerAuth, adminClient: customerAdmin } = createClients({
+  auth: { url: 'http://localhost:8080/customer/auth' },
+  admin: { url: 'http://localhost:8080/customer/admin' },
+  autoRefreshToken: true,
+  persistSession: true,
 })
+
+// Vendor portal clients
+const { authClient: vendorAuth, adminClient: vendorAdmin } = createClients({
+  auth: { url: 'http://localhost:8080/vendor/auth' },
+  admin: { url: 'http://localhost:8080/vendor/admin' },
+  autoRefreshToken: true,
+  persistSession: true,
+})
+
+// Staff portal clients (can manage customers and vendors)
+const { authClient: staffAuth, adminClient: staffAdmin } = createClients({
+  auth: { url: 'http://localhost:8080/staff/auth' },
+  admin: { url: 'http://localhost:8080/staff/admin' },
+  autoRefreshToken: true,
+  persistSession: true,
+})
+
+// Staff can manage customer users
+const customers = await staffAdmin.listUsers() // Lists customer users
 ```
 
 ### Vue 3 UI Components
@@ -154,18 +249,64 @@ npm install @cybersailor/slauth-ui-vue @cybersailor/slauth-ts
     :auth-client="authClient"
     appearance="default"
     theme="light"
-    :providers="['google', 'github']"
+    :providers="['google']"
   />
 </template>
 
 <script setup lang="ts">
-import { createClient } from '@cybersailor/slauth-ts'
+import { createClients } from '@cybersailor/slauth-ts'
 import { Auth } from '@cybersailor/slauth-ui-vue'
 import '@cybersailor/slauth-ui-vue/style.css'
 
-const authClient = createClient({
-  url: 'http://localhost:8080',
-  apiKey: 'your-api-key'
+const { authClient, adminClient } = createClients({
+  auth: { url: 'http://localhost:8080/auth' },
+  admin: { url: 'http://localhost:8080/admin' },
+  autoRefreshToken: true,
+  persistSession: true,
+})
+</script>
+```
+
+#### Multi-Tenant Vue Example
+
+```vue
+<!-- CustomerPortal.vue -->
+<template>
+  <Auth
+    :auth-client="customerAuth"
+    appearance="default"
+    :providers="['google']"
+  />
+</template>
+
+<script setup lang="ts">
+import { createClients } from '@cybersailor/slauth-ts'
+import { Auth } from '@cybersailor/slauth-ui-vue'
+
+const { authClient: customerAuth } = createClients({
+  auth: { url: 'http://localhost:8080/customer/auth' },
+  admin: { url: 'http://localhost:8080/customer/admin' },
+})
+</script>
+```
+
+```vue
+<!-- VendorPortal.vue -->
+<template>
+  <Auth
+    :auth-client="vendorAuth"
+    appearance="default"
+    :providers="['google']"
+  />
+</template>
+
+<script setup lang="ts">
+import { createClients } from '@cybersailor/slauth-ts'
+import { Auth } from '@cybersailor/slauth-ui-vue'
+
+const { authClient: vendorAuth } = createClients({
+  auth: { url: 'http://localhost:8080/vendor/auth' },
+  admin: { url: 'http://localhost:8080/vendor/admin' },
 })
 </script>
 ```
@@ -188,7 +329,7 @@ Slauth works with any database supported by GORM:
 
 ## Testing
 
-Slauth maintains 100% test coverage. Run the test suite:
+Slauth maintains comprehensive test coverage with both unit tests and E2E tests. Run the test suite:
 
 ```bash
 # Default (SQLite)
@@ -247,10 +388,13 @@ Key points:
 |---------|--------|---------------|-------|----------|
 | Deployment | Go Library | Hosted Service | Hosted Service | Java Server |
 | Language | Go | TypeScript | N/A | Java |
-| Self-Hosted | Yes | Yes | Limited | Yes |
-| Custom Providers | Yes | Limited | No | Yes |
+| Multi-Tenant | ✅ Native | ❌ | ✅ (Paid) | ⚠️ Realms |
+| Self-Hosted | ✅ | ✅ | Limited | ✅ |
+| Custom Providers | ✅ | Limited | ❌ | ✅ |
+| Independent Configs | ✅ Per Service | ❌ | ⚠️ Limited | ⚠️ Per Realm |
 | License | Apache 2.0* | MIT | Proprietary | Apache 2.0 |
 | Database | Any (GORM) | PostgreSQL | N/A | Multiple |
+| Runtime Config | ✅ Database | ❌ Code Only | ⚠️ UI Only | ✅ |
 
 ## Roadmap
 
