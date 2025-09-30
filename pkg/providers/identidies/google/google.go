@@ -157,7 +157,11 @@ func (p *GoogleProvider) ExchangeCodeForToken(ctx context.Context, code string, 
 		slog.Error("Google token exchange HTTP request failed", "error", err, "errorType", fmt.Sprintf("%T", err))
 		return nil, consts.UNEXPECTED_FAILURE
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			slog.Error("Failed to close response body", "error", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		var errorBody map[string]interface{}

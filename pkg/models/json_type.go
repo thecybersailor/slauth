@@ -41,8 +41,8 @@ func (JSON) GormDataType() string {
 }
 
 func (JSON) GormDBDataType(db *gorm.DB, field *schema.Field) string {
-	
-	switch db.Dialector.Name() {
+
+	switch db.Name() {
 	case "mysql":
 		return "JSON"
 	case "postgres":

@@ -208,7 +208,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	// Create session record
 	now := time.Now()
 	session := &models.Session{
-		UserID:      user.User.ID,
+		UserID:      user.ID,
 		DomainCode:  s.domainCode,
 		AAL:         &aal,
 		CreatedAt:   now,
@@ -225,29 +225,31 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	// SQLite auto increment fix: refresh the session to get the correct ID
 	if session.ID == 0 {
 		if err := s.db.First(session, "user_id = ? AND domain_code = ? AND created_at = ?",
-			user.User.ID, s.domainCode, session.CreatedAt).Error; err != nil {
+			user.ID, s.domainCode, session.CreatedAt).Error; err != nil {
 			return nil, "", "", 0, err
 		}
 	}
 
 	// Debug: Check if session.ID was set correctly
-	slog.Info("Session created", "sessionID", session.ID, "userID", user.User.ID, "domainCode", s.domainCode)
+	slog.Info("Session created", "sessionID", session.ID, "userID", user.ID, "domainCode", s.domainCode)
 
 	// Parse user metadata
 	var userMeta, appMeta map[string]any
-	if user.User.RawUserMetaData != nil {
-		json.Unmarshal(*user.User.RawUserMetaData, &userMeta)
+	if user.RawUserMetaData != nil {
+		if err := json.Unmarshal(*user.RawUserMetaData, &userMeta); err != nil {
+			return nil, "", "", 0, err
+		}
 	}
 	// appMeta is temporarily empty because models.User doesn't have RawAppMetaData field
 
 	// Generate access token
 	email := ""
-	if user.User.Email != nil {
-		email = *user.User.Email
+	if user.Email != nil {
+		email = *user.Email
 	}
 	phone := ""
-	if user.User.Phone != nil {
-		phone = *user.User.Phone
+	if user.Phone != nil {
+		phone = *user.Phone
 	}
 
 	accessToken, expiresAt, err := s.jwtService.GenerateAccessTokenWithExpiry(
@@ -267,7 +269,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	// Store refresh token
 	refreshTokenRecord := &models.RefreshToken{
 		Token:      refreshToken,
-		UserID:     user.User.ID,
+		UserID:     user.ID,
 		SessionID:  session.ID,
 		DomainCode: s.domainCode,
 		Revoked:    false,

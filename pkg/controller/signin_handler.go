@@ -92,7 +92,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 	if signinCtx.Response().Session != nil {
 		slog.Info("SignInWithPassword: Using session from SigninContext",
 			"sessionHashID", signinCtx.Response().Session.HashID,
-			"sessionID", signinCtx.Response().Session.Session.ID)
+			"sessionID", signinCtx.Response().Session.ID)
 
 		sessionData = &Session{
 			ID:           ctx.Data.SessionID,
@@ -158,33 +158,6 @@ func (a *AuthController) SignInWithOTPWithFlow(c *pin.Context) error {
 	// TODO: OTP login needs separate OTPSigninContext, not implemented yet
 	slog.Warn("SignInWithOTP flow not implemented yet - needs OTPSigninContext")
 	return consts.UNEXPECTED_FAILURE
-
-	// Create flow context (temporarily unused)
-	_ = &core.Context[core.SigninData]{
-		Data: core.SigninData{
-			EmailOrPhone: req.Email,
-			Action:       "otp_signin",
-		},
-	}
-
-	// TODO: Flow chain execution is temporarily disabled
-	/*
-		err := chain.Execute(ctx)
-		if err != nil {
-			slog.Error("SignInWithOTP flow chain failed", "error", err)
-			return consts.INVALID_CREDENTIALS
-		}
-	*/
-
-	// SMS sending is handled in flow, no additional check needed
-
-	// Return response (OTP login usually requires two steps, this returns the first step result)
-	resp := &AuthData{
-		User:    nil, // User info is empty before OTP verification
-		Session: nil, // No session before OTP verification
-	}
-
-	return c.Render(resp)
 }
 
 // SignInWithPassword Password login handler (for token endpoint)

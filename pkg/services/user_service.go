@@ -766,7 +766,9 @@ func (u *User) GetMetadata() map[string]any {
 		return make(map[string]any)
 	}
 	var metadata map[string]any
-	json.Unmarshal(*u.RawUserMetaData, &metadata)
+	if err := json.Unmarshal(*u.RawUserMetaData, &metadata); err != nil {
+		return make(map[string]any)
+	}
 	return metadata
 }
 
@@ -775,7 +777,9 @@ func (u *User) GetAppMetadata() map[string]any {
 		return make(map[string]any)
 	}
 	var metadata map[string]any
-	json.Unmarshal(*u.RawAppMetaData, &metadata)
+	if err := json.Unmarshal(*u.RawAppMetaData, &metadata); err != nil {
+		return make(map[string]any)
+	}
 	return metadata
 }
 

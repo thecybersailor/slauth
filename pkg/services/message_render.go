@@ -28,7 +28,11 @@ func (mrs *MessageRenderService) ParseTemplateFile(templatePath string) (*Templa
 	if err != nil {
 		return nil, fmt.Errorf("failed to open template file %s: %v", templatePath, err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	info := &TemplateInfo{
 		Headers: make(map[string]string),

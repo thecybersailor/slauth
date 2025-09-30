@@ -162,7 +162,9 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 		if err != nil {
 			return consts.USER_NOT_FOUND
 		}
-		err = user.RevokeAllSessions(c.Request.Context())
+		if err := user.RevokeAllSessions(c.Request.Context()); err != nil {
+			return consts.UNEXPECTED_FAILURE
+		}
 	case "others":
 		// For "others" scope, we need to revoke all sessions except current
 		// This requires getting all user sessions and revoking except current

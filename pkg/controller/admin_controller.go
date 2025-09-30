@@ -838,38 +838,38 @@ func convertUsersToResponse(users []*services.User) []*AdminUserResponse {
 func convertUserToAdminResponse(user *services.User) *AdminUserResponse {
 	response := &AdminUserResponse{
 		ID:             user.HashID,
-		EmailConfirmed: user.User.EmailConfirmedAt != nil,
-		PhoneConfirmed: user.User.PhoneConfirmedAt != nil,
-		IsAnonymous:    user.User.IsAnonymous,
-		CreatedAt:      user.User.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      user.User.UpdatedAt.Format(time.RFC3339),
+		EmailConfirmed: user.EmailConfirmedAt != nil,
+		PhoneConfirmed: user.PhoneConfirmedAt != nil,
+		IsAnonymous:    user.IsAnonymous(),
+		CreatedAt:      user.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      user.UpdatedAt.Format(time.RFC3339),
 	}
 
-	if user.User.Email != nil {
-		response.Email = user.User.Email
+	if user.Email != nil {
+		response.Email = user.Email
 	}
-	if user.User.Phone != nil {
-		response.Phone = user.User.Phone
+	if user.Phone != nil {
+		response.Phone = user.Phone
 	}
-	if user.User.BannedUntil != nil {
-		bannedUntil := user.User.BannedUntil.Format(time.RFC3339)
+	if user.BannedUntil != nil {
+		bannedUntil := user.BannedUntil.Format(time.RFC3339)
 		response.BannedUntil = &bannedUntil
 	}
-	if user.User.LastSignInAt != nil {
-		lastSignInAt := user.User.LastSignInAt.Format(time.RFC3339)
+	if user.LastSignInAt != nil {
+		lastSignInAt := user.LastSignInAt.Format(time.RFC3339)
 		response.LastSignInAt = &lastSignInAt
 	}
-	if user.User.RawUserMetaData != nil {
+	if user.RawUserMetaData != nil {
 		// Convert JSON.RawMessage to map[string]interface{}
 		var userMeta map[string]interface{}
-		if err := json.Unmarshal(*user.User.RawUserMetaData, &userMeta); err == nil {
+		if err := json.Unmarshal(*user.RawUserMetaData, &userMeta); err == nil {
 			response.RawUserMetaData = userMeta
 		}
 	}
-	if user.User.RawAppMetaData != nil {
+	if user.RawAppMetaData != nil {
 		// Convert JSON.RawMessage to map[string]interface{}
 		var appMeta map[string]interface{}
-		if err := json.Unmarshal(*user.User.RawAppMetaData, &appMeta); err == nil {
+		if err := json.Unmarshal(*user.RawAppMetaData, &appMeta); err == nil {
 			response.RawAppMetaData = appMeta
 		}
 	}
@@ -887,30 +887,30 @@ func convertSessionsToResponse(sessions []*services.Session) []*SessionResponse 
 
 func convertSessionToResponse(session *services.Session) *SessionResponse {
 	// Generate user hashid
-	userHashID, err := services.GenerateUserHashID(session.Session.UserID)
+	userHashID, err := services.GenerateUserHashID(session.UserID)
 	if err != nil {
 		// Fallback to raw ID if hashid generation fails
-		userHashID = strconv.FormatUint(uint64(session.Session.UserID), 10)
+		userHashID = strconv.FormatUint(uint64(session.UserID), 10)
 	}
 
 	response := &SessionResponse{
 		ID:        session.HashID,
 		UserID:    userHashID,
-		CreatedAt: session.Session.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: session.Session.UpdatedAt.Format(time.RFC3339),
+		CreatedAt: session.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: session.UpdatedAt.Format(time.RFC3339),
 	}
 
-	if session.Session.AAL != nil {
-		response.AAL = string(*session.Session.AAL)
+	if session.AAL != nil {
+		response.AAL = string(*session.AAL)
 	}
-	if session.Session.UserAgent != nil {
-		response.UserAgent = session.Session.UserAgent
+	if session.UserAgent != nil {
+		response.UserAgent = session.UserAgent
 	}
-	if session.Session.IP != nil {
-		response.IP = session.Session.IP
+	if session.IP != nil {
+		response.IP = session.IP
 	}
-	if session.Session.RefreshedAt != nil {
-		refreshedAt := session.Session.RefreshedAt.Format(time.RFC3339)
+	if session.RefreshedAt != nil {
+		refreshedAt := session.RefreshedAt.Format(time.RFC3339)
 		response.RefreshedAt = &refreshedAt
 	}
 
@@ -928,15 +928,15 @@ func convertIdentitiesToResponse(identities []*services.UserIdentity) []*Identit
 func convertIdentityToAdminResponse(identity *services.UserIdentity) *IdentityResponse {
 	response := &IdentityResponse{
 		ID:         identity.HashID,
-		Provider:   identity.Identity.Provider,
-		ProviderID: identity.Identity.ProviderID,
-		CreatedAt:  identity.Identity.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  identity.Identity.UpdatedAt.Format(time.RFC3339),
+		Provider:   identity.Provider,
+		ProviderID: identity.ProviderID,
+		CreatedAt:  identity.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  identity.UpdatedAt.Format(time.RFC3339),
 	}
 
 	// Convert JSON.RawMessage to map[string]interface{}
 	var identityData map[string]interface{}
-	if err := json.Unmarshal(identity.Identity.IdentityData, &identityData); err == nil {
+	if err := json.Unmarshal(identity.IdentityData, &identityData); err == nil {
 		response.IdentityData = identityData
 	}
 

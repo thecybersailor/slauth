@@ -119,7 +119,11 @@ func (cs *CertService) GenerateSelfSignedCert(entityID string, validDays int) er
 	if err != nil {
 		return fmt.Errorf("failed to create certificate file: %w", err)
 	}
-	defer certOut.Close()
+	defer func() {
+		if closeErr := certOut.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	if err := pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
 		return fmt.Errorf("failed to write certificate: %w", err)
@@ -130,7 +134,11 @@ func (cs *CertService) GenerateSelfSignedCert(entityID string, validDays int) er
 	if err != nil {
 		return fmt.Errorf("failed to create key file: %w", err)
 	}
-	defer keyOut.Close()
+	defer func() {
+		if closeErr := keyOut.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	privateKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {

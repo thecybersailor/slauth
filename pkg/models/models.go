@@ -34,7 +34,7 @@ func AllModels() []interface{} {
 
 // AutoMigrate runs auto migration for all auth models
 func AutoMigrate(db *gorm.DB) error {
-	db.Config.DisableForeignKeyConstraintWhenMigrating = true
+	db.DisableForeignKeyConstraintWhenMigrating = true
 	return db.AutoMigrate(AllModels()...)
 }
 

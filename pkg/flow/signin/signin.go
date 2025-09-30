@@ -78,7 +78,7 @@ func AuthenticateUserFlow(signinCtx services.SigninContext) core.Flow[core.Signi
 		// Store user to SigninContext response
 		signinCtx.Response().User = user
 
-		slog.Info("Flow: AuthenticateUser - User authenticated", "userID", user.User.ID)
+		slog.Info("Flow: AuthenticateUser - User authenticated", "userID", user.ID)
 
 		return next()
 	}
@@ -126,9 +126,9 @@ func CreateSessionFlow(signinCtx services.SigninContext) core.Flow[core.SigninDa
 		signinCtx.Response().ExpiresIn = expiresIn
 
 		slog.Info("Flow: CreateSession - Session created",
-			"sessionID", session.Session.ID,
+			"sessionID", session.ID,
 			"sessionHashID", session.HashID,
-			"userID", user.User.ID,
+			"userID", user.ID,
 			"expiresIn", expiresIn)
 
 		return next()

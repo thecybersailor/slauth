@@ -73,7 +73,7 @@ func (p *FacebookProvider) ValidateCredential(ctx context.Context, credential js
 }
 
 func (p *FacebookProvider) ExchangeCodeForToken(ctx context.Context, code string, redirectURI string) (*types.OAuthResponse, error) {
-	return nil, fmt.Errorf("Facebook OAuth should be handled entirely by frontend")
+	return nil, fmt.Errorf("facebook OAuth should be handled entirely by frontend")
 }
 
 func (p *FacebookProvider) fetchUserDetails(ctx context.Context, accessToken string) (*FacebookUserDetails, error) {
@@ -88,10 +88,14 @@ func (p *FacebookProvider) fetchUserDetails(ctx context.Context, accessToken str
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Facebook API returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("facebook API returned status %d", resp.StatusCode)
 	}
 
 	var userDetails FacebookUserDetails

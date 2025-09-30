@@ -39,26 +39,26 @@ func TestGenerateSecureToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			token, err := GenerateSecureToken(tt.length)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("GenerateSecureToken() expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("GenerateSecureToken() unexpected error: %v", err)
 				return
 			}
-			
+
 			if len(token) != tt.checkLen {
 				t.Errorf("GenerateSecureToken() token length = %d, want %d", len(token), tt.checkLen)
 			}
-			
+
 			// Check if token is valid hex
 			for _, char := range token {
-				if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+				if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
 					t.Errorf("GenerateSecureToken() token contains invalid hex character: %c", char)
 				}
 			}
@@ -74,7 +74,7 @@ func TestGenerateSecureTokenUniqueness(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GenerateSecureToken() unexpected error: %v", err)
 		}
-		
+
 		if tokens[token] {
 			t.Errorf("GenerateSecureToken() generated duplicate token: %s", token)
 		}
@@ -103,19 +103,19 @@ func TestHashToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hash := HashToken(tt.token)
-			
+
 			// Check hash length (SHA256 produces 64 hex characters)
 			if len(hash) != 64 {
 				t.Errorf("HashToken() hash length = %d, want 64", len(hash))
 			}
-			
+
 			// Check if hash is valid hex
 			for _, char := range hash {
-				if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+				if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
 					t.Errorf("HashToken() hash contains invalid hex character: %c", char)
 				}
 			}
-			
+
 			// Test consistency - same input should produce same hash
 			hash2 := HashToken(tt.token)
 			if hash != hash2 {
@@ -127,37 +127,37 @@ func TestHashToken(t *testing.T) {
 
 func TestGenerateConfirmationToken(t *testing.T) {
 	token, tokenHash, err := GenerateConfirmationToken()
-	
+
 	if err != nil {
 		t.Fatalf("GenerateConfirmationToken() unexpected error: %v", err)
 	}
-	
+
 	// Check token length (32 bytes = 64 hex chars)
 	if len(token) != 64 {
 		t.Errorf("GenerateConfirmationToken() token length = %d, want 64", len(token))
 	}
-	
+
 	// Check hash length (SHA256 = 64 hex chars)
 	if len(tokenHash) != 64 {
 		t.Errorf("GenerateConfirmationToken() hash length = %d, want 64", len(tokenHash))
 	}
-	
+
 	// Verify that the hash matches the token
 	expectedHash := HashToken(token)
 	if tokenHash != expectedHash {
 		t.Errorf("GenerateConfirmationToken() hash mismatch: got %s, want %s", tokenHash, expectedHash)
 	}
-	
+
 	// Test uniqueness
 	token2, tokenHash2, err2 := GenerateConfirmationToken()
 	if err2 != nil {
 		t.Fatalf("GenerateConfirmationToken() second call unexpected error: %v", err2)
 	}
-	
+
 	if token == token2 {
 		t.Errorf("GenerateConfirmationToken() generated duplicate tokens")
 	}
-	
+
 	if tokenHash == tokenHash2 {
 		t.Errorf("GenerateConfirmationToken() generated duplicate hashes")
 	}
@@ -169,12 +169,12 @@ func TestVerifyToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateConfirmationToken() unexpected error: %v", err)
 	}
-	
+
 	tests := []struct {
-		name        string
-		plainToken  string
-		storedHash  string
-		want        bool
+		name       string
+		plainToken string
+		storedHash string
+		want       bool
 	}{
 		{
 			name:       "valid token",
@@ -228,7 +228,7 @@ func TestTokenSecurity(t *testing.T) {
 		}
 		tokens[i] = token
 	}
-	
+
 	// Check for common patterns that might indicate weak randomness
 	for i, token := range tokens {
 		// Check for repeated characters
@@ -239,7 +239,7 @@ func TestTokenSecurity(t *testing.T) {
 				// This is just a warning, not necessarily a failure
 			}
 		}
-		
+
 		// Check for sequential characters
 		sequential := 0
 		for j := 0; j < len(token)-1; j++ {

@@ -67,8 +67,13 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 	}
 
 	cfg := config.NewDefaultAuthServiceConfig()
-	configBytes, _ := json.Marshal(instance.Config)
-	json.Unmarshal(configBytes, cfg)
+	configBytes, err := json.Marshal(instance.Config)
+	if err != nil {
+		return config.NewDefaultAuthServiceConfig()
+	}
+	if err := json.Unmarshal(configBytes, cfg); err != nil {
+		return config.NewDefaultAuthServiceConfig()
+	}
 
 	cfg.JWTSecret = l.globalJWTSecret
 	cfg.AppSecret = l.globalAppSecret
@@ -79,9 +84,18 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 func (l *ConfigLoader) createDefaultInstance() *config.AuthServiceConfig {
 	cfg := config.NewDefaultAuthServiceConfig()
 
-	configBytes, _ := json.Marshal(cfg)
+	configBytes, err := json.Marshal(cfg)
+	if err != nil {
+		cfg.JWTSecret = l.globalJWTSecret
+		cfg.AppSecret = l.globalAppSecret
+		return cfg
+	}
 	var configMap models.JSONMap
-	json.Unmarshal(configBytes, &configMap)
+	if err := json.Unmarshal(configBytes, &configMap); err != nil {
+		cfg.JWTSecret = l.globalJWTSecret
+		cfg.AppSecret = l.globalAppSecret
+		return cfg
+	}
 
 	instance := models.AuthInstance{
 		DomainCode: l.domainCode,
@@ -109,12 +123,17 @@ func (l *ConfigLoader) InvalidateCache() {
 }
 
 func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
-	configBytes, _ := json.Marshal(cfg)
+	configBytes, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
 	var configMap models.JSONMap
-	json.Unmarshal(configBytes, &configMap)
+	if err := json.Unmarshal(configBytes, &configMap); err != nil {
+		return err
+	}
 
 	var instance models.AuthInstance
-	err := l.db.Where("domain_code = ?", l.domainCode).First(&instance).Error
+	err = l.db.Where("domain_code = ?", l.domainCode).First(&instance).Error
 
 	if err == gorm.ErrRecordNotFound {
 		instance = models.AuthInstance{
