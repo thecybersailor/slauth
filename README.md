@@ -1,5 +1,14 @@
 # Slauth
 
+[![CI Status](https://github.com/thecybersailor/slauth/actions/workflows/ci.yml/badge.svg)](https://github.com/thecybersailor/slauth/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thecybersailor/slauth)](https://goreportcard.com/report/github.com/thecybersailor/slauth)
+[![codecov](https://codecov.io/gh/thecybersailor/slauth/branch/main/graph/badge.svg)](https://codecov.io/gh/thecybersailor/slauth)
+[![Go Reference](https://pkg.go.dev/badge/github.com/thecybersailor/slauth.svg)](https://pkg.go.dev/github.com/thecybersailor/slauth)
+[![GitHub release](https://img.shields.io/github/release/thecybersailor/slauth.svg)](https://github.com/thecybersailor/slauth/releases)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/thecybersailor/slauth.svg?style=social&label=Star)](https://github.com/thecybersailor/slauth)
+[![GitHub issues](https://img.shields.io/github/issues/thecybersailor/slauth.svg)](https://github.com/thecybersailor/slauth/issues)
+
 **Slauth** is a flexible, open-source authentication library for Go applications. Built as a library rather than a service, it offers the power of comprehensive authentication features with the flexibility to integrate seamlessly into your existing Go projects.
 
 ## Overview

@@ -104,6 +104,7 @@ jobs:
         files: ./tests/coverage.txt
         flags: unittests
         name: go-${{ matrix.go-version }}-${{ matrix.database }}
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   lint-go:
     name: Go Lint
