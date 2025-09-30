@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  security-events: write
+  contents: read
+
 jobs:
   test-go:
     name: Go Tests

@@ -20,7 +20,7 @@ type SSOProvider struct {
 type SAMLProvider struct {
 	ID               uint            `json:"id" gorm:"primaryKey;autoIncrement"`
 	SSOProviderID    uint            `json:"sso_provider_id" gorm:"not null;index"`
-	EntityID         uint            `json:"entity_id" gorm:"not null;uniqueIndex"`
+	EntityID         string          `json:"entity_id" gorm:"type:varchar(512);not null;uniqueIndex"`
 	MetadataXML      string          `json:"metadata_xml" gorm:"type:text;not null;"`
 	MetadataURL      *string         `json:"metadata_url" gorm:"type:varchar(512)"`
 	AttributeMapping json.RawMessage `json:"attribute_mapping"`

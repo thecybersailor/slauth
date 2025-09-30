@@ -1069,7 +1069,7 @@ func (c *AdminController) GetSAMLProvider(ctx *pin.Context) error {
 	var samlResp *SAMLConfigResponse
 	if err == nil {
 		samlResp = &SAMLConfigResponse{
-			EntityID:         samlConfig.HashID,
+			EntityID:         samlConfig.EntityID,
 			MetadataURL:      samlConfig.MetadataURL,
 			NameIDFormat:     samlConfig.NameIDFormat,
 			AttributeMapping: samlConfig.AttributeMapping,

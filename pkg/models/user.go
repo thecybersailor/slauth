@@ -6,8 +6,8 @@ import (
 
 type User struct {
 	ID                       uint       `json:"id" gorm:"primaryKey;autoIncrement"`
-	DomainCode               string     `json:"domain_code" gorm:"type:varchar(255)"`
-	Email                    *string    `json:"email" gorm:"type:varchar(255)"`
+	DomainCode               string     `json:"domain_code" gorm:"type:varchar(255);uniqueIndex:idx_users_email,priority:1;uniqueIndex:idx_users_phone,priority:1"`
+	Email                    *string    `json:"email" gorm:"type:varchar(255);uniqueIndex:idx_users_email,priority:2"`
 	EncryptedPassword        *string    `json:"-" gorm:"column:encrypted_password;type:varchar(255)"`
 	EmailConfirmedAt         *time.Time `json:"email_confirmed_at"`
 	InvitedAt                *time.Time `json:"invited_at"`
@@ -23,7 +23,7 @@ type User struct {
 	RawAppMetaData           *JSON      `json:"raw_app_meta_data"`
 	CreatedAt                time.Time  `json:"created_at"`
 	UpdatedAt                time.Time  `json:"updated_at"`
-	Phone                    *string    `json:"phone" gorm:"type:varchar(255);uniqueIndex"`
+	Phone                    *string    `json:"phone" gorm:"type:varchar(255);uniqueIndex:idx_users_phone,priority:2"`
 	PhoneConfirmedAt         *time.Time `json:"phone_confirmed_at"`
 	PhoneChange              *string    `json:"phone_change" gorm:"type:varchar(255)"`
 	PhoneChangeToken         *string    `json:"-" gorm:"type:varchar(255);default:''"`

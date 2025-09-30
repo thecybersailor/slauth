@@ -16,7 +16,7 @@ import (
 
 // SAMLProvider implements types.IdentityProvider for SAML authentication
 type SAMLProvider struct {
-	entityID         uint
+	entityID         string
 	metadataXML      string
 	metadataURL      *string
 	nameIDFormat     string
@@ -27,7 +27,7 @@ type SAMLProvider struct {
 
 // SAMLProviderConfig represents SAML provider configuration
 type SAMLProviderConfig struct {
-	EntityID         uint              `json:"entity_id"`
+	EntityID         string            `json:"entity_id"`
 	MetadataXML      string            `json:"metadata_xml"`
 	MetadataURL      *string           `json:"metadata_url"`
 	NameIDFormat     string            `json:"name_id_format"`
@@ -47,7 +47,7 @@ func NewSAMLProvider(config *SAMLProviderConfig) (types.IdentityProvider, error)
 		return nil, fmt.Errorf("config cannot be nil")
 	}
 
-	if config.EntityID == 0 {
+	if config.EntityID == "" {
 		return nil, fmt.Errorf("entity_id is required")
 	}
 

@@ -43,7 +43,6 @@ func (suite *AdvancedAdminTestSuite) TestCreateAndLogin() {
 	suite.Equal(200, createResp.ResponseRecorder.Code, "Create user should succeed")
 	suite.Nil(createResp.Response.Error, "Create user should not have error")
 
-	
 	createResp.Print()
 
 	suite.NotNil(createResp.Response.Data, "Create user should return data")
@@ -62,15 +61,12 @@ func (suite *AdvancedAdminTestSuite) TestCreateAndLogin() {
 	suite.Equal(200, loginResp.ResponseRecorder.Code, "Login should succeed")
 	suite.Nil(loginResp.Response.Error, "Login should not have error")
 
-	
 	loginResp.Print()
 
-	
 	suite.NotNil(loginResp.Response.Data, "Login should return data")
 	loginData2 := loginResp.Response.Data.(map[string]interface{})
 	suite.Contains(loginData2, "session", "Login response should contain session")
 
-	
 	sessionData := loginData2["session"].(map[string]interface{})
 	suite.Contains(sessionData, "access_token", "Session should contain access_token")
 
@@ -80,20 +76,16 @@ func (suite *AdvancedAdminTestSuite) TestCreateAndLogin() {
 	suite.Equal(200, userResp.ResponseRecorder.Code, "Get user should succeed")
 	suite.Nil(userResp.Response.Error, "Get user should not have error")
 
-	
 	userResp.Print()
 
-	
 	suite.NotNil(userResp.Response.Data, "Get user should return data")
 
 	sessionsResp := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/sessions", accessToken)
 	suite.Equal(200, sessionsResp.ResponseRecorder.Code, "Get sessions should succeed")
 	suite.Nil(sessionsResp.Response.Error, "Get sessions should not have error")
 
-	
 	sessionsResp.Print()
 
-	
 	suite.NotNil(sessionsResp.Response.Data, "Get sessions should return data")
 }
 
@@ -140,7 +132,6 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 		suite.Equal(200, createResp.ResponseRecorder.Code, "Create user %d should succeed", i+1)
 		suite.Nil(createResp.Response.Error, "Create user %d should not have error", i+1)
 
-		
 		respData := createResp.Response.Data.(map[string]interface{})
 		userID := respData["id"].(string)
 		createdUserIDs = append(createdUserIDs, userID)
@@ -155,30 +146,25 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 	suite.Equal(200, listResp.ResponseRecorder.Code, "List users should succeed")
 	suite.Nil(listResp.Response.Error, "List users should not have error")
 
-	
 	listResp.Print()
 
 	suite.NotNil(listResp.Response.Data, "List users should return data")
 	listData := listResp.Response.Data.(map[string]interface{})
 
-	
 	suite.Contains(listData, "users", "Response should contain users array")
 	suite.Contains(listData, "page", "Response should contain page")
 	suite.Contains(listData, "page_size", "Response should contain page_size")
 	suite.Contains(listData, "total", "Response should contain total")
 
-	
 	usersArray := listData["users"].([]interface{})
 	suite.GreaterOrEqual(len(usersArray), 3, "Should have at least 3 users (the ones we created)")
 
-	
 	for i, userInterface := range usersArray {
 		user := userInterface.(map[string]interface{})
 		suite.Contains(user, "id", "User %d should have id", i)
 		suite.Contains(user, "email", "User %d should have email", i)
 		suite.Contains(user, "created_at", "User %d should have created_at", i)
 
-		
 		userID := user["id"].(string)
 		suite.NotEmpty(userID, "User %d ID should not be empty", i)
 	}
@@ -206,12 +192,10 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 	suite.Equal(200, filterResp.ResponseRecorder.Code, "Filter users by email should succeed")
 	suite.Nil(filterResp.Response.Error, "Filter users by email should not have error")
 
-	
 	filterData := filterResp.Response.Data.(map[string]interface{})
 	filteredUsers := filterData["users"].([]interface{})
 	suite.GreaterOrEqual(len(filteredUsers), 1, "Should return at least 1 user")
 
-	
 	foundTargetUser := false
 	for _, userInterface := range filteredUsers {
 		user := userInterface.(map[string]interface{})
@@ -224,104 +208,68 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 }
 
 func (suite *TestSuite) TestCreateUserWithDuplicateEmail() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestUpdateUser() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestUpdateUserPassword() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestUpdateUserEmailAndPhone() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestDeleteUser() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestListUserIdentities() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestDeleteUserIdentity() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestGetAuditLog() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestGetDevices() {
-	
 
-	
 }
 
-
 func (suite *TestSuite) TestDeleteNonExistentUser() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestCreateUserWithInvalidPassword() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestUpdateUserWithInvalidData() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestUpdateNonExistentUser() {
-	
 
-	
 }
 
 func (suite *TestSuite) TestCreateUserLoginWithWrongPassword() {
-	
 
-	
 }
-
 
 func (suite *TestSuite) TestOAuthLoginCreatesIdentity() {
-	
 
-	
 }
-
 
 func (suite *TestSuite) TestAdminUserManagementPermissions() {
-	
 
-	
 }
-
 
 func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 	createUserData := S{
@@ -348,7 +296,6 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 	suite.Equal(200, createResp.ResponseRecorder.Code, "Create user with AppMetaData should succeed")
 	suite.Nil(createResp.Response.Error, "Create user should not have error")
 
-	
 	createResp.Print()
 
 	suite.NotNil(createResp.Response.Data, "Create user should return data")
@@ -356,7 +303,6 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 	suite.Equal("appmeta-user@example.com", userData["email"], "Email should match")
 	suite.NotEmpty(userData["id"], "User ID should not be empty")
 
-	
 	suite.Contains(userData, "raw_app_meta_data", "Response should contain raw_app_meta_data")
 	appMetadata := userData["raw_app_meta_data"].(map[string]interface{})
 	suite.Equal("manager", appMetadata["role"], "AppMetaData role should match")
@@ -372,7 +318,6 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 	suite.NoError(err, "Should be able to query user from database")
 	suite.NotNil(dbUser.RawAppMetaData, "RawAppMetaData should not be NULL in database")
 
-	
 	var storedAppMetadata map[string]interface{}
 	err = json.Unmarshal(*dbUser.RawAppMetaData, &storedAppMetadata)
 	suite.NoError(err, "Should be able to parse stored app metadata JSON")
@@ -402,7 +347,6 @@ func (suite *AdvancedAdminTestSuite) TestGetUserAppMetadata() {
 	suite.Equal(200, getResp.ResponseRecorder.Code, "Get user should succeed")
 	suite.Nil(getResp.Response.Error, "Get user should not have error")
 
-	
 	getResp.Print()
 
 	suite.NotNil(getResp.Response.Data, "Get user should return data")
@@ -414,7 +358,6 @@ func (suite *AdvancedAdminTestSuite) TestGetUserAppMetadata() {
 	suite.Equal("Engineering", appMetadata["department"], "AppMetaData department should match")
 	suite.Equal("senior", appMetadata["level"], "AppMetaData level should match")
 
-	
 	permissions, ok := appMetadata["permissions"].([]interface{})
 	suite.True(ok, "Permissions should be an array")
 	suite.Contains(permissions, "code_review", "Permissions should contain code_review")
@@ -454,7 +397,6 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 	suite.Equal(200, updateResp.ResponseRecorder.Code, "Update user AppMetaData should succeed")
 	suite.Nil(updateResp.Response.Error, "Update should not have error")
 
-	
 	updateResp.Print()
 
 	suite.NotNil(updateResp.Response.Data, "Update should return data")
@@ -466,13 +408,11 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 	suite.Equal("Engineering", appMetadata["department"], "Updated department should match")
 	suite.Equal("expert", appMetadata["level"], "Updated level should match")
 
-	
 	permissions, ok := appMetadata["permissions"].([]interface{})
 	suite.True(ok, "Permissions should be an array")
 	suite.Contains(permissions, "admin", "Permissions should contain admin")
 	suite.Contains(permissions, "code_review", "Permissions should contain code_review")
 
-	
 	subscription, ok := appMetadata["subscription"].(map[string]interface{})
 	suite.True(ok, "Subscription should be a nested object")
 	suite.Equal("enterprise", subscription["plan"], "Subscription plan should match")
@@ -528,7 +468,6 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 		},
 	}
 
-	
 	for i, userData := range users {
 		createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", userData)
 		suite.Equal(200, createResp.ResponseRecorder.Code, "Create user %d should succeed", i+1)
@@ -549,10 +488,8 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 	suite.Equal(200, roleSearchResp.ResponseRecorder.Code, "Search by role should succeed")
 	suite.Nil(roleSearchResp.Response.Error, "Search by role should not have error")
 
-	
 	roleSearchResp.Print()
 
-	
 	suite.NotNil(roleSearchResp.Response.Data, "Search should return data")
 	searchData := roleSearchResp.Response.Data.(map[string]interface{})
 	suite.Contains(searchData, "users", "Response should contain users array")
@@ -560,7 +497,6 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 	usersArray := searchData["users"].([]interface{})
 	suite.GreaterOrEqual(len(usersArray), 2, "Should find at least 2 admin users")
 
-	
 	for i, userInterface := range usersArray {
 		user := userInterface.(map[string]interface{})
 		if user["email"] == "search-user1@example.com" || user["email"] == "search-user3@example.com" {
@@ -584,12 +520,10 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 	suite.Equal(200, deptSearchResp.ResponseRecorder.Code, "Search by department should succeed")
 	suite.Nil(deptSearchResp.Response.Error, "Search by department should not have error")
 
-	
 	deptSearchData := deptSearchResp.Response.Data.(map[string]interface{})
 	deptUsersArray := deptSearchData["users"].([]interface{})
 	suite.GreaterOrEqual(len(deptUsersArray), 1, "Should find at least 1 IT user")
 
-	
 	foundITUser := false
 	for _, userInterface := range deptUsersArray {
 		user := userInterface.(map[string]interface{})
