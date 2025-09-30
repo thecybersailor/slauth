@@ -38,7 +38,7 @@
           <component
             v-if="currentComponent"
             :is="currentComponent">
-            <template v-for="(_, slotName) in ($slots as Record<string, any>)" :key="slotName" #[slotName]="slotProps">
+            <template v-for="slotName in slotNames" :key="slotName" #[slotName]="slotProps">
               <slot :name="slotName" v-bind="slotProps" />
             </template>
           </component>
@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, provide, onMounted, watch } from 'vue'
+import { computed, ref, provide, onMounted, watch, useSlots, type Slots } from 'vue'
 import { mergeLocalization } from '../../localization'
 import type { Localization } from '../../types'
 import type { AdminContext } from '../../composables/useAdminContext'
@@ -57,6 +57,9 @@ import AdminIcons from '../ui/icons/AdminIcons.vue'
 import StatsView from './system-stats/Index.vue'
 import UsersView from './user-management/Index.vue'
 import SettingsView from './settings-management/Index.vue'
+
+const slots: Slots = useSlots()
+const slotNames = computed<string[]>(() => Object.keys(slots) as string[])
 
 interface Props {
   adminClient: any

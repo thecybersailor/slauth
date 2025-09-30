@@ -5,7 +5,13 @@ import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
-    vue(),
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => false
+        }
+      }
+    }),
     dts({
       insertTypesEntry: true,
       copyDtsFiles: true

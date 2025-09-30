@@ -99,9 +99,6 @@ e2e-results/
 # yarn.lock
 # pnpm-lock.yaml
 
-# Generated Files
-pkg/consts/tmpl.go
-
 # Certificates and Keys (security)
 *.pem
 *.key
