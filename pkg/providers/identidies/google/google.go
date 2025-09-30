@@ -160,9 +160,13 @@ func (p *GoogleProvider) ExchangeCodeForToken(ctx context.Context, code string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-
 		var errorBody map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errorBody)
+		if err := json.NewDecoder(resp.Body).Decode(&errorBody); err != nil {
+			slog.Error("Google token exchange failed - cannot decode error body",
+				"statusCode", resp.StatusCode,
+				"error", err)
+			return nil, consts.BAD_OAUTH_CALLBACK
+		}
 		slog.Error("Google token exchange failed",
 			"statusCode", resp.StatusCode,
 			"error", errorBody)

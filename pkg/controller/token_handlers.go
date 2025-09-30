@@ -60,7 +60,9 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 	}
 
 	// Revoke old refresh token
-	a.authService.RevokeRefreshToken(c.Request.Context(), req.RefreshToken)
+	if err := a.authService.RevokeRefreshToken(c.Request.Context(), req.RefreshToken); err != nil {
+		return consts.UNEXPECTED_FAILURE
+	}
 
 	// Convert user to response format
 	userResp := convertUserToResponse(userObj.GetModel())

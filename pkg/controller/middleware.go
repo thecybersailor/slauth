@@ -139,7 +139,9 @@ func PinContextAdapter(handler func(*pin.Context) error) gin.HandlerFunc {
 
 		// Call the handler
 		if err := handler(pinCtx); err != nil {
-			c.Error(err)
+			if errResult := c.Error(err); errResult != nil {
+				return
+			}
 		}
 	}
 }

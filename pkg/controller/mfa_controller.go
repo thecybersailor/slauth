@@ -387,34 +387,3 @@ func (m *MFAController) getCurrentUser(c *pin.Context) (*services.User, error) {
 
 	return user, nil
 }
-
-// extractUserIDFromToken extracts user ID from JWT token
-func (m *MFAController) extractUserIDFromToken(c *pin.Context) (uint, error) {
-	// Get token from Authorization header
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		return 0, consts.NO_AUTHORIZATION
-	}
-
-	// Remove "Bearer " prefix
-	token := authHeader
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		token = authHeader[7:]
-	}
-
-	// Validate JWT token
-	claims, err := m.authService.ValidateJWT(token)
-	if err != nil {
-		return 0, consts.BAD_JWT
-	}
-
-	// Get user ID from claims (hashid)
-	_, ok := claims["user_id"].(string)
-	if !ok {
-		return 0, consts.BAD_JWT
-	}
-
-	// Here we only need to verify token is valid, no need to return actual user ID
-	// Because we just want to verify user is logged in
-	return 1, nil
-}

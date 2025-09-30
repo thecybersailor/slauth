@@ -1263,15 +1263,6 @@ func (qb *QueryBuilder) Build() *gorm.DB {
 	return qb.query
 }
 
-func buildQueryFromFilters(query *gorm.DB, filters map[string]interface{}) *gorm.DB {
-	qb := &QueryBuilder{
-		query:   query,
-		hasJoin: make(map[string]bool),
-	}
-	qb.applyFilters(filters)
-	return qb.Build()
-}
-
 func (qb *QueryBuilder) applyFilters(filters map[string]interface{}) {
 	for key, value := range filters {
 		switch key {

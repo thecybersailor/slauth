@@ -69,7 +69,11 @@ func (v *ValidatorService) ValidatePhone(phone string) error {
 	digits := cleaned[1:]
 
 	// Check if all remaining characters are digits
-	if matched, _ := regexp.MatchString(`^\d+$`, digits); !matched {
+	matched, err := regexp.MatchString(`^\d+$`, digits)
+	if err != nil {
+		return consts.VALIDATION_FAILED
+	}
+	if !matched {
 		return consts.VALIDATION_FAILED
 	}
 
@@ -111,6 +115,9 @@ func (v *ValidatorService) ValidateUserMetadata(metadata map[string]any) error {
 		"role", "aal", "amr", "session_id",
 	}
 
+	// Compile regex once before loop
+	keyFormatRegex := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
 	for key := range metadata {
 		for _, reserved := range reservedKeys {
 			if strings.ToLower(key) == reserved {
@@ -119,7 +126,7 @@ func (v *ValidatorService) ValidateUserMetadata(metadata map[string]any) error {
 		}
 
 		// Validate key format
-		if matched, _ := regexp.MatchString(`^[a-zA-Z_][a-zA-Z0-9_]*$`, key); !matched {
+		if !keyFormatRegex.MatchString(key) {
 			return consts.VALIDATION_FAILED
 		}
 
@@ -156,7 +163,8 @@ func (v *ValidatorService) matchURL(url, pattern string) bool {
 		regexPattern := strings.ReplaceAll(pattern, "*", ".*")
 		regexPattern = "^" + regexPattern + "$"
 
-		if matched, _ := regexp.MatchString(regexPattern, url); matched {
+		matched, err := regexp.MatchString(regexPattern, url)
+		if err == nil && matched {
 			return true
 		}
 	}
@@ -172,7 +180,11 @@ func (v *ValidatorService) ValidateDomainCode(domainCode string) error {
 	}
 
 	// Check format: alphanumeric, underscore, hyphen
-	if matched, _ := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, domainCode); !matched {
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, domainCode)
+	if err != nil {
+		return consts.VALIDATION_FAILED
+	}
+	if !matched {
 		return consts.VALIDATION_FAILED
 	}
 

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/mail"
 	"strconv"
 	"time"
@@ -149,56 +148,12 @@ func validateEmailOrPhone(email, phone string) bool {
 	return email != "" || phone != ""
 }
 
-// getEmailOrPhone returns email if provided, otherwise phone
-func getEmailOrPhone(email, phone string) string {
-	if email != "" {
-		return email
-	}
-	return phone
-}
-
 // extractBearerToken extracts Bearer token from Authorization header
 func extractBearerToken(authHeader string) string {
 	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		return authHeader[7:]
 	}
 	return ""
-}
-
-// generateSSOURL generates SSO authorization URL
-func generateSSOURL(domain, providerId string, options *SignInWithSSOOptions) string {
-	// This is a placeholder implementation
-	// In a real implementation, this would:
-	// 1. Look up SSO provider configuration by domain or provider ID
-	// 2. Generate appropriate URL based on protocol (SAML, OIDC, etc.)
-	// 3. Handle state parameters and PKCE if needed
-
-	if domain != "" {
-		return fmt.Sprintf("https://sso.example.com/auth?domain=%s&redirect_uri=callback", domain)
-	}
-
-	if providerId != "" {
-		return fmt.Sprintf("https://sso.example.com/auth?provider_id=%s&redirect_uri=callback", providerId)
-	}
-
-	return ""
-}
-
-// validateSignUpRequest validates signup request
-func validateSignUpRequest(req *SignUpRequest) error {
-	if !validateEmailOrPhone(req.Email, req.Phone) {
-		return consts.VALIDATION_FAILED
-	}
-
-	if req.Password == "" {
-		return consts.VALIDATION_FAILED
-	}
-
-	// TODO: Add password strength validation
-	// TODO: Add email format validation
-	// TODO: Add phone format validation
-
-	return nil
 }
 
 // validateSignInRequest validates sign in request
@@ -216,42 +171,6 @@ func validateSignInRequest(req *SignInWithPasswordRequest) error {
 		if _, err := mail.ParseAddress(req.Email); err != nil {
 			return consts.EMAIL_ADDRESS_INVALID
 		}
-	}
-
-	return nil
-}
-
-// validateOtpRequest validates OTP request
-func validateOtpRequest(req *SignInWithOtpRequest) error {
-	if !validateEmailOrPhone(req.Email, req.Phone) {
-		return consts.VALIDATION_FAILED
-	}
-
-	return nil
-}
-
-// validateVerifyOtpRequest validates OTP verification request
-func validateVerifyOtpRequest(req *VerifyOtpRequest) error {
-	if req.Token == "" {
-		return consts.VALIDATION_FAILED
-	}
-
-	if !validateEmailOrPhone(req.Email, req.Phone) {
-		return consts.VALIDATION_FAILED
-	}
-
-	// Validate OTP type
-	validTypes := []string{"signup", "invite", "magiclink", "recovery", "email_change", "sms", "phone_change"}
-	isValidType := false
-	for _, validType := range validTypes {
-		if req.Type == validType {
-			isValidType = true
-			break
-		}
-	}
-
-	if !isValidType {
-		return consts.VALIDATION_FAILED
 	}
 
 	return nil
@@ -327,5 +246,3 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 
 	return user, nil
 }
-
-// This function is no longer needed as we use provider.ValidateCredential directly

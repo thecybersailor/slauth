@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"log/slog"
 
 	"github.com/flaboy/pin"
@@ -64,36 +63,4 @@ func (a *AuthController) ResetPasswordWithFlow(c *pin.Context) error {
 
 	// Return response (always return success for security)
 	return c.Render(map[string]string{"message": "Password reset email sent if account exists"})
-}
-
-// extractUserIDFromToken Extract user ID from JWT
-func (a *AuthController) extractUserIDFromToken(c *pin.Context) (string, error) {
-	// Extract JWT
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		return "", consts.NO_AUTHORIZATION
-	}
-
-	token := ""
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		token = authHeader[7:]
-	}
-
-	if token == "" {
-		return "", consts.BAD_JWT
-	}
-
-	// Validate JWT
-	claims, err := a.authService.ValidateJWT(token)
-	if err != nil {
-		return "", consts.BAD_JWT
-	}
-
-	// Extract user ID
-	userID, ok := claims["user_id"].(uint)
-	if !ok {
-		return "", consts.BAD_JWT
-	}
-
-	return fmt.Sprintf("%d", userID), nil
 }

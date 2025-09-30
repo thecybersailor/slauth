@@ -141,7 +141,9 @@ func (a *AuthController) createOAuthFlowState(c *pin.Context, provider types.Ide
 		RedirectURI string `json:"redirect_uri"`
 	}
 	if len(options) > 0 {
-		json.Unmarshal(options, &opts)
+		if err := json.Unmarshal(options, &opts); err != nil {
+			return "", err
+		}
 	}
 
 	// Create flow state record for tracking
@@ -288,7 +290,9 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 	}
 
 	// Clean up flow state
-	a.authService.DeleteFlowState(c.Request.Context(), flowState.ID)
+	if err := a.authService.DeleteFlowState(c.Request.Context(), flowState.ID); err != nil {
+		return consts.UNEXPECTED_FAILURE
+	}
 
 	// Convert user to response format
 	userResp := convertUserToResponse(user.GetModel())
@@ -585,7 +589,9 @@ func (a *AuthController) HandleSSOCallback(c *pin.Context) error {
 	}
 
 	// Clean up relay state
-	samlService.DeleteRelayState(c.Request.Context(), relayState)
+	if err := samlService.DeleteRelayState(c.Request.Context(), relayState); err != nil {
+		return consts.UNEXPECTED_FAILURE
+	}
 
 	// Convert user to response format
 	userResp := convertUserToResponse(user.GetModel())

@@ -7,7 +7,6 @@ import (
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
 	"github.com/thecybersailor/slauth/pkg/flow/signin"
-	"github.com/thecybersailor/slauth/pkg/types"
 )
 
 // SignInWithPasswordWithFlow Password login handler using flow
@@ -192,10 +191,4 @@ func (a *AuthController) SignInWithOTPWithFlow(c *pin.Context) error {
 func (a *AuthController) SignInWithPassword(c *pin.Context) error {
 	// Directly call flow version
 	return a.SignInWithPasswordWithFlow(c)
-}
-
-// getSMSProvider Get SMS provider (simplified implementation)
-func (a *AuthController) getSMSProvider() types.SMSProvider {
-	// Get SMS provider directly from authService
-	return a.authService.GetSMSProvider()
 }
