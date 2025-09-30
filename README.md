@@ -222,58 +222,58 @@ validator := authService.RequestValidator()
 
 ```mermaid
 graph TB
-    subgraph "Auth Services - Independent JWT Issuers"
-        CA[Customer Auth Service<br/>Google, Facebook OAuth]
-        VA[Vendor Auth Service<br/>LinkedIn, Google OAuth]
-        SA[Staff Auth Service<br/>Email/Password]
-        AA[Admin Auth Service<br/>Email/Password]
+    subgraph AuthServices["Auth Services - Independent JWT Issuers"]
+        CA["Customer Auth<br/>Google, Facebook"]
+        VA["Vendor Auth<br/>LinkedIn, Google"]
+        SA["Staff Auth<br/>Email/Password"]
+        AA["Admin Auth<br/>Email/Password"]
     end
     
-    subgraph "JWT Tokens"
-        CT[Customer Token]
-        VT[Vendor Token]
-        ST[Staff Token]
-        AT[Admin Token]
+    subgraph Tokens["JWT Tokens"]
+        CT["customer-token"]
+        VT["vendor-token"]
+        ST["staff-token"]
+        AT["admin-token"]
     end
     
-    subgraph "Protected Resources with RequestValidator"
-        subgraph "Customer Self-Service"
-            CO[/api/customer/orders<br/>customerAuth.RequestValidator]
-            CP[/api/customer/profile<br/>customerAuth.RequestValidator]
+    subgraph Resources["Protected Resources"]
+        subgraph Customer["Customer Self-Service"]
+            CO["api/customer/orders<br/>customerAuth validator"]
+            CP["api/customer/profile<br/>customerAuth validator"]
         end
         
-        subgraph "Staff Management"
-            SMC[/api/staff/customers<br/>staffAuth.RequestValidator<br/>Manage Customer Accounts]
-            SMV[/api/staff/vendors<br/>staffAuth.RequestValidator<br/>Manage Vendor Accounts]
+        subgraph Staff["Staff Management"]
+            SMC["api/staff/customers<br/>staffAuth validator"]
+            SMV["api/staff/vendors<br/>staffAuth validator"]
         end
         
-        subgraph "Admin Control"
-            AMU[/api/admin/users<br/>adminAuth.RequestValidator<br/>Manage All Users]
-            AMS[/api/admin/staff<br/>adminAuth.RequestValidator<br/>Manage Staff]
-            AMC[/api/admin/config<br/>adminAuth.RequestValidator<br/>System Config]
+        subgraph Admin["Admin Control"]
+            AMU["api/admin/users<br/>adminAuth validator"]
+            AMS["api/admin/staff<br/>adminAuth validator"]
+            AMC["api/admin/config<br/>adminAuth validator"]
         end
     end
     
-    CA -->|Issues| CT
-    VA -->|Issues| VT
-    SA -->|Issues| ST
-    AA -->|Issues| AT
+    CA -->|issues| CT
+    VA -->|issues| VT
+    SA -->|issues| ST
+    AA -->|issues| AT
     
-    CT -.->|Valid| CO
-    CT -.->|Valid| CP
-    CT -.->|Rejected| SMC
-    CT -.->|Rejected| AMU
+    CT -.->|valid| CO
+    CT -.->|valid| CP
+    CT -.->|rejected| SMC
+    CT -.->|rejected| AMU
     
-    ST -.->|Rejected| CO
-    ST -.->|Valid| SMC
-    ST -.->|Valid| SMV
-    ST -.->|Rejected| AMU
+    ST -.->|rejected| CO
+    ST -.->|valid| SMC
+    ST -.->|valid| SMV
+    ST -.->|rejected| AMU
     
-    AT -.->|Rejected| CO
-    AT -.->|Rejected| SMC
-    AT -.->|Valid| AMU
-    AT -.->|Valid| AMS
-    AT -.->|Valid| AMC
+    AT -.->|rejected| CO
+    AT -.->|rejected| SMC
+    AT -.->|valid| AMU
+    AT -.->|valid| AMS
+    AT -.->|valid| AMC
     
     style CA fill:#e1f5ff
     style VA fill:#e1f5ff
