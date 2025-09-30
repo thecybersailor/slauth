@@ -1,0 +1,2 @@
+./07-password-management_test.go
+./11-admin-query_test.go

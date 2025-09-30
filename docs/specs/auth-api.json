@@ -1,0 +1,2175 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Complete authentication and administrative management API for Aira platform",
+        "title": "slauth Platform API",
+        "termsOfService": "https://aira.com/terms",
+        "contact": {
+            "name": "Aira API Support",
+            "email": "support@aira.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/authorize": {
+            "post": {
+                "description": "Initiate OAuth authentication flow with external provider",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "OAuth Login",
+                "parameters": [
+                    {
+                        "description": "OAuth login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SignInWithOAuthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OAuth flow initiated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.OAuthData"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "Provider disabled",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/confirm": {
+            "get": {
+                "description": "Confirm user email address using confirmation token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Confirm Email",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email confirmation token",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email confirmed successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid or expired token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/email": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update user email address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update User Email",
+                "parameters": [
+                    {
+                        "description": "Email update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email update initiated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SuccessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verify email change with OTP token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify Email Change",
+                "parameters": [
+                    {
+                        "description": "Email verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                },
+                                "token": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email change verified successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/factors": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get list of user's enrolled MFA factors",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "List MFA Factors",
+                "responses": {
+                    "200": {
+                        "description": "MFA factors retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAListFactorsData"
+                        }
+                    }
+                }
+            }
+        },
+        "/factors/challenge": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a challenge for MFA verification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Create MFA Challenge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MFA Factor ID",
+                        "name": "factorId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Challenge created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAChallengeData"
+                        }
+                    }
+                }
+            }
+        },
+        "/factors/enroll": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Enroll a new multi-factor authentication factor",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Enroll MFA Factor",
+                "parameters": [
+                    {
+                        "description": "MFA enrollment request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAEnrollRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MFA factor enrolled successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAEnrollData"
+                        }
+                    }
+                }
+            }
+        },
+        "/factors/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verify MFA challenge with provided code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify MFA Challenge",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MFA Factor ID",
+                        "name": "factorId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "MFA verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAVerifyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MFA verification successful",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAVerifyData"
+                        }
+                    }
+                }
+            }
+        },
+        "/factors/{factor_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Remove an enrolled MFA factor",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Unenroll MFA Factor",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MFA Factor ID",
+                        "name": "factorId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "MFA factor unenrolled successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.MFAUnenrollData"
+                        }
+                    }
+                }
+            }
+        },
+        "/introspect": {
+            "post": {
+                "description": "Introspect a token to get its information and validity",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Token Introspection",
+                "parameters": [
+                    {
+                        "description": "Token introspection request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "token": {
+                                    "type": "string"
+                                },
+                                "token_type_hint": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Token introspection successful",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Log out user and revoke tokens",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User Logout",
+                "parameters": [
+                    {
+                        "description": "Logout request (optional)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SignOutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SuccessResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/otp": {
+            "post": {
+                "description": "Send verification code to user's email address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Send Email Verification Code",
+                "parameters": [
+                    {
+                        "description": "Email verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SendOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification code sent successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SendOTPResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update user password with verification",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update User Password",
+                "parameters": [
+                    {
+                        "description": "Password update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UpdatePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password update initiated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UserResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/phone": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update user phone number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update User Phone",
+                "parameters": [
+                    {
+                        "description": "Phone update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "phone": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Phone update initiated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SuccessResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/phone/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verify phone change with OTP token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify Phone Change",
+                "parameters": [
+                    {
+                        "description": "Phone verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "phone": {
+                                    "type": "string"
+                                },
+                                "token": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Phone change verified successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/recover": {
+            "post": {
+                "description": "Reset user password using email/phone verification",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Reset Password",
+                "parameters": [
+                    {
+                        "description": "Password reset request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset email sent",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/refresh": {
+            "post": {
+                "description": "Refresh an access token using a refresh token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh Access Token",
+                "parameters": [
+                    {
+                        "description": "Refresh token request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Token refreshed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AuthData"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid refresh token",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/resend": {
+            "post": {
+                "description": "Resend verification code for signup, email change, or phone change",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Resend Verification Code",
+                "parameters": [
+                    {
+                        "description": "Resend verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ResendRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification code resent successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/revoke": {
+            "post": {
+                "description": "Revoke a specific access or refresh token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Revoke Token",
+                "parameters": [
+                    {
+                        "description": "Token revocation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "token": {
+                                    "type": "string"
+                                },
+                                "token_type_hint": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Token revoked successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/security/audit-log": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get user's security audit log",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get Audit Log",
+                "responses": {
+                    "200": {
+                        "description": "Audit log retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.GetAuditLogResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/security/devices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get user's registered devices",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get Devices",
+                "responses": {
+                    "200": {
+                        "description": "Devices retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.GetDevicesResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get user's active sessions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get User Sessions",
+                "responses": {
+                    "200": {
+                        "description": "Sessions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ListSessionsResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revoke all user sessions with option to exclude current session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Revoke All Sessions",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Exclude current session from revocation",
+                        "name": "exclude_current",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "All sessions revoked successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Revoke a specific user session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Revoke Session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Session revoked successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/signup": {
+            "post": {
+                "description": "Register a new user with email/phone and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User Registration",
+                "parameters": [
+                    {
+                        "description": "User registration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SignUpRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Registration successful",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AuthData"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "422": {
+                        "description": "User already exists",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/sms-otp": {
+            "post": {
+                "description": "Send verification code to user's phone number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Send SMS Verification Code",
+                "parameters": [
+                    {
+                        "description": "SMS verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SendSMSOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SMS verification code sent successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SendSMSOTPResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/sso": {
+            "post": {
+                "description": "Initiate SSO authentication with SAML provider",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "SSO Login",
+                "parameters": [
+                    {
+                        "description": "SSO login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SignInWithSSORequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSO authentication initiated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SSOData"
+                        }
+                    }
+                }
+            }
+        },
+        "/sso/callback": {
+            "post": {
+                "description": "Handle SSO provider callback with SAML response",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "SSO Callback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "SAML response from provider",
+                        "name": "SAMLResponse",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Relay state parameter",
+                        "name": "RelayState",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSO callback processed successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AuthData"
+                        }
+                    }
+                }
+            }
+        },
+        "/token": {
+            "post": {
+                "description": "Authenticate user with email/phone and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Password Login",
+                "parameters": [
+                    {
+                        "description": "Password login request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SignInWithPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AuthData"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/user": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get current authenticated user information",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get Current User",
+                "responses": {
+                    "200": {
+                        "description": "User information retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UserData"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update user profile attributes",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update User Profile",
+                "parameters": [
+                    {
+                        "description": "User update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UserData"
+                        }
+                    }
+                }
+            }
+        },
+        "/verify": {
+            "post": {
+                "description": "Verify email verification code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify Email Code",
+                "parameters": [
+                    {
+                        "description": "Email verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.VerifyOtpRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email verification successful",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SuccessResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_thecybersailor_slauth_pkg_types.FactorStatus": {
+            "type": "string",
+            "enum": [
+                "unverified",
+                "verified"
+            ],
+            "x-enum-varnames": [
+                "FactorStatusUnverified",
+                "FactorStatusVerified"
+            ]
+        },
+        "github_com_thecybersailor_slauth_pkg_types.FactorType": {
+            "type": "string",
+            "enum": [
+                "totp",
+                "webauthn",
+                "phone"
+            ],
+            "x-enum-varnames": [
+                "FactorTypeTOTP",
+                "FactorTypeWebAuthn",
+                "FactorTypePhone"
+            ]
+        },
+        "github_com_thecybersailor_slauth_pkg_types.ResetPasswordOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                },
+                "redirectTo": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_types.SignInWithOtpOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                },
+                "channel": {
+                    "description": "sms, whatsapp",
+                    "type": "string"
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "emailRedirectTo": {
+                    "type": "string"
+                },
+                "shouldCreateUser": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_types.SignInWithPasswordOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_types.SignUpOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                },
+                "channel": {
+                    "description": "sms, whatsapp",
+                    "type": "string"
+                },
+                "emailRedirectTo": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_types.VerifyOtpOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                },
+                "redirectTo": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.AuthData": {
+            "description": "Authentication response containing user and session information",
+            "type": "object",
+            "properties": {
+                "session": {
+                    "$ref": "#/definitions/pkg_controller.Session"
+                },
+                "user": {
+                    "$ref": "#/definitions/pkg_controller.User"
+                },
+                "weakPassword": {
+                    "$ref": "#/definitions/pkg_controller.WeakPassword"
+                }
+            }
+        },
+        "pkg_controller.ExchangeCodeRequest": {
+            "description": "OAuth authorization code exchange request (PKCE flow)",
+            "type": "object",
+            "properties": {
+                "auth_code": {
+                    "type": "string",
+                    "example": "abc123def456"
+                },
+                "code_verifier": {
+                    "type": "string",
+                    "example": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                },
+                "flow_id": {
+                    "type": "string",
+                    "example": "flow_123"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "random_state_string"
+                }
+            }
+        },
+        "pkg_controller.Factor": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "friendly_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorType"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.GetAuditLogResponse": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                }
+            }
+        },
+        "pkg_controller.GetDevicesResponse": {
+            "type": "object",
+            "properties": {
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                    }
+                }
+            }
+        },
+        "pkg_controller.ListSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.SessionResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_controller.MFAChallengeData": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorType"
+                }
+            }
+        },
+        "pkg_controller.MFAEnrollData": {
+            "description": "Response data for MFA factor enrollment",
+            "type": "object",
+            "properties": {
+                "friendly_name": {
+                    "type": "string",
+                    "example": "My Phone"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "factor_123"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "totp": {
+                    "$ref": "#/definitions/pkg_controller.TOTPEnrollData"
+                },
+                "type": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorType"
+                        }
+                    ],
+                    "example": "totp"
+                }
+            }
+        },
+        "pkg_controller.MFAEnrollRequest": {
+            "description": "Request to enroll a new MFA factor",
+            "type": "object",
+            "properties": {
+                "factorType": {
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorType"
+                        }
+                    ],
+                    "example": "totp"
+                },
+                "friendlyName": {
+                    "type": "string",
+                    "example": "My Phone"
+                },
+                "issuer": {
+                    "type": "string",
+                    "example": "MyApp"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                }
+            }
+        },
+        "pkg_controller.MFAListFactorsData": {
+            "type": "object",
+            "properties": {
+                "all": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.Factor"
+                    }
+                },
+                "phone": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.Factor"
+                    }
+                },
+                "totp": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.Factor"
+                    }
+                }
+            }
+        },
+        "pkg_controller.MFAUnenrollData": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.MFAVerifyData": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/pkg_controller.User"
+                }
+            }
+        },
+        "pkg_controller.MFAVerifyRequest": {
+            "description": "Request to verify MFA challenge",
+            "type": "object",
+            "properties": {
+                "challengeId": {
+                    "type": "string",
+                    "example": "challenge_456"
+                },
+                "code": {
+                    "type": "string",
+                    "example": "123456"
+                },
+                "factorId": {
+                    "type": "string",
+                    "example": "factor_123"
+                }
+            }
+        },
+        "pkg_controller.OAuthData": {
+            "type": "object",
+            "properties": {
+                "config": {},
+                "flow_id": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.RefreshTokenRequest": {
+            "description": "Refresh token request",
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "pkg_controller.ResendOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                },
+                "emailRedirectTo": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.ResendRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/pkg_controller.ResendOptions"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "signup, email_change, sms, phone_change",
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.ResetPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.ResetPasswordOptions"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SSOData": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SendOTPRequest": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "sms, whatsapp",
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SendOTPResponse": {
+            "type": "object",
+            "properties": {
+                "messageId": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SendSMSOTPRequest": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "sms, whatsapp",
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SendSMSOTPResponse": {
+            "type": "object",
+            "properties": {
+                "messageId": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.Session": {
+            "description": "Authentication session with tokens",
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "expires_at": {
+                    "type": "integer",
+                    "example": 1672531200
+                },
+                "expires_in": {
+                    "type": "integer",
+                    "example": 3600
+                },
+                "id": {
+                    "type": "string",
+                    "example": "session_123"
+                },
+                "provider_refresh_token": {
+                    "type": "string"
+                },
+                "provider_token": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "token_type": {
+                    "type": "string",
+                    "example": "Bearer"
+                },
+                "user": {
+                    "$ref": "#/definitions/pkg_controller.User"
+                }
+            }
+        },
+        "pkg_controller.SessionResponse": {
+            "type": "object",
+            "properties": {
+                "aal": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "refreshed_at": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SignInWithIdTokenRequest": {
+            "type": "object",
+            "properties": {
+                "credential": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "provider": {
+                    "type": "string",
+                    "example": "google"
+                }
+            }
+        },
+        "pkg_controller.SignInWithOAuthRequest": {
+            "description": "OAuth authentication request",
+            "type": "object",
+            "properties": {
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "provider": {
+                    "type": "string",
+                    "example": "google"
+                }
+            }
+        },
+        "pkg_controller.SignInWithOtpRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.SignInWithOtpOptions"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SignInWithPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.SignInWithPasswordOptions"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SignInWithSSOOptions": {
+            "type": "object",
+            "properties": {
+                "captchaToken": {
+                    "type": "string"
+                },
+                "redirectTo": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SignInWithSSORequest": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/pkg_controller.SignInWithSSOOptions"
+                },
+                "providerId": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SignOutRequest": {
+            "type": "object",
+            "properties": {
+                "scope": {
+                    "description": "global, local, others",
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SignUpRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.SignUpOptions"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "user_metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "pkg_controller.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "pkg_controller.TOTPEnrollData": {
+            "type": "object",
+            "properties": {
+                "qr_code": {
+                    "type": "string"
+                },
+                "secret": {
+                    "type": "string"
+                },
+                "uri": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.UpdatePasswordRequest": {
+            "type": "object",
+            "properties": {
+                "nonce": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.UpdateUserOptions": {
+            "type": "object",
+            "properties": {
+                "emailRedirectTo": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.UpdateUserProfileRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "emailRedirectTo": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "user_metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "pkg_controller.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "nonce": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/pkg_controller.UpdateUserOptions"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "user_metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "pkg_controller.User": {
+            "description": "User account information",
+            "type": "object",
+            "properties": {
+                "aal": {},
+                "app_metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "aud": {
+                    "type": "string",
+                    "example": "authenticated"
+                },
+                "confirmed_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "email_confirmed_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "factors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.Factor"
+                    }
+                },
+                "id": {
+                    "type": "string",
+                    "example": "user_123"
+                },
+                "identities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.UserIdentity"
+                    }
+                },
+                "is_anonymous": {
+                    "type": "boolean"
+                },
+                "last_sign_in_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                },
+                "phone_confirmed_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "user_metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "pkg_controller.UserData": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/pkg_controller.User"
+                }
+            }
+        },
+        "pkg_controller.UserIdentity": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "identity_data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "identity_id": {
+                    "type": "string"
+                },
+                "last_sign_in_at": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.UserResponse": {
+            "type": "object",
+            "properties": {
+                "user": {
+                    "$ref": "#/definitions/pkg_controller.User"
+                }
+            }
+        },
+        "pkg_controller.VerifyOtpRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "options": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.VerifyOtpOptions"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "token_hash": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "signup, invite, magiclink, recovery, email_change, sms, phone_change",
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.WeakPassword": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "reasons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "AdminAuth": {
+            "description": "Type \"Bearer\" followed by a space and admin JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

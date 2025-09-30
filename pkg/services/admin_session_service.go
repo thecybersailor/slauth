@@ -1,0 +1,137 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/thecybersailor/slauth/pkg/models"
+	"gorm.io/gorm"
+)
+
+// AdminSessionService provides admin operations for session management
+type AdminSessionService struct {
+	db             *gorm.DB
+	sessionService *SessionService
+}
+
+// NewAdminSessionService creates a new admin session service
+func NewAdminSessionService(db *gorm.DB, sessionService *SessionService) *AdminSessionService {
+	return &AdminSessionService{
+		db:             db,
+		sessionService: sessionService,
+	}
+}
+
+// GetSessionStats returns session statistics
+func (s *AdminSessionService) GetSessionStats(ctx context.Context, domainCode string) (*SessionStats, error) {
+	var totalSessions, activeSessions, expiredSessions int64
+
+	// Get total sessions count
+	if err := s.db.WithContext(ctx).Model(&models.Session{}).
+		Where("domain_code = ?", domainCode).
+		Count(&totalSessions).Error; err != nil {
+		return nil, err
+	}
+
+	// Get active sessions count
+	if err := s.db.WithContext(ctx).Model(&models.Session{}).
+		Where("domain_code = ? AND (not_after IS NULL OR not_after > ?)", domainCode, time.Now()).
+		Count(&activeSessions).Error; err != nil {
+		return nil, err
+	}
+
+	// Get expired sessions count
+	if err := s.db.WithContext(ctx).Model(&models.Session{}).
+		Where("domain_code = ? AND not_after IS NOT NULL AND not_after <= ?", domainCode, time.Now()).
+		Count(&expiredSessions).Error; err != nil {
+		return nil, err
+	}
+
+	return &SessionStats{
+		TotalSessions:   totalSessions,
+		ActiveSessions:  activeSessions,
+		ExpiredSessions: expiredSessions,
+	}, nil
+}
+
+// RevokeSession revokes a specific session by sessionID
+func (s *AdminSessionService) RevokeSession(ctx context.Context, domainCode, sessionID string) error {
+	return s.RevokeUserSession(ctx, domainCode, sessionID)
+}
+
+// RevokeUserSession revokes a specific session
+func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode, sessionID string) error {
+	// Parse sessionID to get real ID
+	realSessionID, err := GetSessionIDFromHashID(sessionID)
+	if err != nil {
+		return fmt.Errorf("invalid session ID format: %w", err)
+	}
+
+	now := time.Now()
+	return s.db.WithContext(ctx).Model(&models.Session{}).
+		Where("id = ? AND domain_code = ?", realSessionID, domainCode).
+		Updates(map[string]any{
+			"not_after":  now,
+			"updated_at": now,
+		}).Error
+}
+
+// ListAllSessions retrieves all sessions with pagination and filters
+func (s *AdminSessionService) ListAllSessions(ctx context.Context, domainCode string, page, pageSize int, filters map[string]any) ([]*Session, int64, error) {
+	var sessions []models.Session
+	var total int64
+
+	// Build query
+	query := s.db.WithContext(ctx).Model(&models.Session{}).Where("domain_code = ?", domainCode)
+
+	// Apply filters
+	if userID, ok := filters["user_id"]; ok {
+		if userIDStr, ok := userID.(string); ok {
+			realUserID, err := GetUserIDFromHashID(userIDStr)
+			if err == nil {
+				query = query.Where("user_id = ?", realUserID)
+			}
+		}
+	}
+	if active, ok := filters["active"]; ok {
+		if fmt.Sprintf("%v", active) == "true" {
+			query = query.Where("not_after IS NULL OR not_after > ?", time.Now())
+		} else {
+			query = query.Where("not_after IS NOT NULL AND not_after <= ?", time.Now())
+		}
+	}
+	if fromDate, ok := filters["from_date"]; ok {
+		if fromTime, ok := fromDate.(time.Time); ok {
+			query = query.Where("created_at >= ?", fromTime)
+		}
+	}
+	if toDate, ok := filters["to_date"]; ok {
+		if toTime, ok := toDate.(time.Time); ok {
+			query = query.Where("created_at <= ?", toTime)
+		}
+	}
+
+	// Get total count
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Get sessions with pagination
+	offset := (page - 1) * pageSize
+	if err := query.Order("updated_at DESC").Offset(offset).Limit(pageSize).Find(&sessions).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Convert to Session
+	sessionObjects := make([]*Session, len(sessions))
+	for i, session := range sessions {
+		sessionObj, err := NewSession(&session)
+		if err != nil {
+			return nil, 0, err
+		}
+		sessionObjects[i] = sessionObj
+	}
+
+	return sessionObjects, total, nil
+}

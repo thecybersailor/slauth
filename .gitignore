@@ -1,0 +1,122 @@
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE and Editor Files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+.cursor/
+*.sublime-project
+*.sublime-workspace
+*.iml
+
+# Build Artifacts
+dist/
+build/
+out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+*.out
+vendor/
+go.work
+go.work.sum
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+
+# Test Coverage
+coverage/
+*.cover
+*.coverprofile
+coverage.txt
+.nyc_output/
+
+# Logs
+*.log
+logs/
+air.log
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+.cache/
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+test.db
+
+# Configuration Files (should use env.example instead)
+.env
+.env.local
+.env.*.local
+*.conf
+!tests/*.conf
+
+# API Documentation Temp
+docs/temp/
+docs/.personal/
+
+# Build Tool Cache
+.turbo/
+.next/
+.nuxt/
+.vuepress/dist/
+.vitepress/cache/
+
+# Test Results
+test-results/
+playwright-report/
+test_results.log
+e2e-results/
+.test-context/
+
+# Package Manager Lockfiles (keep package-lock.json, but ignore others)
+# We keep package-lock.json for consistency
+# yarn.lock
+# pnpm-lock.yaml
+
+# Generated Files
+pkg/consts/tmpl.go
+
+# Certificates and Keys (security)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+!tests/files/*.crt
+!tests/files/*.key
+
+# Backup Files
+*.bak
+*.backup
+*~
+
+# Miscellaneous
+.eslintcache
+.stylelintcache
+*.tsbuildinfo

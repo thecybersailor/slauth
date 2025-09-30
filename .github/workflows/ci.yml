@@ -1,0 +1,235 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-go:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.21', '1.22', '1.23']
+        database: ['sqlite', 'postgres', 'mysql']
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: slauth_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: slauth_test
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 3306:3306
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run tests (SQLite)
+      if: matrix.database == 'sqlite'
+      working-directory: ./tests
+      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+    - name: Run tests (PostgreSQL)
+      if: matrix.database == 'postgres'
+      working-directory: ./tests
+      env:
+        CONF_FILE: pgsql.conf
+      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+    - name: Run tests (MySQL)
+      if: matrix.database == 'mysql'
+      working-directory: ./tests
+      env:
+        CONF_FILE: mysql.conf
+      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: matrix.go-version == '1.22' && matrix.database == 'sqlite'
+      with:
+        files: ./tests/coverage.txt
+        flags: unittests
+        name: go-${{ matrix.go-version }}-${{ matrix.database }}
+
+  lint-go:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v4
+      with:
+        version: latest
+        args: --timeout=5m
+
+  test-typescript:
+    name: TypeScript Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['16', '18', '20']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: packages/slauth-ts/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./packages/slauth-ts
+      run: npm ci
+
+    - name: Type check
+      working-directory: ./packages/slauth-ts
+      run: npm run type-check
+
+    - name: Build
+      working-directory: ./packages/slauth-ts
+      run: npm run build
+
+  test-vue:
+    name: Vue Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['16', '18', '20']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: packages/slauth-ui-vue/package-lock.json
+
+    - name: Install TypeScript SDK
+      working-directory: ./packages/slauth-ts
+      run: npm ci && npm run build
+
+    - name: Install dependencies
+      working-directory: ./packages/slauth-ui-vue
+      run: npm ci
+
+    - name: Type check
+      working-directory: ./packages/slauth-ui-vue
+      run: npm run type-check
+
+    - name: Build
+      working-directory: ./packages/slauth-ui-vue
+      run: npm run build
+
+  build-integration:
+    name: Full Build Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install swag
+      run: go install github.com/swaggo/swag/cmd/swag@latest
+
+    - name: Install TypeScript dependencies
+      working-directory: ./packages/slauth-ts
+      run: npm ci
+
+    - name: Install Vue dependencies
+      working-directory: ./packages/slauth-ui-vue
+      run: npm ci
+
+    - name: Full build
+      run: make clean && make all
+
+    - name: Verify build artifacts
+      run: |
+        test -f packages/slauth-ts/dist/cjs/index.js
+        test -f packages/slauth-ts/dist/esm/index.js
+        test -f packages/slauth-ts/dist/types/index.d.ts
+        test -f packages/slauth-ui-vue/dist/index.es.js
+        test -f packages/slauth-ui-vue/dist/index.cjs.js
+        test -f packages/slauth-ui-vue/dist/index.d.ts
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

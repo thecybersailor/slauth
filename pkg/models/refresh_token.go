@@ -1,0 +1,20 @@
+package models
+
+import (
+	"time"
+)
+
+type RefreshToken struct {
+	ID         uint      `json:"id" gorm:"primaryKey;autoIncrement"`
+	Token      string    `json:"token" gorm:"type:varchar(255);uniqueIndex"`
+	UserID     uint      `json:"user_id" gorm:"type:varchar(255)"`
+	Revoked    bool      `json:"revoked"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Parent     *uint     `json:"parent" gorm:"type:varchar(255)"`
+	SessionID  uint      `json:"session_id"`
+	DomainCode string    `json:"domain_code" gorm:"type:varchar(255)"`
+
+	// Relationships
+	Session *Session `json:"session,omitempty" gorm:"foreignKey:SessionID;references:ID"`
+}

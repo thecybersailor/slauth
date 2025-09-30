@@ -1,0 +1,1626 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Complete authentication and administrative management API for Aira platform",
+        "title": "slauth Platform API",
+        "termsOfService": "https://aira.com/terms",
+        "contact": {
+            "name": "Aira API Support",
+            "email": "support@aira.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/admin/config": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get configuration for the current domain instance",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Instance Config",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.GetInstanceConfigResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Update configuration for the current domain instance",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update Instance Config",
+                "parameters": [
+                    {
+                        "description": "Configuration update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UpdateInstanceConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UpdateInstanceConfigResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/saml/providers": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get list of SAML SSO providers (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List SAML Providers",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SAML providers retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ListSAMLProvidersResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Create a new SAML SSO provider (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create SAML Provider",
+                "parameters": [
+                    {
+                        "description": "SAML provider creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.CreateSAMLProviderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SAML provider created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SAMLProviderResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/saml/providers/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get SAML provider details (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get SAML Provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SAML provider retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SAMLProviderResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Update SAML provider configuration (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update SAML Provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "SAML provider update request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.UpdateSAMLProviderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SAML provider updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SAMLProviderResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Delete SAML provider (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Delete SAML Provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SAML provider deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/saml/providers/{id}/test": {
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Test SAML provider configuration (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Test SAML Provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Provider ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SAML provider test completed successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "List all user sessions (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List All Sessions",
+                "responses": {
+                    "200": {
+                        "description": "Sessions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ListSessionsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/sessions/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Revoke a specific user session (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Revoke User Session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Session revoked successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/stats/recent-signins": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get recent user signins statistics (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Recent Signins",
+                "responses": {
+                    "200": {
+                        "description": "Recent signins retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/stats/recent-signups": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get recent user signups statistics (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Recent Signups",
+                "responses": {
+                    "200": {
+                        "description": "Recent signups retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/stats/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get active session count (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get Active Session Count",
+                "responses": {
+                    "200": {
+                        "description": "Session count retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.SessionStatsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/stats/users": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get total user count (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get User Count",
+                "responses": {
+                    "200": {
+                        "description": "User count retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.StatsResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users": {
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Create a new user account (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create New User",
+                "parameters": [
+                    {
+                        "description": "User creation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AdminCreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User created successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AdminUserResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/query": {
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Query users with complex filters using Strapi-style syntax",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Query Users (Strapi-style)",
+                "parameters": [
+                    {
+                        "description": "Query request with filters, sort, and pagination",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.QueryUsersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Users retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ListUsersResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get detailed user information by user ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get User by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AdminUserResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Update user information (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update User",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AdminUpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AdminUserResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Delete user account (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Delete User",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/email-confirmed": {
+            "put": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Set user email confirmation status (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Set User Email Confirmed Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Email confirmation status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "confirmed": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email confirmation status updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/identities": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "List user identities (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List User Identities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User identities retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/identities/{identity_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Delete user identity (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Delete User Identity",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Identity ID",
+                        "name": "identity_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Identity deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/phone-confirmed": {
+            "put": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Set user phone confirmation status (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Set User Phone Confirmed Status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Phone confirmation status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "confirmed": {
+                                    "type": "boolean"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Phone confirmation status updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/reset-password": {
+            "post": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Reset user password (admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reset User Password",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Password reset data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.AdminResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/users/{id}/sessions": {
+            "get": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Get list of user sessions (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List User Sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User sessions retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ListSessionsResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "AdminAuth": []
+                    }
+                ],
+                "description": "Revoke all sessions for a specific user (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Revoke All User Sessions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "All user sessions revoked successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_thecybersailor_slauth_pkg_config.AALPolicy": {
+            "type": "object",
+            "properties": {
+                "aaltimeout": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "allowDowngrade": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig": {
+            "type": "object",
+            "properties": {
+                "allow_new_users": {
+                    "description": "If this is disabled, new users will not be able to sign up to your application",
+                    "type": "boolean"
+                },
+                "anonymous_sign_ins": {
+                    "description": "Enable anonymous sign-ins for your project",
+                    "type": "boolean"
+                },
+                "auth_service_base_url": {
+                    "type": "string"
+                },
+                "confirm_email": {
+                    "description": "Users will need to confirm their email address before signing in for the first time",
+                    "type": "boolean"
+                },
+                "enable_captcha": {
+                    "description": "Enable Captcha protection\nProtect authentication endpoints from bots and abuse.",
+                    "type": "boolean"
+                },
+                "manual_linking": {
+                    "description": "Enable manual linking APIs for your project",
+                    "type": "boolean"
+                },
+                "max_time_allowed_for_auth_request": {
+                    "description": "Maximum time allowed for an Auth request to last\nNumber of seconds to wait for an Auth request to complete before canceling it.\nIn certain high-load situations setting a larger or smaller value can be used\nto control load-shedding. Recommended: 10 seconds.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                },
+                "maximum_mfa_factor_validation_attempts": {
+                    "description": "Maximum number of attempts to validate an MFA factor",
+                    "type": "integer"
+                },
+                "maximum_mfa_factors": {
+                    "description": "Maximum number of per-user MFA factors",
+                    "type": "integer"
+                },
+                "mfa_update_required_aal": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.AALLevel"
+                },
+                "ratelimit_config": {
+                    "description": "Rate limiting configuration",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RatelimitConfig"
+                        }
+                    ]
+                },
+                "redirect_urls": {
+                    "description": "Redirect URLs\nURLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.domain.com",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "security_config": {
+                    "description": "Security configuration",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.SecurityConfig"
+                        }
+                    ]
+                },
+                "session_config": {
+                    "description": "Session configuration",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.SessionConfig"
+                        }
+                    ]
+                },
+                "site_url": {
+                    "description": "Site URL\nConfigure the default redirect URL used when a redirect URL is not specified or doesn't match one from the allow list. This value is also exposed as a template variable in the email templates section. Wildcards cannot be used here.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.PasswordStrengthConfig": {
+            "type": "object",
+            "properties": {
+                "minScore": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.PasswordUpdateConfig": {
+            "type": "object",
+            "properties": {
+                "rateLimit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                },
+                "revokeOtherSessions": {
+                    "type": "boolean"
+                },
+                "updateRequiredAAL": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.AALLevel"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.RateLimit": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "Description provides context about what this rate limit applies to",
+                    "type": "string"
+                },
+                "max_requests": {
+                    "description": "MaxRequests is the maximum number of requests allowed",
+                    "type": "integer"
+                },
+                "window_duration": {
+                    "description": "WindowDuration is the time window for the rate limit",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.RatelimitConfig": {
+            "type": "object",
+            "properties": {
+                "anonymous_users_rate_limit": {
+                    "description": "Anonymous users rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                },
+                "email_rate_limit": {
+                    "description": "Email rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                },
+                "sign_up_sign_in_rate_limit": {
+                    "description": "Sign up and sign in rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                },
+                "sms_rate_limit": {
+                    "description": "SMS rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                },
+                "token_refresh_rate_limit": {
+                    "description": "Token refresh rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                },
+                "token_verification_rate_limit": {
+                    "description": "Token verification rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                },
+                "web3_sign_up_sign_in_rate_limit": {
+                    "description": "Web3 sign up and sign in rate limiting",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                        }
+                    ]
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.SecurityConfig": {
+            "type": "object",
+            "properties": {
+                "aalpolicy": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AALPolicy"
+                },
+                "passwordStrengthConfig": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.PasswordStrengthConfig"
+                },
+                "passwordUpdateConfig": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.PasswordUpdateConfig"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.SessionConfig": {
+            "type": "object",
+            "properties": {
+                "accessTokenTTL": {
+                    "description": "Access token TTL\nThe time-to-live (TTL) for access tokens. Recommendation: 1 hour.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                },
+                "enforceSingleSessionPerUser": {
+                    "description": "Enforce single session per user\nIf enabled, all but a user's most recently active session will be terminated.",
+                    "type": "boolean"
+                },
+                "inactivityTimeout": {
+                    "description": "Inactivity timeout\nThe amount of time a user needs to be inactive to be forced to sign in again. Use 0 for never.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                },
+                "refreshTokenReuseInterval": {
+                    "description": "Refresh token reuse interval\nTime interval where the same refresh token can be used multiple times\nto request for an access token. Recommendation: 10 seconds.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                },
+                "refreshTokenTTL": {
+                    "description": "Refresh token TTL\nThe time-to-live (TTL) for refresh tokens. Recommendation: 1 week.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                },
+                "revokeCompromisedRefreshTokens": {
+                    "description": "Detect and revoke potentially compromised refresh tokens\nPrevent replay attacks from potentially compromised refresh tokens.",
+                    "type": "boolean"
+                },
+                "timeBoxUserSessions": {
+                    "description": "Time-box user sessions\nThe amount of time before a user is forced to sign in again. Use 0 for never.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/time.Duration"
+                        }
+                    ]
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_types.AALLevel": {
+            "type": "string",
+            "enum": [
+                "aal1",
+                "aal2",
+                "aal3"
+            ],
+            "x-enum-varnames": [
+                "AALLevel1",
+                "AALLevel2",
+                "AALLevel3"
+            ]
+        },
+        "pkg_controller.AdminCreateUserRequest": {
+            "type": "object",
+            "properties": {
+                "app_metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_confirmed": {
+                    "type": "boolean"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "phone_confirmed": {
+                    "type": "boolean"
+                },
+                "user_data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "user_metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "pkg_controller.AdminResetPasswordRequest": {
+            "type": "object",
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.AdminUpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "app_metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "banned_until": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_confirmed": {
+                    "type": "boolean"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "phone_confirmed": {
+                    "type": "boolean"
+                },
+                "user_data": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "pkg_controller.AdminUserResponse": {
+            "type": "object",
+            "properties": {
+                "banned_until": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_confirmed": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_anonymous": {
+                    "type": "boolean"
+                },
+                "last_sign_in_at": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "phone_confirmed": {
+                    "type": "boolean"
+                },
+                "raw_app_meta_data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "raw_user_meta_data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.CreateSAMLProviderRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.GetInstanceConfigResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig"
+                },
+                "domain_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.ListSAMLProvidersResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.SAMLProviderResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_controller.ListSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.SessionResponse"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_controller.ListUsersResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.AdminUserResponse"
+                    }
+                }
+            }
+        },
+        "pkg_controller.QueryPagination": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "pageSize": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_controller.QueryUsersRequest": {
+            "type": "object",
+            "properties": {
+                "filters": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "pagination": {
+                    "$ref": "#/definitions/pkg_controller.QueryPagination"
+                },
+                "sort": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "pkg_controller.SAMLProviderResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SessionResponse": {
+            "type": "object",
+            "properties": {
+                "aal": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "refreshed_at": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.SessionStatsResponse": {
+            "type": "object",
+            "properties": {
+                "active_sessions": {
+                    "type": "integer"
+                },
+                "expired_sessions": {
+                    "type": "integer"
+                },
+                "total_sessions": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_controller.StatsResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "pkg_controller.UpdateInstanceConfigRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig"
+                }
+            }
+        },
+        "pkg_controller.UpdateInstanceConfigResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.UpdateSAMLProviderRequest": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "time.Duration": {
+            "type": "integer",
+            "format": "int64",
+            "enum": [
+                -9223372036854775808,
+                9223372036854775807,
+                1,
+                1000,
+                1000000,
+                1000000000,
+                60000000000,
+                3600000000000
+            ],
+            "x-enum-varnames": [
+                "minDuration",
+                "maxDuration",
+                "Nanosecond",
+                "Microsecond",
+                "Millisecond",
+                "Second",
+                "Minute",
+                "Hour"
+            ]
+        }
+    },
+    "securityDefinitions": {
+        "AdminAuth": {
+            "description": "Type \"Bearer\" followed by a space and admin JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and JWT token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

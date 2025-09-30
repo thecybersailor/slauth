@@ -1,0 +1,275 @@
+/* slauth UI - 主题变量系统 */
+
+/* 浅色主题 - 默认 */
+:root {
+  /* 品牌色 */
+  --auth-ui-primary: #3b82f6;
+  --auth-ui-primary-hover: #2563eb;
+  --auth-ui-primary-active: #1d4ed8;
+  
+  /* 背景色 */
+  --auth-ui-background: #ffffff;
+  --auth-ui-background-secondary: #f9fafb;
+  --auth-ui-background-tertiary: #f3f4f6;
+  
+  /* 文本色 */
+  --auth-ui-text: #111827;
+  --auth-ui-text-secondary: #374151;
+  --auth-ui-text-tertiary: #6b7280;
+  --auth-ui-text-quaternary: #9ca3af;
+  
+  /* 边框色 */
+  --auth-ui-border: #e5e7eb;
+  --auth-ui-border-hover: #d1d5db;
+  --auth-ui-border-focus: #3b82f6;
+  
+  /* 输入框 */
+  --auth-ui-input-background: #ffffff;
+  --auth-ui-input-border: #d1d5db;
+  --auth-ui-input-border-hover: #9ca3af;
+  --auth-ui-input-border-focus: #3b82f6;
+  --auth-ui-input-text: #111827;
+  --auth-ui-input-placeholder: #9ca3af;
+  
+  /* 按钮 */
+  --auth-ui-button-primary-bg: #3b82f6;
+  --auth-ui-button-primary-bg-hover: #2563eb;
+  --auth-ui-button-primary-bg-active: #1d4ed8;
+  --auth-ui-button-primary-text: #ffffff;
+  
+  --auth-ui-button-secondary-bg: #ffffff;
+  --auth-ui-button-secondary-bg-hover: #f9fafb;
+  --auth-ui-button-secondary-bg-active: #f3f4f6;
+  --auth-ui-button-secondary-text: #374151;
+  --auth-ui-button-secondary-border: #e5e7eb;
+  
+  /* OAuth 按钮 */
+  --auth-ui-oauth-bg: #ffffff;
+  --auth-ui-oauth-bg-hover: #f9fafb;
+  --auth-ui-oauth-bg-active: #f3f4f6;
+  --auth-ui-oauth-border: #e5e7eb;
+  --auth-ui-oauth-border-hover: #d1d5db;
+  --auth-ui-oauth-text: #374151;
+  --auth-ui-oauth-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --auth-ui-oauth-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --auth-ui-oauth-shadow-active: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+  
+  /* 状态色 */
+  --auth-ui-success: #10b981;
+  --auth-ui-success-bg: #d1fae5;
+  --auth-ui-success-text: #065f46;
+  
+  --auth-ui-error: #ef4444;
+  --auth-ui-error-bg: #fee2e2;
+  --auth-ui-error-text: #991b1b;
+  
+  --auth-ui-warning: #f59e0b;
+  --auth-ui-warning-bg: #fef3c7;
+  --auth-ui-warning-text: #92400e;
+  
+  --auth-ui-info: #3b82f6;
+  --auth-ui-info-bg: #dbeafe;
+  --auth-ui-info-text: #1e40af;
+  
+  /* 链接 */
+  --auth-ui-link: #3b82f6;
+  --auth-ui-link-hover: #2563eb;
+  
+  /* 分割线 */
+  --auth-ui-divider: #e5e7eb;
+  
+  /* 阴影 */
+  --auth-ui-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --auth-ui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --auth-ui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  
+  /* 圆角 */
+  --auth-ui-radius-sm: 4px;
+  --auth-ui-radius-md: 6px;
+  --auth-ui-radius-lg: 8px;
+  --auth-ui-radius-xl: 12px;
+  
+  /* 间距 */
+  --auth-ui-space-xs: 0.25rem;
+  --auth-ui-space-sm: 0.5rem;
+  --auth-ui-space-md: 0.75rem;
+  --auth-ui-space-lg: 1rem;
+  --auth-ui-space-xl: 1.5rem;
+  --auth-ui-space-2xl: 2rem;
+  
+  /* 字体大小 */
+  --auth-ui-text-xs: 0.75rem;
+  --auth-ui-text-sm: 0.875rem;
+  --auth-ui-text-base: 1rem;
+  --auth-ui-text-lg: 1.125rem;
+  --auth-ui-text-xl: 1.25rem;
+  
+  /* 字体粗细 */
+  --auth-ui-font-normal: 400;
+  --auth-ui-font-medium: 500;
+  --auth-ui-font-semibold: 600;
+  --auth-ui-font-bold: 700;
+  
+  /* 字体族 */
+  --auth-ui-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* 深色主题 */
+[data-theme="dark"] {
+  /* 品牌色 */
+  --auth-ui-primary: #60a5fa;
+  --auth-ui-primary-hover: #3b82f6;
+  --auth-ui-primary-active: #2563eb;
+  
+  /* 背景色 */
+  --auth-ui-background: #111827;
+  --auth-ui-background-secondary: #1f2937;
+  --auth-ui-background-tertiary: #374151;
+  
+  /* 文本色 */
+  --auth-ui-text: #f9fafb;
+  --auth-ui-text-secondary: #e5e7eb;
+  --auth-ui-text-tertiary: #d1d5db;
+  --auth-ui-text-quaternary: #9ca3af;
+  
+  /* 边框色 */
+  --auth-ui-border: #374151;
+  --auth-ui-border-hover: #4b5563;
+  --auth-ui-border-focus: #60a5fa;
+  
+  /* 输入框 */
+  --auth-ui-input-background: #1f2937;
+  --auth-ui-input-border: #374151;
+  --auth-ui-input-border-hover: #4b5563;
+  --auth-ui-input-border-focus: #60a5fa;
+  --auth-ui-input-text: #f9fafb;
+  --auth-ui-input-placeholder: #6b7280;
+  
+  /* 按钮 */
+  --auth-ui-button-primary-bg: #3b82f6;
+  --auth-ui-button-primary-bg-hover: #2563eb;
+  --auth-ui-button-primary-bg-active: #1d4ed8;
+  --auth-ui-button-primary-text: #ffffff;
+  
+  --auth-ui-button-secondary-bg: #1f2937;
+  --auth-ui-button-secondary-bg-hover: #374151;
+  --auth-ui-button-secondary-bg-active: #4b5563;
+  --auth-ui-button-secondary-text: #f9fafb;
+  --auth-ui-button-secondary-border: #374151;
+  
+  /* OAuth 按钮 */
+  --auth-ui-oauth-bg: #1f2937;
+  --auth-ui-oauth-bg-hover: #374151;
+  --auth-ui-oauth-bg-active: #4b5563;
+  --auth-ui-oauth-border: #374151;
+  --auth-ui-oauth-border-hover: #4b5563;
+  --auth-ui-oauth-text: #f9fafb;
+  --auth-ui-oauth-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+  --auth-ui-oauth-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --auth-ui-oauth-shadow-active: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  
+  /* 状态色 */
+  --auth-ui-success: #34d399;
+  --auth-ui-success-bg: #064e3b;
+  --auth-ui-success-text: #a7f3d0;
+  
+  --auth-ui-error: #f87171;
+  --auth-ui-error-bg: #7f1d1d;
+  --auth-ui-error-text: #fecaca;
+  
+  --auth-ui-warning: #fbbf24;
+  --auth-ui-warning-bg: #78350f;
+  --auth-ui-warning-text: #fde68a;
+  
+  --auth-ui-info: #60a5fa;
+  --auth-ui-info-bg: #1e3a8a;
+  --auth-ui-info-text: #bfdbfe;
+  
+  /* 链接 */
+  --auth-ui-link: #60a5fa;
+  --auth-ui-link-hover: #3b82f6;
+  
+  /* 分割线 */
+  --auth-ui-divider: #374151;
+  
+  /* 阴影 */
+  --auth-ui-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --auth-ui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --auth-ui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+/* 自动主题 - 跟随系统偏好 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    /* 继承深色主题变量 */
+    --auth-ui-primary: #60a5fa;
+    --auth-ui-primary-hover: #3b82f6;
+    --auth-ui-primary-active: #2563eb;
+    
+    --auth-ui-background: #111827;
+    --auth-ui-background-secondary: #1f2937;
+    --auth-ui-background-tertiary: #374151;
+    
+    --auth-ui-text: #f9fafb;
+    --auth-ui-text-secondary: #e5e7eb;
+    --auth-ui-text-tertiary: #d1d5db;
+    --auth-ui-text-quaternary: #9ca3af;
+    
+    --auth-ui-border: #374151;
+    --auth-ui-border-hover: #4b5563;
+    --auth-ui-border-focus: #60a5fa;
+    
+    --auth-ui-input-background: #1f2937;
+    --auth-ui-input-border: #374151;
+    --auth-ui-input-border-hover: #4b5563;
+    --auth-ui-input-border-focus: #60a5fa;
+    --auth-ui-input-text: #f9fafb;
+    --auth-ui-input-placeholder: #6b7280;
+    
+    --auth-ui-button-primary-bg: #3b82f6;
+    --auth-ui-button-primary-bg-hover: #2563eb;
+    --auth-ui-button-primary-bg-active: #1d4ed8;
+    --auth-ui-button-primary-text: #ffffff;
+    
+    --auth-ui-button-secondary-bg: #1f2937;
+    --auth-ui-button-secondary-bg-hover: #374151;
+    --auth-ui-button-secondary-bg-active: #4b5563;
+    --auth-ui-button-secondary-text: #f9fafb;
+    --auth-ui-button-secondary-border: #374151;
+    
+    --auth-ui-oauth-bg: #1f2937;
+    --auth-ui-oauth-bg-hover: #374151;
+    --auth-ui-oauth-bg-active: #4b5563;
+    --auth-ui-oauth-border: #374151;
+    --auth-ui-oauth-border-hover: #4b5563;
+    --auth-ui-oauth-text: #f9fafb;
+    --auth-ui-oauth-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+    --auth-ui-oauth-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --auth-ui-oauth-shadow-active: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+    
+    --auth-ui-success: #34d399;
+    --auth-ui-success-bg: #064e3b;
+    --auth-ui-success-text: #a7f3d0;
+    
+    --auth-ui-error: #f87171;
+    --auth-ui-error-bg: #7f1d1d;
+    --auth-ui-error-text: #fecaca;
+    
+    --auth-ui-warning: #fbbf24;
+    --auth-ui-warning-bg: #78350f;
+    --auth-ui-warning-text: #fde68a;
+    
+    --auth-ui-info: #60a5fa;
+    --auth-ui-info-bg: #1e3a8a;
+    --auth-ui-info-text: #bfdbfe;
+    
+    --auth-ui-link: #60a5fa;
+    --auth-ui-link-hover: #3b82f6;
+    
+    --auth-ui-divider: #374151;
+    
+    --auth-ui-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --auth-ui-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    --auth-ui-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  }
+}

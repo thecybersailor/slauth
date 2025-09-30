@@ -1,0 +1,2 @@
+dev:
+	(cd src; air)
