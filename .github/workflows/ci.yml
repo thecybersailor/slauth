@@ -81,21 +81,21 @@ jobs:
     - name: Run tests (SQLite)
       if: matrix.database == 'sqlite'
       working-directory: ./tests
-      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+      run: go test -v -race -coverpkg=github.com/thecybersailor/slauth/pkg/... -coverprofile=coverage.txt -covermode=atomic ./...
 
     - name: Run tests (PostgreSQL)
       if: matrix.database == 'postgres'
       working-directory: ./tests
       env:
         CONF_FILE: pgsql.conf
-      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+      run: go test -v -race -coverpkg=github.com/thecybersailor/slauth/pkg/... -coverprofile=coverage.txt -covermode=atomic ./...
 
     - name: Run tests (MySQL)
       if: matrix.database == 'mysql'
       working-directory: ./tests
       env:
         CONF_FILE: mysql.conf
-      run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+      run: go test -v -race -coverpkg=github.com/thecybersailor/slauth/pkg/... -coverprofile=coverage.txt -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
