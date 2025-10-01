@@ -53,10 +53,10 @@ export interface ClientsConfig {
   debug?: boolean
   /** Request timeout */
   timeout?: number
-  /** Callback when 401 unauthorized error occurs */
+  /** Callback when 401 unauthorized error occurs or refresh fails */
   onUnauthorized?: () => void
-  /** Callback when session expires */
-  onSessionExpired?: () => void
+  /** Callback when session is refreshed successfully */
+  onSessionRefreshed?: (session: Session) => void
   /** Callback for general auth errors */
   onAuthError?: (error: AuthError) => void
 }

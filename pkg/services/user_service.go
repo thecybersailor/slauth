@@ -321,16 +321,42 @@ func (u *User) GetActiveSessions(ctx context.Context) ([]*Session, error) {
 	return sessionObjects, nil
 }
 
-// RevokeAllSessions Revoke all user sessions
+// RevokeAllSessions Revoke all user sessions and refresh tokens (industry best practice)
 func (u *User) RevokeAllSessions(ctx context.Context) error {
 	now := time.Now()
-	return u.db.WithContext(ctx).Model(&models.Session{}).
+
+	// Start transaction to ensure atomicity
+	tx := u.db.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Set not_after for all active sessions
+	if err := tx.Model(&models.Session{}).
 		Where("user_id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
 			u.ID, u.domainCode, now).
 		Updates(map[string]any{
 			"not_after":  now,
 			"updated_at": now,
-		}).Error
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 2. Revoke all refresh tokens for this user (Supabase best practice)
+	if err := tx.Model(&models.RefreshToken{}).
+		Where("user_id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Updates(map[string]any{
+			"revoked":    true,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // RevokeAllSessionsExcept Revoke all user sessions except specified one

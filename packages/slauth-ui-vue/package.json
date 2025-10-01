@@ -1,6 +1,6 @@
 {
   "name": "@cybersailor/slauth-ui-vue",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Vue 3 UI components for slauth",
   "keywords": [
     "auth",
@@ -27,8 +27,7 @@
       "import": "./dist/index.es.js",
       "require": "./dist/index.cjs.js"
     },
-    "./style.css": "./dist/@cybersailor/slauth-ui-vue.css",
-    "./dist/@cybersailor/slauth-ui-vue.css": "./dist/@cybersailor/slauth-ui-vue.css",
+    "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
   "workspaces": [
@@ -44,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@cybersailor/slauth-ts": "^0.8.1",
+    "@cybersailor/slauth-ts": "^0.8.2",
     "ua-parser-js": "^1.0.41"
   },
   "peerDependencies": {

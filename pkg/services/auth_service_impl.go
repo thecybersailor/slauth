@@ -288,10 +288,84 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	return sessionObj, accessToken, refreshToken, expiresAt, nil
 }
 
+// RefreshSession refreshes an existing session with new tokens (reuses session per best practice)
+func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessionID uint, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error) {
+	// Get existing session
+	var session models.Session
+	if err := s.db.First(&session, sessionID).Error; err != nil {
+		return nil, "", "", 0, err
+	}
+
+	// Update session refresh time and metadata
+	now := time.Now()
+	session.RefreshedAt = &now
+	session.UpdatedAt = now
+	session.AAL = &aal
+	session.UserAgent = &userAgent
+	session.IP = &ip
+
+	if err := s.db.Save(&session).Error; err != nil {
+		return nil, "", "", 0, err
+	}
+
+	// Parse user metadata
+	var userMeta, appMeta map[string]any
+	if user.RawUserMetaData != nil {
+		if err := json.Unmarshal(*user.RawUserMetaData, &userMeta); err != nil {
+			return nil, "", "", 0, err
+		}
+	}
+
+	// Generate new access token
+	email := ""
+	if user.Email != nil {
+		email = *user.Email
+	}
+	phone := ""
+	if user.Phone != nil {
+		phone = *user.Phone
+	}
+
+	accessToken, expiresAt, err := s.jwtService.GenerateAccessTokenWithExpiry(
+		user.HashID, s.domainCode, email, phone, "authenticated",
+		aal, amr, session.ID, userMeta, appMeta,
+	)
+	if err != nil {
+		return nil, "", "", 0, err
+	}
+
+	// Generate new refresh token
+	refreshToken, err := s.jwtService.GenerateRefreshToken()
+	if err != nil {
+		return nil, "", "", 0, err
+	}
+
+	// Store new refresh token
+	refreshTokenRecord := &models.RefreshToken{
+		Token:      refreshToken,
+		UserID:     user.ID,
+		SessionID:  session.ID,
+		DomainCode: s.domainCode,
+		Revoked:    false,
+	}
+
+	if err := s.db.Create(refreshTokenRecord).Error; err != nil {
+		return nil, "", "", 0, err
+	}
+
+	// Wrap as Session
+	sessionObj, err := NewSession(&session)
+	if err != nil {
+		return nil, "", "", 0, consts.UNEXPECTED_FAILURE
+	}
+
+	return sessionObj, accessToken, refreshToken, expiresAt, nil
+}
+
 // ValidateRefreshToken validates and returns refresh token info
 func (s *AuthServiceImpl) ValidateRefreshToken(ctx context.Context, tokenString string) (*models.RefreshToken, error) {
 	var token models.RefreshToken
-	err := s.db.Where("token = ? AND domain_code = ? AND (revoked IS NULL OR revoked = false)",
+	err := s.db.WithContext(ctx).Preload("Session").Where("token = ? AND domain_code = ? AND (revoked IS NULL OR revoked = false)",
 		tokenString, s.domainCode).First(&token).Error
 
 	if err != nil {
@@ -299,6 +373,13 @@ func (s *AuthServiceImpl) ValidateRefreshToken(ctx context.Context, tokenString 
 			return nil, consts.REFRESH_TOKEN_NOT_FOUND
 		}
 		return nil, err
+	}
+
+	// Check if associated session is revoked
+	if token.Session != nil && token.Session.NotAfter != nil {
+		if token.Session.NotAfter.Before(time.Now()) {
+			return nil, consts.SESSION_EXPIRED
+		}
 	}
 
 	return &token, nil

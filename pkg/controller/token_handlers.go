@@ -32,7 +32,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 	// Validate refresh token
 	refreshTokenRecord, err := a.authService.ValidateRefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
-		return consts.REFRESH_TOKEN_NOT_FOUND
+		return err
 	}
 
 	// Get user by real ID (since refresh token stores real ID)
@@ -50,16 +50,16 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		return consts.UNEXPECTED_FAILURE
 	}
 
-	// Create new session (this will generate new tokens)
-	sessionObj, accessToken, newRefreshToken, expiresAt, err := a.authService.CreateSession(
-		c.Request.Context(), userObj, "aal1", []string{"refresh_token"},
+	// Refresh existing session (reuse session per best practice)
+	sessionObj, accessToken, newRefreshToken, expiresAt, err := a.authService.RefreshSession(
+		c.Request.Context(), userObj, refreshTokenRecord.SessionID, "aal1", []string{"refresh_token"},
 		c.GetHeader("User-Agent"), c.ClientIP(),
 	)
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
 
-	// Revoke old refresh token
+	// Revoke old refresh token (token rotation)
 	if err := a.authService.RevokeRefreshToken(c.Request.Context(), req.RefreshToken); err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -101,8 +101,13 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 func (a *AuthController) SignOut(c *pin.Context) error {
 	req := &SignOutRequest{}
 	if err := c.BindJSON(req); err != nil {
-		// Allow empty body for logout
-		req = &SignOutRequest{Scope: "local"}
+		// Allow empty body for logout - defaults to global per industry best practice (Supabase)
+		req = &SignOutRequest{Scope: "global"}
+	}
+
+	// Default to global if scope is empty
+	if req.Scope == "" {
+		req.Scope = "global"
 	}
 
 	// Extract JWT from Authorization header
@@ -155,16 +160,9 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 
 	// Revoke tokens based on scope
 	switch req.Scope {
-	case "global":
-		// Revoke all user sessions
-		// Get user first, then revoke all sessions
-		user, err := a.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
-		if err != nil {
-			return consts.USER_NOT_FOUND
-		}
-		if err := user.RevokeAllSessions(c.Request.Context()); err != nil {
-			return consts.UNEXPECTED_FAILURE
-		}
+	case "local":
+		// Revoke current session only
+		err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetDomainCode(), sessionHashID)
 	case "others":
 		// For "others" scope, we need to revoke all sessions except current
 		// This requires getting all user sessions and revoking except current
@@ -185,9 +183,16 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 				}
 			}
 		}
-	default: // "local"
-		// Revoke current session only
-		err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetDomainCode(), sessionHashID)
+	default: // "global" - industry best practice default
+		// Revoke all user sessions and refresh tokens
+		// Get user first, then revoke all sessions
+		user, err := a.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
+		if err != nil {
+			return consts.USER_NOT_FOUND
+		}
+		if err := user.RevokeAllSessions(c.Request.Context()); err != nil {
+			return consts.UNEXPECTED_FAILURE
+		}
 	}
 
 	if err != nil {

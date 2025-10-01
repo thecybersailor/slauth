@@ -60,7 +60,7 @@ func (s *AdminSessionService) RevokeSession(ctx context.Context, domainCode, ses
 	return s.RevokeUserSession(ctx, domainCode, sessionID)
 }
 
-// RevokeUserSession revokes a specific session
+// RevokeUserSession revokes a specific session and its refresh tokens
 func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode, sessionID string) error {
 	// Parse sessionID to get real ID
 	realSessionID, err := GetSessionIDFromHashID(sessionID)
@@ -69,12 +69,38 @@ func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode,
 	}
 
 	now := time.Now()
-	return s.db.WithContext(ctx).Model(&models.Session{}).
+
+	// Start transaction to ensure atomicity
+	tx := s.db.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Set session.not_after
+	if err := tx.Model(&models.Session{}).
 		Where("id = ? AND domain_code = ?", realSessionID, domainCode).
 		Updates(map[string]any{
 			"not_after":  now,
 			"updated_at": now,
-		}).Error
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 2. Revoke all refresh tokens for this session (industry best practice)
+	if err := tx.Model(&models.RefreshToken{}).
+		Where("session_id = ? AND domain_code = ?", realSessionID, domainCode).
+		Updates(map[string]any{
+			"revoked":    true,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // ListAllSessions retrieves all sessions with pagination and filters

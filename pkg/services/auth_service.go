@@ -19,6 +19,7 @@ type AuthService interface {
 	AuthenticateUser(ctx context.Context, emailOrPhone, password string) (*User, error)
 
 	CreateSession(ctx context.Context, user *User, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error)
+	RefreshSession(ctx context.Context, user *User, sessionID uint, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error)
 	ValidateJWT(token string) (map[string]any, error)
 
 	ValidateRefreshToken(ctx context.Context, tokenString string) (*models.RefreshToken, error)

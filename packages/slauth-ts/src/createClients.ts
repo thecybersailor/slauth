@@ -13,9 +13,9 @@ export function createClients(config: ClientsConfig) {
     storage: config.storage,
     debug: config.debug,
     timeout: config.timeout,
-    // Pass error callbacks
+    // Pass callbacks
     onUnauthorized: config.onUnauthorized,
-    onSessionExpired: config.onSessionExpired,
+    onSessionRefreshed: config.onSessionRefreshed,
     onAuthError: config.onAuthError
   }
   

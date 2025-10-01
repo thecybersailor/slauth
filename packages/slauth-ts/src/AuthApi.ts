@@ -20,26 +20,54 @@ export class AuthApi {
   }
 
   constructor(baseURL: string, config: any) {
+    this.storage = new StorageManager(config.storage)
+    this.autoRefreshToken = config.autoRefreshToken !== false
+    this.persistSession = config.persistSession !== false
     
+    // Create clients first without refresh function
     this.api = createValidatedHttpClient({
       baseURL,
       ...config
     })
-    
     
     this.request = createHttpClient({
       baseURL: '', 
       ...config
     })
     
-    this.storage = new StorageManager(config.storage)
-    this.autoRefreshToken = config.autoRefreshToken !== false
-    this.persistSession = config.persistSession !== false
-
+    // Create refresh token function that uses this.api
+    const refreshTokenFn = async (): Promise<boolean> => {
+      if (!this.currentSession?.refresh_token) {
+        return false
+      }
+      
+      const requestBody = {
+        refresh_token: this.currentSession.refresh_token
+      }
+      
+      const { data, error } = await this.api.postWithValidation<Types.AuthData>(
+        '/token?grant_type=refresh_token',
+        requestBody,
+        Schemas.RefreshTokenRequestSchema,
+        Schemas.AuthDataSchema
+      )
+      
+      if (error || !data.session) {
+        return false
+      }
+      
+      await this.setSession(data.session as Types.Session)
+      config.onSessionRefreshed?.(data.session)
+      return true
+    }
+    
+    // Set refresh function if auto refresh is enabled
+    if (this.autoRefreshToken) {
+      (this.api as any).config.refreshTokenFn = refreshTokenFn;
+      (this.request as any).config.refreshTokenFn = refreshTokenFn
+    }
     
     this.syncTokenState()
-
-    // Initialize session from storage
     this.initializeSession()
   }
 

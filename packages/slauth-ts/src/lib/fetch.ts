@@ -13,10 +13,12 @@ export interface HttpClientConfig {
   headers?: { [key: string]: string }
   timeout?: number
   debug?: boolean
-  /** Callback when 401 unauthorized error occurs */
+  autoRefreshToken?: boolean
+  refreshTokenFn?: () => Promise<boolean>
+  /** Callback when 401 unauthorized error occurs or refresh fails */
   onUnauthorized?: () => void
-  /** Callback when session expires */
-  onSessionExpired?: () => void
+  /** Callback when session is refreshed successfully */
+  onSessionRefreshed?: (session: any) => void
   /** Callback for general auth errors */
   onAuthError?: (error: AuthError) => void
 }
@@ -89,22 +91,47 @@ export class HttpClient {
         }
         return response
       },
-      (error) => {
+      async (error) => {
         if (this.debug) {
           console.error('[slauth] Response error:', error)
         }
+        
+        const originalRequest = error.config
         const authError = this.handleError(error)
         
-        // Trigger error callbacks based on error type (only for AuthError, not AuthNetworkError)
-        if (isAuthError(authError)) {
-          if (authError.key === 'auth.authorization_required' || 
-              authError.key === 'auth.unauthorized') {
+        // Check if it's a 401 error and auto refresh is enabled
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          if (this.config.autoRefreshToken && this.config.refreshTokenFn && !originalRequest._retry) {
+            originalRequest._retry = true
+            
+            if (this.debug) {
+              console.log('[slauth] Attempting to refresh token')
+            }
+            
+            // Attempt to refresh token
+            const refreshSuccess = await this.config.refreshTokenFn().catch(() => false)
+            
+            if (refreshSuccess) {
+              if (this.debug) {
+                console.log('[slauth] Token refresh successful, retrying request')
+              }
+              // Retry the original request
+              return this.client(originalRequest)
+            } else {
+              if (this.debug) {
+                console.log('[slauth] Token refresh failed')
+              }
+              // Refresh failed, trigger onUnauthorized
+              this.config.onUnauthorized?.()
+            }
+          } else {
+            // Auto refresh not enabled or already retried, trigger onUnauthorized
             this.config.onUnauthorized?.()
-          } else if (authError.key === 'auth.session_expired') {
-            this.config.onSessionExpired?.()
           }
-          
-          // Trigger general error callback
+        }
+        
+        // Trigger general error callback for AuthError
+        if (isAuthError(authError)) {
           this.config.onAuthError?.(authError)
         }
         
