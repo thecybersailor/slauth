@@ -45,7 +45,7 @@ jobs:
         run: |
           docker compose -f docker-compose.e2e.yml up -d frontend
           echo "Waiting for frontend to be ready..."
-          timeout 20 bash -c 'until curl -s http://localhost:5180/health > /dev/null; do echo "Waiting for frontend..."; sleep 1; done'
+          timeout 20 bash -c 'until curl -s http://localhost:15180/health > /dev/null; do echo "Waiting for frontend..."; sleep 1; done'
           echo "Frontend is ready!"
 
       - name: Print frontend logs on startup failure
