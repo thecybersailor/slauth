@@ -6,16 +6,16 @@ WORKDIR /app
 # Copy all packages (required for local dependencies via Vite aliases)
 COPY packages/ ./packages/
 
-# Install dependencies for all packages (required for TypeScript configs and build tools)
+# Install dependencies for all packages (including devDependencies for build)
 WORKDIR /app/packages/slauth-ts
-RUN npm ci
+RUN npm ci --include=dev
 
 WORKDIR /app/packages/slauth-ui-vue
-RUN npm ci
+RUN npm ci --include=dev
 
 # Change to demo-fe directory and install its dependencies
 WORKDIR /app/packages/demo-fe
-RUN npm ci
+RUN npm ci --include=dev
 
 # Build argument for API URL
 ARG VITE_API_URL
