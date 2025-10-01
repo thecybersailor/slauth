@@ -48,7 +48,7 @@ test.describe('OTP Verification Flow', () => {
       console.log('📧 OTP send response:', responseData)
 
       
-      await page.waitForTimeout(3000)
+
     })
 
     // ==================== Step 2: Navigate to OTP verification page ====================
@@ -69,7 +69,7 @@ test.describe('OTP Verification Flow', () => {
     // ==================== Step 4: Get OTP from MailHog ====================
     await test.step('Get OTP from MailHog', async () => {
       
-      await page.waitForTimeout(3000)
+
 
       
       const emails = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`).then(r => r.json())
@@ -120,7 +120,7 @@ test.describe('OTP Verification Flow', () => {
       console.log('🔐 Click verify OTP')
       
       
-      await page.waitForTimeout(2000)
+
     })
 
     // ==================== Step 8: Verify OTP verification success ====================
@@ -166,7 +166,7 @@ test.describe('OTP Verification Flow', () => {
       await expect(resendButton).toBeVisible()
       await resendButton.click()
       console.log('📧 Send initial OTP')
-      await page.waitForTimeout(2000)
+
     })
 
     // ==================== Step 3: Test resend functionality ====================
@@ -183,7 +183,7 @@ test.describe('OTP Verification Flow', () => {
         console.log('🔄 Click resend OTP')
         
         
-        await page.waitForTimeout(2000)
+
         
         
         const resendMessage = page.locator('text=Verification code sent!')
@@ -232,7 +232,7 @@ test.describe('OTP Verification Flow', () => {
       console.log('🔐 Click verify incorrect OTP')
       
       
-      await page.waitForTimeout(2000)
+
     })
 
     // ==================== Step 3: Verify error handling ====================
@@ -286,7 +286,7 @@ test.describe('OTP Verification Flow', () => {
     // ==================== Step 2: Get SMS from SMSHog ====================
     await test.step('Get SMS from SMSHog', async () => {
       
-      await page.waitForTimeout(2000)
+
       
       
       const smsResponse = await page.request.get(`${testConfig.smshogUrl}/api/v1/sms`)

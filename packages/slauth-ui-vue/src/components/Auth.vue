@@ -24,7 +24,6 @@
       <SignIn
         v-if="currentView === 'sign_in'"
         :localization="mergedLocalization.sign_in"
-        @switch-view="setView"
         @auth-event="handleAuthEvent"
       />
 
@@ -32,7 +31,6 @@
       <SignUp
         v-else-if="currentView === 'sign_up'"
         :localization="mergedLocalization.sign_up"
-        @switch-view="setView"
         @auth-event="handleAuthEvent"
       />
 
@@ -40,7 +38,6 @@
       <MagicLink
         v-else-if="currentView === 'magic_link'"
         :localization="mergedLocalization.magic_link"
-        @switch-view="setView"
         @auth-event="handleAuthEvent"
       />
 
@@ -48,7 +45,6 @@
       <ForgotPassword
         v-else-if="currentView === 'forgotten_password'"
         :localization="mergedLocalization.forgotten_password"
-        @switch-view="setView"
         @auth-event="handleAuthEvent"
       />
 
@@ -56,7 +52,6 @@
       <UpdatePassword
         v-else-if="currentView === 'update_password'"
         :localization="mergedLocalization.update_password"
-        @switch-view="setView"
         @auth-event="handleAuthEvent"
       />
 
@@ -64,9 +59,29 @@
       <VerifyOtp
         v-else-if="currentView === 'verify_otp'"
         :localization="mergedLocalization.verify_otp"
-        @switch-view="setView"
         @auth-event="handleAuthEvent"
       />
+
+      <!-- Email Confirmed View -->
+      <div v-else-if="currentView === 'confirmed'" class="slauth-ui__confirmed" data-testid="confirmed-view">
+        <div class="slauth-ui__confirmed-content">
+          <div class="slauth-ui__confirmed-icon">✅</div>
+          <h2 class="slauth-ui__confirmed-title" data-testid="confirmed-title">
+            Email Confirmed Successfully
+          </h2>
+          <p class="slauth-ui__confirmed-message" data-testid="confirmed-message">
+            Your email has been verified. You can now sign in to your account.
+          </p>
+          <a
+            :href="`${authConfig.authBaseUrl}/signin`"
+            class="slauth-ui__confirmed-link"
+            data-testid="confirmed-signin-link"
+          >
+            Continue to Sign In
+          </a>
+        </div>
+      </div>
+
       <div v-else-if="currentView === 'callback'" class="slauth-ui__callback-mask">
         <div class="slauth-ui__callback-content">
           <!-- Error state -->
@@ -105,7 +120,8 @@ import { ref, computed, watch, onMounted, getCurrentInstance } from 'vue'
 import type { AuthEvent } from '../types'
 import { mergeLocalization } from '../localization'
 import { useAuthContext } from '../composables/useAuthContext'
-import { getPreservedParams, buildUrlWithPreservedParams } from '../lib/redirectManager'
+import { useAuthPaths, KNOWN_ACTIONS } from '../composables/useAuthPaths'
+import { buildUrlWithPreservedParams } from '../lib/redirectManager'
 import SignIn from './SignIn.vue'
 import SignUp from './SignUp.vue'
 import MagicLink from './MagicLink.vue'
@@ -128,22 +144,23 @@ const emit = defineEmits<{
   'sign-up': [event: AuthEvent]
   'auth-state-change': [event: AuthEvent, session: any]
   'magic-link': [event: AuthEvent]
+  'email-confirmed': [event: AuthEvent]
   event: [event: AuthEvent]
 }>()
 
 // Use AuthContext
 const { authClient, authConfig, localization, darkMode } = useAuthContext()
 
+// Use AuthPaths
+const { detectedBasePath, buildAuthPath, detectAuthBasePath } = useAuthPaths()
+
 // Get Vue Router instance (if exists)
 const instance = getCurrentInstance()
 const router = instance?.appContext.config.globalProperties.$router
 const route = instance?.appContext.config.globalProperties.$route
 
-// Fixed convention - route actions
-const KNOWN_ACTIONS = ['signup', 'signin', 'forgot-password', 'reset-password', 'magic-link', 'verify-otp', 'callback', 'confirm']
-
 // Current view and confirmation status
-const currentView = ref<'sign_in' | 'sign_up' | 'magic_link' | 'forgotten_password' | 'update_password' | 'verify_otp' | 'callback'>('sign_in')
+const currentView = ref<'sign_in' | 'sign_up' | 'magic_link' | 'forgotten_password' | 'update_password' | 'verify_otp' | 'callback' | 'confirmed'>('sign_in')
 const confirmationStatus = ref<string>('')
 const callbackError = ref<{ message: string; key?: string } | null>(null)
 
@@ -160,19 +177,9 @@ const debugLog = (message: string, data?: any) => {
   }
 }
 
-// Auto path detection logic
-const detectAuthBasePath = (): { basePath: string, action: string } => {
-  const segments = window.location.pathname.split('/').filter(Boolean)
-  const lastSegment = segments[segments.length - 1]
-  const isKnownAction = KNOWN_ACTIONS.includes(lastSegment)
-  const basePath = isKnownAction ? `/${segments.slice(0, -1).join('/')}` : `/${segments.join('/')}`
-  return { basePath, action: isKnownAction ? lastSegment : 'signin' }
-}
 // Auth flow navigation function
 const navigateToAuthStep = (step: string, additionalParams: Record<string, string> = {}) => {
-  // Use authConfig.authBaseUrl instead of auto-detection
-  const authPath = `${authConfig.authBaseUrl}/${step}`
-  const urlWithParams = buildUrlWithPreservedParams(authPath, additionalParams)
+  const urlWithParams = buildAuthPath(step, additionalParams)
 
   if (router) {
     router.push(urlWithParams)
@@ -218,7 +225,8 @@ const setViewFromAction = (action: string) => {
     'magic-link': 'magic_link',
     'verify-otp': 'verify_otp',
     'callback': 'callback',
-    'confirm': 'sign_in'
+    'confirm': 'sign_in',
+    'confirmed': 'confirmed'
   }
   
   const newView = actionToViewMap[action] || 'sign_in'
@@ -261,11 +269,12 @@ const handleEmailConfirmation = async () => {
     }
     handleAuthEvent(authEvent)
 
-    // Navigate to login page and show success message
-    // Email confirmation doesn't have backend redirect_to, use config or default
-    const finalRedirectTo = redirectParam || authConfig.redirectTo || `${authConfig.authBaseUrl}/signin?confirmed=true`
-    
-    smartNavigate(finalRedirectTo)
+    // Navigate to confirmed view instead of signin page
+    currentView.value = 'confirmed'
+
+    // Update URL to reflect confirmed state without redirect params
+    const newUrl = `${authConfig.authBaseUrl}/confirmed`
+    window.history.replaceState({}, '', newUrl)
   } else {
     confirmationStatus.value = 'no_token'
     currentView.value = 'sign_in'
@@ -411,50 +420,6 @@ if (route) {
 const mergedLocalization = computed(() => mergeLocalization(localization as any))
 const theme = computed(() => darkMode ? 'dark' : 'light')
 const appearance = computed(() => authConfig.appearance || 'default')
-const providers = computed(() => authConfig.providers || [])
-const showLinks = computed(() => authConfig.showLinks !== false)
-const magicLink = computed(() => authConfig.magicLink || false)
-const showForgotPassword = computed(() => authConfig.showForgotPassword !== false)
-const onlyThirdPartyProviders = computed(() => authConfig.onlyThirdPartyProviders || false)
-const followRedirect = computed(() => authConfig.followRedirect !== false)
-const redirectTo = computed(() => authConfig.redirectTo)
-
-// Note: No longer need provide, because AuthConfig component already provides context
-
-// Methods
-const setView = (view: string) => {
-  const newView = view as typeof currentView.value
-  const oldView = currentView.value
-  currentView.value = newView
-  
-  debugLog('View switching', {
-    from: oldView,
-    to: newView,
-    hasRouter: !!router
-  })
-
-  // If router exists, sync update URL
-  if (router) {
-    const viewToActionMap: Record<typeof currentView.value, string> = {
-      'sign_in': '',
-      'sign_up': 'signup',
-      'forgotten_password': 'forgot-password',
-      'update_password': 'reset-password',
-      'magic_link': 'magic-link',
-      'verify_otp': 'verify-otp',
-      'callback': 'callback'
-    }
-
-    const action = viewToActionMap[newView] || ''
-    const authPath = action ? `${authConfig.authBaseUrl}/${action}` : authConfig.authBaseUrl
-    const urlWithParams = buildUrlWithPreservedParams(authPath)
-
-    debugLog('URL updated', { authPath, urlWithParams })
-
-    // Use replace instead of push to avoid stacking in history
-    router.replace(urlWithParams)
-  }
-}
 
 
 const handleAuthFlowResponse = (response: any) => {
@@ -533,6 +498,11 @@ const handleAuthEvent = (event: AuthEvent) => {
       break
     case 'AUTH_ID_TOKEN':
       emit('magic-link', event)
+      break
+    case 'EMAIL_CONFIRMED':
+      emit('email-confirmed', event)
+      // Show success notification for email confirmation
+      debugLog('Email confirmation successful', event)
       break
     case 'TOKEN_REFRESHED':
     case 'USER_UPDATED':
@@ -727,5 +697,83 @@ const handleAuthEvent = (event: AuthEvent) => {
   outline: 2px solid var(--auth-ui-primary, #3b82f6);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/* Email Confirmed View */
+.slauth-ui__confirmed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  padding: 2rem;
+}
+
+.slauth-ui__confirmed-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+  max-width: 400px;
+  padding: 2rem;
+}
+
+.slauth-ui__confirmed-icon {
+  font-size: 4rem;
+  line-height: 1;
+  animation: slauth-ui-bounce 1s ease-in-out;
+}
+
+.slauth-ui__confirmed-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--auth-ui-text, #111827);
+}
+
+.slauth-ui__confirmed-message {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--auth-ui-text-muted, #6b7280);
+  line-height: 1.5;
+}
+
+.slauth-ui__confirmed-link {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  background-color: var(--auth-ui-primary, #3b82f6);
+  text-decoration: none;
+  border-radius: var(--auth-ui-radius-md, 0.375rem);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  display: inline-block;
+}
+
+.slauth-ui__confirmed-link:hover {
+  background-color: var(--auth-ui-primary-hover, #2563eb);
+  transform: translateY(-1px);
+}
+
+.slauth-ui__confirmed-link:focus {
+  outline: 2px solid var(--auth-ui-primary, #3b82f6);
+  outline-offset: 2px;
+}
+
+.slauth-ui__confirmed-link:active {
+  transform: translateY(0);
+}
+
+@keyframes slauth-ui-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
 }
 </style>

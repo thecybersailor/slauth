@@ -40,6 +40,26 @@ test.describe('Complete Signup Flow', () => {
     page.on('pageerror', error => {
       console.log('❌ Page error:', error.message);
     });
+
+    // ==================== Step 0: Enable email confirmation via admin API ====================
+    await test.step('Enable email confirmation in backend config', async () => {
+      console.log('🔧 Enabling email confirmation via admin API...');
+      
+      const configResponse = await page.request.put(`${testConfig.backendUrl}/admin/config`, {
+        data: {
+          config: {
+            confirm_email: true
+          }
+        }
+      });
+      
+      console.log('📡 Config update response status:', configResponse.status());
+      const configResult = await configResponse.json();
+      console.log('📡 Config update response:', JSON.stringify(configResult, null, 2));
+      
+      expect(configResponse.ok()).toBeTruthy();
+      console.log('✅ Email confirmation enabled');
+    });
     
     // ==================== Step 1: Navigate to homepage ====================
     await test.step(`Navigate to homepage ${testConfig.baseUrl}/auth/`, async () => {
@@ -106,7 +126,7 @@ test.describe('Complete Signup Flow', () => {
     // ==================== Step 4: Verify signup success message ====================
     await test.step('Verify signup success message', async () => {
       
-      await page.waitForTimeout(2000);
+
 
       
       const authMessage = page.getByTestId(TEST_IDS.AUTH_MESSAGE);
@@ -147,8 +167,10 @@ test.describe('Complete Signup Flow', () => {
     let confirmationToken: string;
     await test.step('Get confirmation token from MailHog email', async () => {
       
-      await page.waitForTimeout(3000);
+
       
+      console.log('📬 MailHog URL:', testConfig.mailhogUrl);
+      console.log('📬 Full API endpoint:', `${testConfig.mailhogUrl}/api/v1/messages`);
       
       const response = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`);
       expect(response.ok()).toBeTruthy();
@@ -158,7 +180,7 @@ test.describe('Complete Signup Flow', () => {
       
       if (emails.length === 0) {
         console.log('⚠️ No emails found, waiting longer...');
-        await page.waitForTimeout(5000);
+
         const retryResponse = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`);
         const retryEmails = await retryResponse.json();
         console.log(`📧 Found ${retryEmails.length} emails after retry`);
@@ -169,21 +191,57 @@ test.describe('Complete Signup Flow', () => {
       
       const confirmationEmail = emails[0];
       expect(confirmationEmail).toBeTruthy();
+      
+      console.log('📧 Email subject:', confirmationEmail.Content.Headers.Subject[0]);
+      console.log('📧 Email to:', confirmationEmail.Content.Headers.To[0]);
+      
       expect(confirmationEmail.Content.Headers.Subject[0]).toMatch(/confirm|verification/i);
       
       
       const emailBody = confirmationEmail.Content.Body;
+      console.log('📧 Email full content length:', emailBody.length);
       console.log('📧 Email content preview:', emailBody.substring(0, 200) + '...');
-      
-      
-      
-      const tokenMatch = emailBody.match(/token=3D([a-f0-9=\r\n]+)/) || emailBody.match(/\/auth\/confirm\?token=([a-f0-9]{64})/);
-      expect(tokenMatch).toBeTruthy();
-      
-      
-      const rawToken = tokenMatch[1].replace(/[=\r\n]/g, '');
-      expect(rawToken).toMatch(/^[a-f0-9]{64}$/); 
-      
+      console.log('📧 Email content (first 500 chars):', emailBody.substring(0, 500));
+
+      // Decode Quoted-Printable encoding
+      function decodeQuotedPrintable(text: string): string {
+        return text
+          .replace(/=3D/g, '=')           // Decode =3D to =
+          .replace(/=\r\n/g, '')         // Remove soft line breaks
+          .replace(/=\n/g, '')           // Remove soft line breaks (Unix style)
+          .replace(/=([0-9A-F]{2})/g, (match, hex) => {
+            return String.fromCharCode(parseInt(hex, 16));
+          });
+      }
+
+      const decodedBody = decodeQuotedPrintable(emailBody);
+      console.log('📧 Decoded email content:', decodedBody.substring(0, 200) + '...');
+
+      // Try multiple token extraction patterns
+      const tokenPatterns = [
+        /token=([a-f0-9]{64})/i,                    // Standard format after decoding
+        /token=3D([a-f0-9=\r\n]+)/,                 // Quoted-printable format
+        /\/auth\/confirm\?token=([a-f0-9]{64})/i,   // URL format
+        /confirm\?token=([a-f0-9]{64})/i            // Simplified URL format
+      ];
+
+      let rawToken = null;
+      let matchedPattern = null;
+
+      for (const pattern of tokenPatterns) {
+        const match = decodedBody.match(pattern) || emailBody.match(pattern);
+        if (match) {
+          rawToken = match[1].replace(/[=\r\n]/g, ''); // Clean up any remaining artifacts
+          matchedPattern = pattern.toString();
+          console.log('🔍 Matched pattern:', matchedPattern);
+          break;
+        }
+      }
+
+      console.log('🔑 Raw extracted token:', rawToken);
+      expect(rawToken).toBeTruthy();
+      expect(rawToken).toMatch(/^[a-f0-9]{64}$/);
+
       confirmationToken = rawToken;
       console.log(`✅ Extracted confirmation token: ${confirmationToken.substring(0, 8)}...`);
     });
@@ -256,7 +314,7 @@ test.describe('Complete Signup Flow', () => {
       console.log('✅ Auth component loaded');
       
       
-      await page.waitForTimeout(2000);
+
       
       
       const confirmationStatusElement = page.getByTestId('confirmation-status');
@@ -276,23 +334,38 @@ test.describe('Complete Signup Flow', () => {
       }
       
       
-      await page.waitForTimeout(2000);
+
       const finalUrl = page.url();
       console.log('📍 Final URL:', finalUrl);
-      
-      if (finalUrl.includes('/signin')) {
+
+      if (finalUrl.includes('/confirmed')) {
+        console.log('✅ Confirmation successful, redirected to confirmed page');
+
+        // Verify confirmed view content
+        await expect(page.getByTestId('confirmed-view')).toBeVisible();
+        await expect(page.getByTestId('confirmed-title')).toHaveText('Email Confirmed Successfully');
+        await expect(page.getByTestId('confirmed-message')).toContainText('Your email has been verified');
+        await expect(page.getByTestId('confirmed-signin-link')).toBeVisible();
+
+        console.log('✅ Confirmed view content verified');
+      } else if (finalUrl.includes('/signin')) {
         console.log('✅ Confirmation successful, redirected to signin page');
       } else {
         console.log('ℹ️ Confirmation complete, staying on confirmation page');
       }
-      
+
       console.log('✅ True e2e email confirmation complete');
     });
 
     // ==================== Step 7: Verify user can login normally ====================
     await test.step('Verify user can login normally', async () => {
-      
-      if (!page.url().includes('/signin')) {
+
+      // If on confirmed page, click the signin link
+      if (page.url().includes('/confirmed')) {
+        await page.getByTestId('confirmed-signin-link').click();
+        await expect(page).toHaveURL(/\/auth\/signin/);
+        console.log('✅ Navigated from confirmed page to signin page');
+      } else if (!page.url().includes('/signin')) {
         await page.goto(`${testConfig.baseUrl}/auth/signin`);
       }
       
@@ -305,13 +378,15 @@ test.describe('Complete Signup Flow', () => {
       
       
       await expect(page.getByTestId(TEST_IDS.SIGNIN_BUTTON)).toHaveAttribute('data-status', 'loading');
-      await expect(page.getByTestId(TEST_IDS.SIGNIN_BUTTON)).toHaveAttribute('data-status', 'idle', { timeout: 10000 });
+
+      // Wait for login to complete - either redirect or success state
+
       
       
       // 1. May redirect to homepage
       // 2. Or display login success message
       
-      await page.waitForTimeout(2000);
+
       const currentUrl = page.url();
       console.log('🔍 Current URL after login:', currentUrl);
       

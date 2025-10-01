@@ -83,7 +83,7 @@ test.describe('Complete Login Flow', () => {
       console.log('🔐 Login request sent')
 
 
-      await page.waitForTimeout(2000)
+
     })
 
     // ==================== Step 4: Verify login success ====================
@@ -150,7 +150,7 @@ test.describe('Complete Login Flow', () => {
       }
 
 
-      await page.waitForTimeout(1000)
+
 
 
       await expect(page).toHaveURL(/.*\/$/, { timeout: 5000 })
@@ -191,7 +191,7 @@ test.describe('Complete Login Flow', () => {
       console.log('🔐 Submitted wrong login request')
 
 
-      await page.waitForTimeout(2000)
+
     })
 
     // ==================== Step 3: Verify error message display ====================
@@ -296,7 +296,7 @@ test.describe('Complete Login Flow', () => {
       console.log('🔐 Submit login request')
 
 
-      await page.waitForTimeout(2000)
+
     })
 
     // ==================== Step 4: Verify login success ====================

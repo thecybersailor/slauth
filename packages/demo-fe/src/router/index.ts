@@ -14,6 +14,11 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/test/:pathMatch(.*)*',
+      name: 'test-path',
+      component: () => import('../views/TestPathView.vue')
+    },
+    {
       path: '/admin/:pathMatch(.*)*',
       name: 'admin',
       component: () => import('../views/AdminView.vue')
@@ -36,7 +41,7 @@ router.beforeEach((to, from, next) => {
     const isAuthenticated = checkAuthStatus()
 
     if (!isAuthenticated) {
-      next({ name: 'signin', query: { redirect: to.fullPath } })
+      next({ name: 'auth', query: { redirect: to.fullPath } })
       return
     }
   }

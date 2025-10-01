@@ -69,6 +69,17 @@ func main() {
 		panic(fmt.Sprintf("Failed to connect database: %v", err))
 	}
 
+	// Configure connection pool for memory database
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get underlying sql.DB: %v", err))
+	}
+
+	// Critical: Set MaxOpenConns to 1 for memory database to prevent table loss
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+
 	// Set global DB for models package
 	models.DB = db
 

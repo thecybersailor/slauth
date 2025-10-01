@@ -123,7 +123,13 @@ func (l *ConfigLoader) InvalidateCache() {
 }
 
 func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
-	configBytes, err := json.Marshal(cfg)
+	// Get current config to merge with new config
+	currentConfig := l.GetConfig()
+
+	// Merge new config with current config (partial update)
+	mergedConfig := l.mergeConfigs(currentConfig, cfg)
+
+	configBytes, err := json.Marshal(mergedConfig)
 	if err != nil {
 		return err
 	}
@@ -151,4 +157,60 @@ func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
 	}
 
 	return err
+}
+
+// mergeConfigs merges new config with current config, preserving existing values for unspecified fields
+func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *config.AuthServiceConfig {
+	merged := &config.AuthServiceConfig{}
+
+	// Copy current config as base
+	*merged = *current
+
+	// Override with new values
+	// For boolean fields, always update since false is a valid value
+	merged.AllowNewUsers = new.AllowNewUsers
+	merged.ManualLinking = new.ManualLinking
+	merged.AnonymousSignIns = new.AnonymousSignIns
+	merged.ConfirmEmail = new.ConfirmEmail
+	merged.EnableCaptcha = new.EnableCaptcha
+
+	// For string fields, only update if not empty
+	if new.SiteURL != "" {
+		merged.SiteURL = new.SiteURL
+	}
+	if new.AuthServiceBaseUrl != "" {
+		merged.AuthServiceBaseUrl = new.AuthServiceBaseUrl
+	}
+	if new.RedirectURLs != nil {
+		merged.RedirectURLs = new.RedirectURLs
+	}
+	if new.MFAUpdateRequiredAAL != "" {
+		merged.MFAUpdateRequiredAAL = new.MFAUpdateRequiredAAL
+	}
+
+	// For numeric fields, only update if > 0
+	if new.MaximumMfaFactors > 0 {
+		merged.MaximumMfaFactors = new.MaximumMfaFactors
+	}
+	if new.MaximumMfaFactorValidationAttempts > 0 {
+		merged.MaximumMfaFactorValidationAttempts = new.MaximumMfaFactorValidationAttempts
+	}
+	if new.MaxTimeAllowedForAuthRequest > 0 {
+		merged.MaxTimeAllowedForAuthRequest = new.MaxTimeAllowedForAuthRequest
+	}
+	if new.SessionConfig != nil {
+		merged.SessionConfig = new.SessionConfig
+	}
+	if new.RatelimitConfig != nil {
+		merged.RatelimitConfig = new.RatelimitConfig
+	}
+	if new.SecurityConfig != nil {
+		merged.SecurityConfig = new.SecurityConfig
+	}
+
+	// Always preserve secrets
+	merged.JWTSecret = current.JWTSecret
+	merged.AppSecret = current.AppSecret
+
+	return merged
 }

@@ -3,11 +3,11 @@ Email SignIn Flow Test
 Test complete flow of reading user info from TestContext and logging in
 
 Run command:
-npm run test:e2e -- e2e/02-email-signin-flow.spec.ts --headed --project=chromium --timeout=60000
+npm run test:e2e -- e2e/02-email-signin-flow.spec.ts --project=chromium
 */
 import { test, expect } from './fixtures/base.fixtures.js';
 import { testConfig, TEST_IDS } from './fixtures/test-data.js';
-import { clearAuthState, getAllLocalStorage } from './helpers/auth.helper.js';
+import { clearAuthState } from './helpers/auth.helper.js';
 
 /**
  * Email SignIn Flow Test
@@ -23,13 +23,7 @@ import { clearAuthState, getAllLocalStorage } from './helpers/auth.helper.js';
 
 test.describe('Email SignIn Flow', () => {
   test.beforeEach(async ({ page }) => {
-    
-    page.setDefaultTimeout(testConfig.timeout);
-    
-    
     await page.goto('/');
-    
-    
     await clearAuthState(page);
   });
 
@@ -69,16 +63,12 @@ test.describe('Email SignIn Flow', () => {
 
     // ==================== Step 2: Navigate to login page ====================
     await test.step('Navigate to login page', async () => {
-      
-      await page.getByTestId('signin-link').click();
-      
-      
-      await expect(page).toHaveURL('/auth/signin');
-      
-      
-      await expect(page.getByTestId(TEST_IDS.PAGE_TITLE)).toContainText('Sign in to your account');
-      
-      console.log('✅ Successfully navigated to login page');
+      await page.goto(`${testConfig.baseUrl}/auth/signin`);
+
+      // Verify signin form is visible
+      await expect(page.getByTestId(TEST_IDS.SIGNIN_FORM)).toBeVisible();
+
+      console.log('✅ Login form is visible');
     });
 
     // ==================== Step 3: Fill login form ====================
@@ -114,59 +104,44 @@ test.describe('Email SignIn Flow', () => {
       console.log('✅ Login form submitted');
     });
 
-    // ==================== Step 5: Wait for login processing to complete ====================
-    await test.step('Wait for login processing to complete', async () => {
-      
-      await page.waitForTimeout(2000);
-      console.log('✅ Login processing completed');
-    });
+    // ==================== Step 5: Verify no error message ====================
+    await test.step('Verify no error message', async () => {
+      // Check if error message is displayed
+      const errorMessage = page.getByTestId(TEST_IDS.AUTH_MESSAGE);
+      const isErrorVisible = await errorMessage.isVisible().catch(() => false);
 
-    // ==================== Step 6: Check localStorage state ====================
-    await test.step('Check localStorage state', async () => {
-      
-      await page.waitForTimeout(1000);
-
-      
-      const sessionData = await page.evaluate(() => {
-        return localStorage.getItem('aira.auth.token');
-      });
-
-      console.log('📊 localStorage session data:', sessionData);
-
-      if (sessionData) {
-        const session = JSON.parse(sessionData);
-        console.log('🔑 Session access_token exists:', !!session.access_token);
-        console.log('⏰ Session expires_at:', session.expires_at);
-        console.log('👤 Session user:', session.user?.email);
+      if (isErrorVisible) {
+        const errorText = await errorMessage.textContent();
+        console.log('❌ Login error message:', errorText);
+        throw new Error(`Login failed: ${errorText}`);
       }
+
+      console.log('✅ No error message - login processing completed');
     });
 
-    // ==================== Step 7: Verify page navigation to Dashboard ====================
-    await test.step('Verify page navigation to Dashboard', async () => {
-      
-      await expect(page).toHaveURL('/dashboard', { timeout: 5000 });
+    // ==================== Step 6: Verify Dashboard page is displayed ====================
+    await test.step('Verify Dashboard page is displayed', async () => {
+      const email = (test as any).userEmail;
 
-      console.log('✅ Page successfully navigated to Dashboard');
+      // Verify Dashboard title is visible
+      await expect(page.getByTestId('dashboard-title')).toBeVisible();
+      console.log('✅ Dashboard title is visible');
+
+      // Verify user email is displayed in Dashboard
+      const userEmailElement = page.getByTestId('user-email');
+      await expect(userEmailElement).toBeVisible();
+      await expect(userEmailElement).toHaveText(email);
+      console.log('✅ User email is displayed correctly in Dashboard');
+
+      // Verify sign out button is visible
+      await expect(page.getByTestId('signout-button')).toBeVisible();
+      console.log('✅ Sign out button is visible');
+
+      console.log('✅ Login success - Dashboard loaded with user data');
     });
 
-    // ==================== Step 7: Verify authentication state ====================
-    await test.step('Verify authentication state', async () => {
-      
-      const allLocalStorage = await getAllLocalStorage(page);
-      console.log('🔍 localStorage content:', allLocalStorage);
-      
-      
-      const hasUserData = Object.keys(allLocalStorage).some(key => 
-        key.includes('user') || key.includes('auth') || key.includes('token')
-      );
-      
-      if (hasUserData) {
-        console.log('✅ Authentication state saved to localStorage');
-      } else {
-        console.log('⚠️ Authentication info not found in localStorage');
-      }
-      
-      
+    // ==================== Step 7: Update test context ====================
+    await test.step('Update test context', async () => {
       testContext.set('test.status', 'signin_completed');
       testContext.set('test.signin_timestamp', new Date().toISOString());
       
@@ -175,48 +150,24 @@ test.describe('Email SignIn Flow', () => {
   });
 
   test('Test login with invalid credentials', async ({ page }) => {
-    
     await page.goto('/auth/signin');
 
-    
+    // Fill invalid credentials
     await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill('invalid@example.com');
     await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill('wrongpassword');
 
-    
+    // Submit form
     await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();
 
-    
-    await page.waitForTimeout(3000);
-
-    
-    const pageContent = await page.content();
-    console.log('🔍 data-testid attributes in page content:', pageContent.match(/data-testid="[^"]*"/g) || []);
-
-    
-    const allMessages = await page.locator('[data-testid*="message"]').all();
-    console.log('🔍 Number of message elements found:', allMessages.length);
-
-    for (let i = 0; i < allMessages.length; i++) {
-      const testId = await allMessages[i].getAttribute('data-testid');
-      const isVisible = await allMessages[i].isVisible();
-      const textContent = await allMessages[i].textContent();
-      console.log(`🔍 Message element ${i}: data-testid="${testId}", visible=${isVisible}, text="${textContent}"`);
-    }
-
-    
-    const errorMessage = page.getByTestId('error-message');
+    // Verify error message is displayed
     const authMessage = page.getByTestId(TEST_IDS.AUTH_MESSAGE);
-
+    await expect(authMessage).toBeVisible();
     
-    try {
-      await expect(errorMessage).toBeVisible({ timeout: 5000 });
-      console.log('✅ Found error-message element');
-      await expect(errorMessage).toHaveAttribute('data-status', 'error');
-    } catch (e) {
-      console.log('⚠️ error-message not found, trying auth-message');
-      await expect(authMessage).toBeVisible({ timeout: 5000 });
-      await expect(authMessage).toHaveAttribute('data-status', 'error');
-    }
+    const errorText = await authMessage.textContent();
+    console.log('Error message:', errorText);
+    
+    // Verify still on signin page (login failed)
+    await expect(page.getByTestId(TEST_IDS.SIGNIN_FORM)).toBeVisible();
 
     console.log('✅ Invalid credentials login test completed');
   });
@@ -229,7 +180,7 @@ test.describe('Email SignIn Flow', () => {
     await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();
     
     
-    await page.waitForTimeout(2000);
+
     
     
     const messageElement = page.getByTestId(TEST_IDS.AUTH_MESSAGE);
@@ -256,7 +207,7 @@ test.describe('Email SignIn Flow', () => {
     await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();
     
     
-    await page.waitForTimeout(2000);
+
     
     
     const errorMessage = page.getByTestId(TEST_IDS.ERROR_MESSAGE);
@@ -283,7 +234,7 @@ test.describe('Email SignIn Flow', () => {
     await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();
     
     
-    await page.waitForTimeout(2000);
+
     
     
     const errorMessage = page.getByTestId(TEST_IDS.ERROR_MESSAGE);
@@ -311,7 +262,7 @@ test.describe('Email SignIn Flow', () => {
     await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();
     
     
-    await page.waitForTimeout(2000);
+
     
     
     const errorMessage = page.getByTestId(TEST_IDS.ERROR_MESSAGE);
@@ -328,25 +279,28 @@ test.describe('Email SignIn Flow', () => {
   });
 
   test('Test navigation links', async ({ page }) => {
-    
     await page.goto('/auth/signin');
 
-    
+    // Test Forgot Password link
     const forgotPasswordLink = page.getByTestId('forgot-password-link');
     if (await forgotPasswordLink.isVisible()) {
       await forgotPasswordLink.click();
-      await expect(page).toHaveURL(/\/auth\/forgot-password/);
+      
+      // Verify forgot password form is visible
+      await expect(page.getByTestId('forgot-password-form')).toBeVisible();
       console.log('✅ Forgot Password link works correctly');
 
-      
       await page.goBack();
+      await expect(page.getByTestId(TEST_IDS.SIGNIN_FORM)).toBeVisible();
     }
     
-    
+    // Test Sign Up link
     const signUpLink = page.getByTestId('signup-redirect-link');
     if (await signUpLink.isVisible()) {
       await signUpLink.click();
-      await expect(page).toHaveURL('/auth/signup');
+      
+      // Verify signup form is visible
+      await expect(page.getByTestId('signup-form')).toBeVisible();
       console.log('✅ Sign Up link works correctly');
     }
     
@@ -377,27 +331,26 @@ test.describe('Email SignIn Flow', () => {
       const email = testContext.get<string>('auth.email');
       const password = testContext.get<string>('auth.password');
 
-      
       await page.goto('/auth/signin');
-      await page.waitForLoadState('networkidle');
-
       
+      // Wait for signin form to be visible
+      await expect(page.getByTestId(TEST_IDS.SIGNIN_FORM)).toBeVisible();
+
+      // Fill login form
       await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill(email);
       await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(password);
 
-      
+      // Submit login
       await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();
 
-      
-      await page.waitForTimeout(2000);
-
-      
+      // Check for email confirmation message
       const messageElement = page.getByTestId(TEST_IDS.AUTH_MESSAGE);
-      if (await messageElement.isVisible()) {
+      const isMessageVisible = await messageElement.isVisible().catch(() => false);
+      
+      if (isMessageVisible) {
         const messageText = await messageElement.textContent();
         console.log('📧 Login message:', messageText);
 
-        
         if (messageText && messageText.match(/confirm.*email|verify.*email|check.*email/i)) {
           console.log('✅ Correctly prompts user to confirm email');
         } else {

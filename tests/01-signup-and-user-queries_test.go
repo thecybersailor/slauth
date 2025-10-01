@@ -2,6 +2,7 @@ package tests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -14,6 +15,14 @@ type SignupAndUserQueriesTestSuite struct {
 func (suite *SignupAndUserQueriesTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+
+	// Set default config: email confirmation enabled
+	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"confirm_email": true,
+		},
+	}, nil)
+	suite.Require().Equal(200, configResponse.ResponseRecorder.Code, "Failed to set default config")
 }
 
 // Test case corresponds to frontend code:
@@ -334,6 +343,92 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetRecentSignups() {
 
 	suite.Equal(float64(1), responseData["page"], "Page should be 1")
 	suite.Equal(float64(3), responseData["page_size"], "Page size should equal total users")
+}
+
+// Test case verifies that when email confirmation is disabled:
+// - User can signup and immediately get a session without email confirmation
+// - Tokens (access_token, refresh_token) are returned in the response
+// - email_confirmed_at remains NULL (not requiring confirmation ≠ auto-confirmed)
+func (suite *SignupAndUserQueriesTestSuite) TestSignupWithoutEmailConfirmation() {
+	email := "noconfirm@example.com"
+
+	// Disable email confirmation for this test (default is enabled by SetupSuite)
+	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}, nil)
+	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.T().Logf("Config updated to disable email confirmation")
+
+	// Verify config was updated by reading it back
+	getConfigResponse := suite.helper.MakeGETRequest(suite.T(), "/admin/config")
+	suite.T().Logf("Current config after update: %+v", getConfigResponse.Response.Data)
+
+	// Signup request with redirect parameter
+	requestBody := map[string]interface{}{
+		"email":    email,
+		"password": "MySecurePassword2024!",
+		"options": map[string]interface{}{
+			"redirect_to": "/dashboard",
+		},
+	}
+
+	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", requestBody)
+	response.Print()
+
+	// Verify response structure
+	responseData := response.Response.Data.(map[string]any)
+
+	// User should be created
+	userInfo := responseData["user"].(map[string]any)
+	suite.Equal(email, userInfo["email"], "User email should match")
+	suite.NotEmpty(userInfo["id"], "User ID should not be empty")
+
+	// Session should be created automatically when confirm_email=false
+	session := responseData["session"]
+	suite.NotNil(session, "Session should be created when email confirmation is disabled")
+
+	if session != nil {
+		sessionData := session.(map[string]any)
+		suite.NotEmpty(sessionData["access_token"], "Access token should be present")
+		suite.NotEmpty(sessionData["refresh_token"], "Refresh token should be present")
+		suite.Equal("Bearer", sessionData["token_type"], "Token type should be Bearer")
+		suite.NotEmpty(sessionData["expires_in"], "Expires in should be present")
+		suite.T().Logf("Session created successfully with access_token: %s...", sessionData["access_token"].(string)[:10])
+	}
+
+	// RedirectTo validation may fail if URL is not whitelisted, this is expected
+	redirectTo := responseData["redirect_to"]
+	if redirectTo != nil && redirectTo.(string) != "" {
+		suite.T().Logf("Redirect URL returned: %s", redirectTo.(string))
+	} else {
+		suite.T().Logf("Redirect URL validation failed (expected if /dashboard is not in whitelist)")
+	}
+
+	// Verify user exists in database
+	var user struct {
+		Email            string
+		EmailConfirmedAt *time.Time
+		DomainCode       string
+	}
+	err := suite.DB.Raw("SELECT email, email_confirmed_at, domain_code FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&user).Error
+	suite.Require().NoError(err)
+	suite.Equal(email, user.Email, "User email should match")
+	suite.Equal(suite.TestDomain, user.DomainCode, "User domain should match")
+
+	// When confirm_email is disabled, email_confirmed_at remains NULL
+	// The user can login immediately without confirmation, but the confirmation status is not automatically set
+	suite.Nil(user.EmailConfirmedAt, "Email confirmation status should remain NULL when confirm_email is disabled")
+	suite.T().Logf("User created without email confirmation requirement")
+
+	// Restore email confirmation setting
+	restoreResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"confirm_email": true,
+		},
+	}, nil)
+	suite.Equal(200, restoreResponse.ResponseRecorder.Code, "Config restore should succeed")
 }
 
 func TestSignupAndUserQueriesTestSuite(t *testing.T) {

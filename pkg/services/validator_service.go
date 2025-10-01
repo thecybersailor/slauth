@@ -145,6 +145,11 @@ func (v *ValidatorService) ValidateRedirectURL(redirectURL string, allowedURLs [
 		return nil // Optional parameter
 	}
 
+	// Allow relative paths (same domain)
+	if strings.HasPrefix(redirectURL, "/") {
+		return nil
+	}
+
 	// Check if URL is in allowed list
 	for _, allowed := range allowedURLs {
 		if v.matchURL(redirectURL, allowed) {

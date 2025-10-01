@@ -89,11 +89,8 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 
 	var userData *User
 	if signupCtx.Response().User != nil {
-		user := signupCtx.Response().User
-
-		userData = convertUserToResponse(user.User)
+		userData = convertUserToResponse(signupCtx.Response().User.User)
 	} else {
-
 		userData = &User{
 			ID:    ctx.Data.UserID,
 			Email: req.Email,
@@ -109,9 +106,40 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 		slog.Info("SignUp: Redirect URL validated", "original", req.Options.RedirectTo, "validated", redirectTo)
 	}
 
+	// If email confirmation is disabled, create session automatically
+	var sessionData *Session
+	config := a.authService.GetConfig()
+
+	if !config.ConfirmEmail && signupCtx.Response().User != nil {
+		user := signupCtx.Response().User
+		slog.Info("SignUp: Email confirmation disabled, creating session", "userID", user.User.ID)
+
+		// Create session using authService (same as OAuth/SignIn)
+		session, accessToken, refreshToken, expiresAt, err := a.authService.CreateSession(
+			c.Request.Context(), user, "aal1", []string{"email"},
+			c.GetHeader("User-Agent"), c.ClientIP(),
+		)
+		if err != nil {
+			slog.Error("SignUp: Failed to create session", "error", err)
+			return consts.UNEXPECTED_FAILURE
+		}
+
+		slog.Info("SignUp: Session created", "sessionID", session.HashID)
+
+		sessionData = &Session{
+			ID:           session.HashID,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			TokenType:    "Bearer",
+			ExpiresIn:    3600,
+			ExpiresAt:    expiresAt,
+			User:         userData,
+		}
+	}
+
 	resp := &AuthData{
 		User:       userData,
-		Session:    nil,
+		Session:    sessionData,
 		RedirectTo: redirectTo,
 	}
 

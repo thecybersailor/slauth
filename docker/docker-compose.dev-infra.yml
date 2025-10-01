@@ -54,7 +54,7 @@ services:
     image: zauberware/smshog:latest
     platform: linux/amd64
     ports:
-      - "18026:8080"  # Web UI and API
+      - "18026:3000"  # Web UI and API
     environment:
       SMSHOG_PERSIST: "false"  # No persistence needed for E2E tests
     healthcheck:
@@ -104,7 +104,7 @@ services:
       SYS_SMTP_FROM_NAME: Slauth E2E Tests
       
       # SMS configuration (SMSHog - AWS SNS Mock)
-      AWS_SNS_ENDPOINT: http://smshog:8080
+      AWS_SNS_ENDPOINT: http://smshog:3000
       
       # Service configuration
       LISTEN: ":8080"

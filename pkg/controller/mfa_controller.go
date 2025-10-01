@@ -249,7 +249,7 @@ func (m *MFAController) Verify(c *pin.Context) error {
 	// Build response data - simply return success status
 	verifyData := &MFAVerifyData{
 		AccessToken:  "verified",
-		TokenType:    "bearer",
+		TokenType:    "Bearer",
 		ExpiresIn:    3600,
 		RefreshToken: "verified",
 		User: &User{

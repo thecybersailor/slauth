@@ -188,7 +188,8 @@ const handleSubmit = async () => {
     authState.setSuccessMessage('Successfully signed in!')
     emit('auth-event', { 
       event: 'SIGNED_IN', 
-      session: data.session
+      session: data.session,
+      redirect_to: data.redirect_to
     })
   } catch (error: any) {
     authState.setErrorMessage(error.message || 'An unexpected error occurred', error.key)

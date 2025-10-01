@@ -4,6 +4,13 @@ Quick reference guides for common development patterns in the Slauth authenticat
 
 ## Available Cheatsheets
 
+### [Development Workflow](./development-workflow.md)
+Quick reference for development environment setup and workflows.
+- Start backend/frontend/E2E commands
+- Service URLs and ports
+- Hot reload configuration
+- Troubleshooting steps
+
 ### [Tags System](./tags.md)
 How to implement tagging system for any entity with polymorphic relations.
 - Model configuration

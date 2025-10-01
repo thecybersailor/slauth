@@ -70,7 +70,7 @@ export async function waitForAuthState(page: Page, timeout: number = 10000): Pro
     if (authState && authState.token) {
       return authState;
     }
-    await page.waitForTimeout(100);
+
   }
   
   throw new Error(`Authentication state not found within ${timeout}ms`);

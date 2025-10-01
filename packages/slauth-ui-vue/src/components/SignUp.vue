@@ -181,7 +181,8 @@ const handleSubmit = async () => {
     authState.setSuccessMessage('Account created successfully! Please check your email for verification.')
     emit('auth-event', { 
       event: 'SIGNED_UP', 
-      session: data.session
+      session: data.session,
+      redirect_to: data.redirect_to
     })
   } catch (error: any) {
     // Handle error

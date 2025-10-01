@@ -234,12 +234,19 @@ func ExecuteSignupMiddlewaresFlow(signupCtx services.SignupContext) core.Flow[co
 
 // CreateSignupChain Create signup business flow chain
 func CreateSignupChain(request *http.Request, signupCtx services.SignupContext) *core.Chain[core.SignupData] {
-	return core.NewChain[core.SignupData](
+	chain := core.NewChain[core.SignupData](
 		core.LoggingFlow[core.SignupData](),
 		ExecuteSignupMiddlewaresFlow(signupCtx), // Execute middlewares
 		CreateUserFlow(signupCtx),
-		GenerateConfirmationURLFlow(signupCtx),
-		SendConfirmationEmailFlow(signupCtx),
-		// SendConfirmationSMSFlow(signupCtx), // Enable if SMS sending is needed
 	)
+
+	// Only add confirmation flows if email confirmation is enabled
+	config := signupCtx.Service().GetConfig()
+	if config.ConfirmEmail {
+		chain.Use(GenerateConfirmationURLFlow(signupCtx))
+		chain.Use(SendConfirmationEmailFlow(signupCtx))
+		// SendConfirmationSMSFlow(signupCtx), // Enable if SMS sending is needed
+	}
+
+	return chain
 }
