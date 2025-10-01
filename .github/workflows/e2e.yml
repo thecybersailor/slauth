@@ -20,36 +20,36 @@ jobs:
 
       - name: Start PostgreSQL and Redis
         run: |
-          docker-compose -f docker-compose.e2e.yml up -d postgres redis
+          docker compose -f docker-compose.e2e.yml up -d postgres redis
           echo "Waiting for database and cache to be ready..."
           sleep 10
 
       - name: Build and start backend service
         run: |
-          docker-compose -f docker-compose.e2e.yml up -d backend
+          docker compose -f docker-compose.e2e.yml up -d backend
           echo "Waiting for backend to be ready..."
-          timeout 60 bash -c 'until docker-compose -f docker-compose.e2e.yml exec -T backend wget --quiet --tries=1 --spider http://localhost:8080/health 2>/dev/null; do echo "Waiting for backend..."; sleep 2; done'
+          timeout 60 bash -c 'until docker compose -f docker-compose.e2e.yml exec -T backend wget --quiet --tries=1 --spider http://localhost:8080/health 2>/dev/null; do echo "Waiting for backend..."; sleep 2; done'
           echo "Backend is ready!"
 
       - name: Build and start frontend service
         run: |
-          docker-compose -f docker-compose.e2e.yml up -d frontend
+          docker compose -f docker-compose.e2e.yml up -d frontend
           echo "Waiting for frontend to be ready..."
           timeout 30 bash -c 'until curl -s http://localhost:5180/health > /dev/null; do echo "Waiting for frontend..."; sleep 2; done'
           echo "Frontend is ready!"
 
       - name: Run E2E tests
         run: |
-          docker-compose -f docker-compose.e2e.yml run --rm e2e-tests
+          docker compose -f docker-compose.e2e.yml run --rm e2e-tests
 
       - name: Collect service logs
         if: always()
         run: |
           mkdir -p logs
-          docker-compose -f docker-compose.e2e.yml logs backend > logs/backend.log
-          docker-compose -f docker-compose.e2e.yml logs frontend > logs/frontend.log
-          docker-compose -f docker-compose.e2e.yml logs postgres > logs/postgres.log
-          docker-compose -f docker-compose.e2e.yml logs redis > logs/redis.log
+          docker compose -f docker-compose.e2e.yml logs backend > logs/backend.log
+          docker compose -f docker-compose.e2e.yml logs frontend > logs/frontend.log
+          docker compose -f docker-compose.e2e.yml logs postgres > logs/postgres.log
+          docker compose -f docker-compose.e2e.yml logs redis > logs/redis.log
 
       - name: Upload test report
         if: always()
@@ -78,5 +78,5 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker-compose -f docker-compose.e2e.yml down -v
+          docker compose -f docker-compose.e2e.yml down -v
 
