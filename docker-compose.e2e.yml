@@ -69,7 +69,7 @@ services:
   # Backend service
   backend:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.backend
     platform: linux/amd64
     depends_on:
@@ -127,7 +127,7 @@ services:
   # Frontend service
   frontend:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.frontend
       args:
         VITE_API_URL: http://backend:8080
@@ -149,7 +149,7 @@ services:
   # E2E tests (run on demand, not persistent)
   e2e-tests:
     build:
-      context: ..
+      context: .
       dockerfile: docker/Dockerfile.e2e
     platform: linux/amd64
     depends_on:
@@ -165,8 +165,8 @@ services:
       MAILHOG_URL: http://mailhog:8025
       SMSHOG_URL: http://smshog:3000
     volumes:
-      - ../packages/demo-fe/playwright-report:/app/playwright-report
-      - ../packages/demo-fe/test-results:/app/test-results
+      - ./packages/demo-fe/playwright-report:/app/playwright-report
+      - ./packages/demo-fe/test-results:/app/test-results
     networks:
       - e2e-network
     command: ["npx", "playwright", "test", "--reporter=html"]

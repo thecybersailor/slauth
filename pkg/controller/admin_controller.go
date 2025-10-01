@@ -1412,22 +1412,6 @@ func convertToTime(value interface{}) interface{} {
 	}
 }
 
-var allowedSortFields = map[string]bool{
-	"id":                   true,
-	"email":                true,
-	"created_at":           true,
-	"updated_at":           true,
-	"phone":                true,
-	"confirmed_at":         true,
-	"email_confirmed_at":   true,
-	"phone_confirmed_at":   true,
-	"last_sign_in_at":      true,
-	"invited_at":           true,
-	"banned_until":         true,
-	"confirmation_sent_at": true,
-	"recovery_sent_at":     true,
-}
-
 // Map from allowed sort field to actual fully-qualified column name for safety
 var allowedSortFieldColumns = map[string]string{
 	"id":         "users.id",
