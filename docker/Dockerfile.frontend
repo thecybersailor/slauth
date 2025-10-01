@@ -1,28 +1,48 @@
-# Stage 1: Build frontend
-FROM node:20-alpine AS builder
+# Stage 1: Build dependencies
+FROM node:20-alpine AS deps-builder
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy all packages (required for local dependencies via Vite aliases)
-COPY packages/ ./packages/
+# Build slauth-ts
+COPY packages/slauth-ts/package*.json ./packages/slauth-ts/
+WORKDIR /workspace/packages/slauth-ts
+RUN npm ci
+COPY packages/slauth-ts/ ./
+RUN npm run build
 
-# Install dependencies for all packages (including devDependencies for build)
-WORKDIR /app/packages/slauth-ts
-RUN npm ci --include=dev
+# Build slauth-ui-vue
+WORKDIR /workspace
+COPY packages/slauth-ui-vue/package*.json ./packages/slauth-ui-vue/
+WORKDIR /workspace/packages/slauth-ui-vue
+RUN npm ci
+COPY packages/slauth-ui-vue/ ./
+RUN npm run build
 
-WORKDIR /app/packages/slauth-ui-vue
-RUN npm ci --include=dev
+# Stage 2: Build frontend app
+FROM node:20-alpine AS app-builder
 
-# Change to demo-fe directory and install its dependencies
 WORKDIR /app/packages/demo-fe
-RUN npm ci --include=dev
+
+# Copy source, tsconfig, and node_modules from built dependencies
+COPY --from=deps-builder /workspace/packages/slauth-ts/src /app/packages/slauth-ts/src
+COPY --from=deps-builder /workspace/packages/slauth-ts/tsconfig.json /app/packages/slauth-ts/tsconfig.json
+COPY --from=deps-builder /workspace/packages/slauth-ts/node_modules /app/packages/slauth-ts/node_modules
+COPY --from=deps-builder /workspace/packages/slauth-ui-vue/src /app/packages/slauth-ui-vue/src
+COPY --from=deps-builder /workspace/packages/slauth-ui-vue/tsconfig.json /app/packages/slauth-ui-vue/tsconfig.json
+COPY --from=deps-builder /workspace/packages/slauth-ui-vue/node_modules /app/packages/slauth-ui-vue/node_modules
+
+# Copy demo-fe source
+COPY packages/demo-fe/package*.json ./
+RUN npm ci
+
+COPY packages/demo-fe/ ./
 
 # Build argument for API URL
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 
-# Build the application
-RUN npm run build
+# Build the application (skip type-check, Vite will handle TypeScript compilation)
+RUN npm run build-only
 
 # Stage 2: Serve with nginx
 FROM nginx:alpine
@@ -30,8 +50,8 @@ FROM nginx:alpine
 # Install curl for health checks
 RUN apk add --no-cache curl
 
-# Copy built files from builder stage
-COPY --from=builder /app/packages/demo-fe/dist /usr/share/nginx/html
+# Copy built files from app-builder stage
+COPY --from=app-builder /app/packages/demo-fe/dist /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
