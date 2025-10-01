@@ -122,10 +122,19 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 		"accessToken", sessionData.AccessToken != "",
 		"refreshToken", sessionData.RefreshToken != "")
 
+	// Validate redirect URL
+	redirectTo := ""
+	if req.Options != nil && req.Options.RedirectTo != "" {
+		redirectService := a.createRedirectService()
+		redirectTo = redirectService.ValidateAndGetRedirectTo(req.Options.RedirectTo)
+		slog.Info("SignInWithPassword: Redirect URL validated", "original", req.Options.RedirectTo, "validated", redirectTo)
+	}
+
 	// Return response
 	resp := &AuthData{
-		User:    userData,
-		Session: sessionData,
+		User:       userData,
+		Session:    sessionData,
+		RedirectTo: redirectTo,
 	}
 
 	return c.Render(resp)

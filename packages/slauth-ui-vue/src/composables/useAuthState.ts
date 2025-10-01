@@ -85,7 +85,10 @@ export function useAuthState(initialView: ViewType = 'sign_in') {
   // Form validation
   const validateEmail = (email: string): string | null => {
     if (!email) return 'Email is required'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (email.length > 254) return 'Email is too long'
+    const atIndex = email.indexOf('@')
+    const lastDotIndex = email.lastIndexOf('.')
+    if (atIndex === -1 || lastDotIndex === -1 || atIndex > lastDotIndex || lastDotIndex === email.length - 1) {
       return 'Please enter a valid email address'
     }
     return null

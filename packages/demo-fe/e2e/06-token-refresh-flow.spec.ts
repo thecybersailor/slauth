@@ -1,20 +1,49 @@
 import { test, expect } from './fixtures/base.fixtures.js'
 import { clearAuthState } from './helpers/auth.helper.js'
-import { TEST_IDS } from './fixtures/test-data.js'
+import { testConfig, TEST_IDS } from './fixtures/test-data.js'
 
 test.describe('Token Refresh and Callback Mechanisms', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('http://localhost:5180/auth/signin')
+    await page.goto(`${testConfig.baseUrl}/auth/signin`)
     await clearAuthState(page)
   })
 
-  test('Manual token refresh after login', async ({ page }) => {
+  test('Manual token refresh after login', async ({ page, testContext }) => {
+    let userEmail: string
+    let userPassword: string
+
+    // Step 0: Read user info from TestContext
+    await test.step('Read user info from TestContext', async () => {
+      const email = testContext.get<string>('auth.email')
+      const password = testContext.get<string>('auth.password')
+      const testStatus = testContext.get<string>('test.status')
+      
+      const validStatuses = ['email_confirmed_and_signin_completed', 'signup_completed_pending_confirmation']
+
+      if (!email || !password || !validStatuses.includes(testStatus)) {
+        console.log('⚠️ No valid user info found in TestContext or incorrect user status')
+        console.log(`   📧 Email: ${email || 'none'}`)
+        console.log(`   🔑 Password: ${password ? 'exists' : 'none'}`)
+        console.log(`   📊 Test Status: ${testStatus || 'none'}`)
+        console.log('   Please run 01-complete-signup-flow.spec.ts test first')
+        test.skip()
+        return
+      }
+      
+      userEmail = email
+      userPassword = password
+      
+      console.log(`🔍 Read user info from TestContext:`)
+      console.log(`   📧 Email: ${email}`)
+      console.log(`   🔑 Password: ${password.substring(0, 8)}...`)
+    })
+
     // Step 1: Login first
     await test.step('Login with valid credentials', async () => {
-      await page.goto('http://localhost:5180/auth/signin')
+      await page.goto(`${testConfig.baseUrl}/auth/signin`)
       
-      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill('test-refresh@example.com')
-      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill('TestPassword123!')
+      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill(userEmail)
+      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(userPassword)
       await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click()
       
       await expect(page).toHaveURL(/.*\/dashboard/, { timeout: 10000 })
@@ -51,7 +80,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
 
         const oldAccessToken = session.access_token
 
-        const response = await fetch('http://localhost:3333/auth/token?grant_type=refresh_token', {
+        const response = await fetch(`${testConfig.backendUrl}/auth/token?grant_type=refresh_token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -91,7 +120,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
         
         if (!session) return { error: 'No session' }
 
-        const response = await fetch('http://localhost:3333/auth/user', {
+        const response = await fetch(`${testConfig.backendUrl}/auth/user`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${session.access_token}`
@@ -115,7 +144,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
 
   test('Callback mechanism on unauthorized error', async ({ page }) => {
     // Step 1: Setup callback tracking
-    await page.goto('http://localhost:5180/')
+    await page.goto(`${testConfig.baseUrl}/`)
     
     await test.step('Inject callback tracking code', async () => {
       await page.evaluate(() => {
@@ -135,7 +164,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
         const log = (window as any).callbackLog
 
         // Make request with invalid token
-        const response = await fetch('http://localhost:3333/auth/user', {
+        const response = await fetch(`${testConfig.backendUrl}/auth/user`, {
           method: 'GET',
           headers: {
             'Authorization': 'Bearer invalid-token'
@@ -170,7 +199,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
     // This test simulates session expiration behavior
     
     await test.step('Login and get session', async () => {
-      await page.goto('http://localhost:5180/auth/signin')
+      await page.goto(`${testConfig.baseUrl}/auth/signin`)
       
       await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill('test-expired@example.com')
       await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill('TestPassword123!')
@@ -209,11 +238,11 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
   })
 
   test('onAuthError callback for general auth errors', async ({ page }) => {
-    await page.goto('http://localhost:5180/')
+    await page.goto(`${testConfig.baseUrl}/`)
 
     await test.step('Trigger authentication error', async () => {
       const result = await page.evaluate(async () => {
-        const response = await fetch('http://localhost:3333/auth/token', {
+        const response = await fetch(`${testConfig.backendUrl}/auth/token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

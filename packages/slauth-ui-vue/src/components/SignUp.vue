@@ -100,6 +100,7 @@ import { useAuth } from '../composables/useAuth'
 import { useAuthState } from '../composables/useAuthState'
 import { useAuthPaths } from '../composables/useAuthPaths'
 import { useAuthContext } from '../composables/useAuthContext'
+import { getRedirectParameter } from '../lib/redirectManager'
 import Input from './ui/Input.vue'
 import Button from './ui/Button.vue'
 import Message from './ui/Message.vue'
@@ -169,11 +170,19 @@ const handleSubmit = async () => {
   authState.clearMessage()
 
   try {
-    const data = await auth.authClient.signUp({ email: form.email, password: form.password })
+    const redirectParam = getRedirectParameter()
+    const data = await auth.authClient.signUp({ 
+      email: form.email, 
+      password: form.password,
+      options: redirectParam ? { redirect_to: redirectParam } : undefined
+    })
 
     // Registration successful
     authState.setSuccessMessage('Account created successfully! Please check your email for verification.')
-    emit('auth-event', { event: 'SIGNED_UP', session: data.session })
+    emit('auth-event', { 
+      event: 'SIGNED_UP', 
+      session: data.session
+    })
   } catch (error: any) {
     // Handle error
     if (error && error.message) {

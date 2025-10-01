@@ -1,2 +1,2 @@
 dev:
-	(cd src; air)
+	(cd src; air | tee tmp/output.log)

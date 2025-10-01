@@ -8,7 +8,7 @@ import (
 var DB *gorm.DB
 
 func Init() error {
-	DB = database.Database().Debug()
+	DB = database.Database()
 	return AutoMigrate(DB)
 }
 

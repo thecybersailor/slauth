@@ -310,9 +310,18 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 		User:                 userResp,
 	}
 
+	// Validate redirect URL from flow state
+	redirectTo := ""
+	if flowState.RedirectURI != "" {
+		redirectService := a.createRedirectService()
+		redirectTo = redirectService.ValidateAndGetRedirectTo(flowState.RedirectURI)
+		slog.Info("OAuth: Redirect URL validated", "original", flowState.RedirectURI, "validated", redirectTo)
+	}
+
 	resp := &AuthData{
-		User:    userResp,
-		Session: sessionResp,
+		User:       userResp,
+		Session:    sessionResp,
+		RedirectTo: redirectTo,
 	}
 
 	return c.Render(resp)
@@ -607,9 +616,18 @@ func (a *AuthController) HandleSSOCallback(c *pin.Context) error {
 		User:         userResp,
 	}
 
+	// Validate redirect URL from relay state
+	redirectTo := ""
+	if relayStateObj.RedirectTo != nil && *relayStateObj.RedirectTo != "" {
+		redirectService := a.createRedirectService()
+		redirectTo = redirectService.ValidateAndGetRedirectTo(*relayStateObj.RedirectTo)
+		slog.Info("SSO: Redirect URL validated", "original", *relayStateObj.RedirectTo, "validated", redirectTo)
+	}
+
 	resp := &AuthData{
-		User:    userResp,
-		Session: sessionResp,
+		User:       userResp,
+		Session:    sessionResp,
+		RedirectTo: redirectTo,
 	}
 
 	return c.Render(resp)

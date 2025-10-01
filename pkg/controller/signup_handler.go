@@ -101,9 +101,18 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 		}
 	}
 
+	// Validate redirect URL
+	redirectTo := ""
+	if req.Options != nil && req.Options.RedirectTo != "" {
+		redirectService := a.createRedirectService()
+		redirectTo = redirectService.ValidateAndGetRedirectTo(req.Options.RedirectTo)
+		slog.Info("SignUp: Redirect URL validated", "original", req.Options.RedirectTo, "validated", redirectTo)
+	}
+
 	resp := &AuthData{
-		User:    userData,
-		Session: nil,
+		User:       userData,
+		Session:    nil,
+		RedirectTo: redirectTo,
 	}
 
 	return c.Render(resp)

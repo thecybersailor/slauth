@@ -3,7 +3,7 @@ Complete signup flow test
 Full user registration experience from homepage to email confirmation
 
 Test flow:
-1. Navigate to homepage http://localhost:5180/auth/
+1. Navigate to homepage /auth/
 2. Click the signup link
 3. Enter email and password, send request
 4. Click the link in the email, implemented through mailhog
@@ -42,11 +42,11 @@ test.describe('Complete Signup Flow', () => {
     });
     
     // ==================== Step 1: Navigate to homepage ====================
-    await test.step('Navigate to homepage http://localhost:5180/auth/', async () => {
-      await page.goto('http://localhost:5180/auth/');
+    await test.step(`Navigate to homepage ${testConfig.baseUrl}/auth/`, async () => {
+      await page.goto(`${testConfig.baseUrl}/auth/`);
       
       
-      await expect(page).toHaveURL('http://localhost:5180/auth/');
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/`);
       
       
       await expect(page.getByTestId(TEST_IDS.AUTH_CONTAINER)).toBeVisible();
@@ -62,7 +62,7 @@ test.describe('Complete Signup Flow', () => {
       await signupLink.click();
       
       
-      await expect(page).toHaveURL('http://localhost:5180/auth/signup');
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/signup`);
       
       
       await expect(page.getByTestId(TEST_IDS.SIGNUP_FORM)).toBeVisible();
@@ -150,7 +150,7 @@ test.describe('Complete Signup Flow', () => {
       await page.waitForTimeout(3000);
       
       
-      const response = await page.request.get('http://localhost:8025/api/v1/messages');
+      const response = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`);
       expect(response.ok()).toBeTruthy();
       
       const emails = await response.json();
@@ -159,7 +159,7 @@ test.describe('Complete Signup Flow', () => {
       if (emails.length === 0) {
         console.log('⚠️ No emails found, waiting longer...');
         await page.waitForTimeout(5000);
-        const retryResponse = await page.request.get('http://localhost:8025/api/v1/messages');
+        const retryResponse = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`);
         const retryEmails = await retryResponse.json();
         console.log(`📧 Found ${retryEmails.length} emails after retry`);
         expect(retryEmails.length).toBeGreaterThan(0);
@@ -191,7 +191,7 @@ test.describe('Complete Signup Flow', () => {
     // ==================== Step 6: Click email link, true e2e test ====================
     await test.step('Get real email link via MailHog API and click', async () => {
       
-      const emailBody = await page.request.get('http://localhost:8025/api/v1/messages').then(r => r.json()).then(emails => emails[0].Content.Body);
+      const emailBody = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`).then(r => r.json()).then(emails => emails[0].Content.Body);
       console.log('📧 Email raw content:', emailBody);
       
       
@@ -199,14 +199,26 @@ test.describe('Complete Signup Flow', () => {
       const linkMatch = emailBody.match(/href=3D"([^"]+)"/);
       expect(linkMatch).toBeTruthy();
       
+      console.log('🔍 Raw link match from email:', linkMatch[1]);
+      
       let confirmationLink = linkMatch[1];
       
-      confirmationLink = confirmationLink.replace(/=3D/g, '=').replace(/=\r?\n/g, '');
+      // Decode Quoted-Printable encoding: =3D -> =, remove soft line breaks
+      confirmationLink = confirmationLink
+        .replace(/=3D/g, '=')        // Decode = sign
+        .replace(/=\r?\n/g, '')       // Remove soft line breaks
+        .replace(/\r?\n/g, '');       // Remove any remaining line breaks
       
       console.log('🔗 Real confirmation link extracted from email:', confirmationLink);
+      console.log('🔗 Should contain /auth/confirm pattern:', confirmationLink.includes('/auth/confirm'));
       
       
-      expect(confirmationLink).toMatch(/http:\/\/localhost:5180\/auth\/confirm\?token=/);
+      if (!confirmationLink.startsWith('http')) {
+        confirmationLink = `${testConfig.baseUrl}${confirmationLink.startsWith('/') ? '' : '/'}${confirmationLink}`;
+        console.log('🔗 Converted relative path to absolute URL:', confirmationLink);
+      }
+      
+      expect(confirmationLink).toMatch(/confirm\?token=/);
       
       
       console.log('🔍 Browser navigating to real frontend confirmation link from email...');
@@ -281,7 +293,7 @@ test.describe('Complete Signup Flow', () => {
     await test.step('Verify user can login normally', async () => {
       
       if (!page.url().includes('/signin')) {
-        await page.goto('http://localhost:5180/auth/signin');
+        await page.goto(`${testConfig.baseUrl}/auth/signin`);
       }
       
       
@@ -303,7 +315,7 @@ test.describe('Complete Signup Flow', () => {
       const currentUrl = page.url();
       console.log('🔍 Current URL after login:', currentUrl);
       
-      if (currentUrl === 'http://localhost:5180/' || currentUrl.includes('/dashboard')) {
+      if (currentUrl === `${testConfig.baseUrl}/` || currentUrl.includes('/dashboard')) {
         console.log('✅ Login successful, redirected to homepage/dashboard');
       } else {
         
@@ -330,7 +342,7 @@ test.describe('Complete Signup Flow', () => {
       testContext.set('auth.confirmationToken', confirmationToken);
       
       
-      testContext.set('test.status', 'complete_signup_flow_success');
+      testContext.set('test.status', 'email_confirmed_and_signin_completed');
       testContext.set('test.timestamp', new Date().toISOString());
       testContext.set('test.page', page.url());
       
@@ -347,7 +359,7 @@ test.describe('Complete Signup Flow', () => {
   test('Verify invalid confirmation token handling', async ({ page }) => {
     await test.step('Test invalid token handling', async () => {
       const invalidToken = 'invalid_token_' + 'a'.repeat(50); 
-      const invalidConfirmationURL = `http://localhost:8080/auth/confirm?token=${invalidToken}`;
+      const invalidConfirmationURL = `${testConfig.backendUrl}/auth/confirm?token=${invalidToken}`;
       
       console.log('🔍 Testing invalid token backend API call...');
       

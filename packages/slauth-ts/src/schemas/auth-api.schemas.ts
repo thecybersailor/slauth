@@ -8,7 +8,7 @@ export const FactorStatusSchema = z.enum(FactorStatus);
 
 export const ResetPasswordOptionsSchema = z.object({
   captchaToken: z.string().optional(),
-  redirectTo: z.string().optional(),
+  redirect_to: z.string().optional(),
 });
 
 export const SignInWithOtpOptionsSchema = z.object({
@@ -16,22 +16,25 @@ export const SignInWithOtpOptionsSchema = z.object({
   channel: z.string().optional(),
   data: z.record(z.string(), z.any()).optional(),
   emailRedirectTo: z.string().optional(),
+  redirect_to: z.string().optional(),
   shouldCreateUser: z.boolean().optional(),
 });
 
 export const SignInWithPasswordOptionsSchema = z.object({
   captchaToken: z.string().optional(),
+  redirect_to: z.string().optional(),
 });
 
 export const SignUpOptionsSchema = z.object({
   captchaToken: z.string().optional(),
   channel: z.string().optional(),
   emailRedirectTo: z.string().optional(),
+  redirect_to: z.string().optional(),
 });
 
 export const VerifyOtpOptionsSchema = z.object({
   captchaToken: z.string().optional(),
-  redirectTo: z.string().optional(),
+  redirect_to: z.string().optional(),
 });
 
 export const WeakPasswordSchema = z.object({
@@ -320,6 +323,7 @@ export const UserDataSchema = z.object({
 });
 
 export const AuthDataSchema = z.object({
+  redirect_to: z.string().optional(),
   session: SessionSchema.optional(),
   user: UserSchema.optional(),
   weakPassword: WeakPasswordSchema.optional(),

@@ -16,6 +16,11 @@ func NewAuthController(authService services.AuthService) *AuthController {
 	}
 }
 
+// createRedirectService creates a RedirectService instance
+func (a *AuthController) createRedirectService() *services.RedirectService {
+	return services.NewRedirectService(a.authService.GetConfig(), services.NewValidatorService())
+}
+
 // Note: All handler methods have been moved to separate files:
 // - auth_handlers.go: Basic authentication methods (SignUp, SignInWithPassword, etc.)
 // - oauth_handlers.go: OAuth and SSO related methods

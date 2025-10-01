@@ -314,7 +314,7 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 		RawAppMetaData *[]byte `gorm:"column:raw_app_meta_data"`
 	}
 
-	err := suite.DB.Debug().Table("users").Where("email = ?", "appmeta-user@example.com").First(&dbUser).Error
+	err := suite.DB.Table("users").Where("email = ?", "appmeta-user@example.com").First(&dbUser).Error
 	suite.NoError(err, "Should be able to query user from database")
 	suite.NotNil(dbUser.RawAppMetaData, "RawAppMetaData should not be NULL in database")
 
@@ -423,7 +423,7 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 		RawAppMetaData *[]byte `gorm:"column:raw_app_meta_data"`
 	}
 
-	err := suite.DB.Debug().Table("users").Where("email = ?", "update-appmeta@example.com").First(&dbUser).Error
+	err := suite.DB.Table("users").Where("email = ?", "update-appmeta@example.com").First(&dbUser).Error
 	suite.NoError(err, "Should be able to query user from database")
 	suite.NotNil(dbUser.RawAppMetaData, "RawAppMetaData should not be NULL in database")
 

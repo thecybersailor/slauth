@@ -1412,22 +1412,44 @@ func convertToTime(value interface{}) interface{} {
 	}
 }
 
+var allowedSortFields = map[string]bool{
+	"id":                   true,
+	"email":                true,
+	"created_at":           true,
+	"updated_at":           true,
+	"phone":                true,
+	"confirmed_at":         true,
+	"email_confirmed_at":   true,
+	"phone_confirmed_at":   true,
+	"last_sign_in_at":      true,
+	"invited_at":           true,
+	"banned_until":         true,
+	"confirmation_sent_at": true,
+	"recovery_sent_at":     true,
+}
+
 func applySorting(query *gorm.DB, sort []string) *gorm.DB {
 	for _, s := range sort {
+		parts := strings.Fields(s)
+		if len(parts) == 0 {
+			continue
+		}
 
-		if !strings.Contains(s, ".") {
+		field := parts[0]
+		direction := "ASC"
 
-			parts := strings.Fields(s)
-			if len(parts) > 0 {
-				field := parts[0]
-				direction := ""
-				if len(parts) > 1 {
-					direction = " " + strings.Join(parts[1:], " ")
-				}
-				s = "users." + field + direction
+		if len(parts) > 1 {
+			dir := strings.ToUpper(parts[1])
+			if dir == "DESC" || dir == "ASC" {
+				direction = dir
 			}
 		}
-		query = query.Order(s)
+
+		if !allowedSortFields[field] {
+			continue
+		}
+
+		query = query.Order("users." + field + " " + direction)
 	}
 	return query
 }

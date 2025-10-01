@@ -1309,7 +1309,7 @@
                 "captchaToken": {
                     "type": "string"
                 },
-                "redirectTo": {
+                "redirect_to": {
                     "type": "string"
                 }
             }
@@ -1331,6 +1331,9 @@
                 "emailRedirectTo": {
                     "type": "string"
                 },
+                "redirect_to": {
+                    "type": "string"
+                },
                 "shouldCreateUser": {
                     "type": "boolean"
                 }
@@ -1340,6 +1343,9 @@
             "type": "object",
             "properties": {
                 "captchaToken": {
+                    "type": "string"
+                },
+                "redirect_to": {
                     "type": "string"
                 }
             }
@@ -1356,6 +1362,9 @@
                 },
                 "emailRedirectTo": {
                     "type": "string"
+                },
+                "redirect_to": {
+                    "type": "string"
                 }
             }
         },
@@ -1365,7 +1374,7 @@
                 "captchaToken": {
                     "type": "string"
                 },
-                "redirectTo": {
+                "redirect_to": {
                     "type": "string"
                 }
             }
@@ -1374,6 +1383,9 @@
             "description": "Authentication response containing user and session information",
             "type": "object",
             "properties": {
+                "redirect_to": {
+                    "type": "string"
+                },
                 "session": {
                     "$ref": "#/definitions/pkg_controller.Session"
                 },

@@ -13,12 +13,13 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e',
   testMatch: [
-    '**/complete-signup-flow.spec.ts',
+    '**/01-complete-signup-flow.spec.ts',
     '**/complete-login-flow.spec.ts',
     '**/03-otp-verification-flow.spec.ts',
     '**/02-email-signin-flow.spec.ts',
     '**/05-form-validation.spec.ts',
-    '**/06-google-oauth-flow.spec.ts'
+    '**/06-token-refresh-flow.spec.ts',
+    '**/07-redirect-security-flow.spec.ts'
   ],
   /* Maximum time one test can run for. */
   timeout: 60 * 1000,
@@ -40,9 +41,9 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
-    actionTimeout: 0,
+    actionTimeout: process.env.CI ? 10000 : 0,
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:5180',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5180',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -96,7 +97,7 @@ export default defineConfig({
   globalSetup: undefined,
 
   /* Run your local dev server before starting the tests */
-  webServer: {
+  webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     /**
      * Use the dev server by default for faster feedback loop.
      * Use the preview server on CI for more realistic testing.

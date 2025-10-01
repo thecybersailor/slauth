@@ -1,0 +1,25 @@
+FROM mcr.microsoft.com/playwright:v1.55.1-jammy
+
+WORKDIR /app
+
+# Copy all packages needed for building
+COPY packages/slauth-ts ./packages/slauth-ts
+COPY packages/slauth-ui-vue ./packages/slauth-ui-vue
+COPY packages/demo-fe/package*.json ./packages/demo-fe/
+COPY packages/demo-fe/e2e ./packages/demo-fe/e2e
+COPY packages/demo-fe/playwright.config.ts ./packages/demo-fe/
+COPY packages/demo-fe/tsconfig.json ./packages/demo-fe/
+
+# Set working directory to demo-fe
+WORKDIR /app/packages/demo-fe
+
+# Install all dependencies (using workspace-style)
+RUN cd ../slauth-ts && npm install && cd ../slauth-ui-vue && npm install && cd ../demo-fe && npm install
+
+# Set environment for CI
+ENV CI=true
+ENV NODE_ENV=test
+
+# Default command (can be overridden)
+CMD ["npx", "playwright", "test"]
+

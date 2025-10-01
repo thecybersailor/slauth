@@ -136,7 +136,7 @@ func (s *UserService) UpdatePassword(ctx context.Context, userID uint, domainCod
 	now := time.Now()
 	slog.Info("DEBUG: UpdatePassword called", "userID", userID, "domainCode", domainCode, "hashedPassword", hashedPassword[:10]+"...")
 
-	result := s.db.WithContext(ctx).Debug().Model(&models.User{}).
+	result := s.db.WithContext(ctx).Model(&models.User{}).
 		Where("id = ? AND domain_code = ?", userID, domainCode).
 		Updates(map[string]any{
 			"encrypted_password": hashedPassword,

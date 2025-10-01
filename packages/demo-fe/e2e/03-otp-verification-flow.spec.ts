@@ -20,7 +20,7 @@ import { clearAuthState, getAllLocalStorage } from './helpers/auth.helper.js'
 test.describe('OTP Verification Flow', () => {
   test.beforeEach(async ({ page }) => {
     
-    await page.goto('http://localhost:5180/auth/signin')
+    await page.goto(`${testConfig.baseUrl}/auth/signin`)
     await clearAuthState(page)
   })
 
@@ -37,7 +37,7 @@ test.describe('OTP Verification Flow', () => {
     // ==================== Step 1: Send email OTP directly ====================
     await test.step('Send email OTP', async () => {
       
-      const response = await page.request.post('http://localhost:8080/auth/otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {
           email: 'test-1759123091412@example.com'
         }
@@ -53,8 +53,8 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 2: Navigate to OTP verification page ====================
     await test.step('Navigate to OTP verification page', async () => {
-      await page.goto('http://localhost:5180/auth/verify-otp')
-      await expect(page).toHaveURL('http://localhost:5180/auth/verify-otp')
+      await page.goto(`${testConfig.baseUrl}/auth/verify-otp`)
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/verify-otp`)
       console.log('✅ Successfully navigated to OTP verification page')
     })
 
@@ -72,7 +72,7 @@ test.describe('OTP Verification Flow', () => {
       await page.waitForTimeout(3000)
 
       
-      const emails = await page.request.get('http://localhost:8025/api/v1/messages').then(r => r.json())
+      const emails = await page.request.get(`${testConfig.mailhogUrl}/api/v1/messages`).then(r => r.json())
       expect(emails.length).toBeGreaterThan(0)
 
       const latestEmail = emails[0]
@@ -148,8 +148,8 @@ test.describe('OTP Verification Flow', () => {
   test('OTP resend functionality', async ({ page }) => {
     // ==================== Step 1: Navigate to OTP verification page ====================
     await test.step('Navigate to OTP verification page', async () => {
-      await page.goto('http://localhost:5180/auth/verify-otp')
-      await expect(page).toHaveURL('http://localhost:5180/auth/verify-otp')
+      await page.goto(`${testConfig.baseUrl}/auth/verify-otp`)
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/verify-otp`)
       console.log('✅ Successfully navigated to OTP verification page')
     })
 
@@ -202,8 +202,8 @@ test.describe('OTP Verification Flow', () => {
   test('OTP verification failure handling', async ({ page }) => {
     // ==================== Step 1: Navigate to OTP verification page ====================
     await test.step('Navigate to OTP verification page', async () => {
-      await page.goto('http://localhost:5180/auth/verify-otp')
-      await expect(page).toHaveURL('http://localhost:5180/auth/verify-otp')
+      await page.goto(`${testConfig.baseUrl}/auth/verify-otp`)
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/verify-otp`)
       console.log('✅ Successfully navigated to OTP verification page')
     })
 
@@ -270,7 +270,7 @@ test.describe('OTP Verification Flow', () => {
     // ==================== Step 1: Send SMS OTP ====================
     await test.step('Send SMS OTP', async () => {
       
-      const response = await page.request.post('http://localhost:8080/auth/sms-otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/sms-otp`, {
         data: {
           phone: '+1234567890',
           channel: 'sms'
@@ -289,7 +289,7 @@ test.describe('OTP Verification Flow', () => {
       await page.waitForTimeout(2000)
       
       
-      const smsResponse = await page.request.get('http://localhost:8026/api/v1/sms')
+      const smsResponse = await page.request.get(`${testConfig.smshogUrl}/api/v1/sms`)
       expect(smsResponse.status()).toBe(200)
       
       const smsData = await smsResponse.json()
@@ -318,15 +318,15 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 3: Navigate to OTP verification page ====================
     await test.step('Navigate to OTP verification page', async () => {
-      await page.goto('http://localhost:5180/auth/verify-otp')
-      await expect(page).toHaveURL('http://localhost:5180/auth/verify-otp')
+      await page.goto(`${testConfig.baseUrl}/auth/verify-otp`)
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/verify-otp`)
       console.log('✅ Successfully navigated to OTP verification page')
     })
 
     // ==================== Step 4: Enter and verify SMS OTP ====================
     await test.step('Enter and verify SMS OTP', async () => {
       
-      const smsResponse = await page.request.get('http://localhost:8026/api/v1/sms')
+      const smsResponse = await page.request.get(`${testConfig.smshogUrl}/api/v1/sms`)
       const smsData = await smsResponse.json()
       const latestSMS = smsData.data[0]
       
@@ -337,7 +337,7 @@ test.describe('OTP Verification Flow', () => {
       console.log('🔢 Re-fetched SMS OTP code:', otpCode)
       
       
-      const verifyResponse = await page.request.post('http://localhost:8080/auth/verify', {
+      const verifyResponse = await page.request.post(`${testConfig.backendUrl}/auth/verify`, {
         data: {
           phone: '+1234567890',
           token: otpCode,
@@ -385,7 +385,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 1: Test empty phone number ====================
     await test.step('Test empty phone number', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/sms-otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/sms-otp`, {
         data: {
           phone: '',
           channel: 'sms'
@@ -405,7 +405,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 2: Test invalid phone number format ====================
     await test.step('Test invalid phone number format', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/sms-otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/sms-otp`, {
         data: {
           phone: 'invalid-phone',
           channel: 'sms'
@@ -420,7 +420,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 3: Test too short phone number ====================
     await test.step('Test too short phone number', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/sms-otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/sms-otp`, {
         data: {
           phone: '123',
           channel: 'sms'
@@ -435,7 +435,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 4: Test missing phone number field ====================
     await test.step('Test missing phone number field', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/sms-otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/sms-otp`, {
         data: {
           channel: 'sms'
         }
@@ -462,7 +462,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 1: Test empty email ====================
     await test.step('Test empty email', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {
           email: ''
         }
@@ -486,7 +486,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 2: Test invalid email format ====================
     await test.step('Test invalid email format', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {
           email: 'invalid-email'
         }
@@ -500,7 +500,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 3: Test email missing @ symbol ====================
     await test.step('Test email missing @ symbol', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {
           email: 'userexample.com'
         }
@@ -514,7 +514,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 4: Test email missing domain part ====================
     await test.step('Test email missing domain part', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {
           email: 'user@'
         }
@@ -528,7 +528,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 5: Test missing email field ====================
     await test.step('Test missing email field', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/otp', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {}
       })
       
@@ -553,7 +553,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 1: Test empty OTP code ====================
     await test.step('Test empty OTP code', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/verify', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/verify`, {
         data: {
           email: 'test@example.com',
           token: '',
@@ -569,7 +569,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 2: Test empty email and phone ====================
     await test.step('Test empty email and phone', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/verify', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/verify`, {
         data: {
           email: '',
           phone: '',
@@ -586,7 +586,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 3: Test invalid OTP type ====================
     await test.step('Test invalid OTP type', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/verify', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/verify`, {
         data: {
           email: 'test@example.com',
           token: '123456',
@@ -602,7 +602,7 @@ test.describe('OTP Verification Flow', () => {
 
     // ==================== Step 4: Test missing required fields ====================
     await test.step('Test missing required fields', async () => {
-      const response = await page.request.post('http://localhost:8080/auth/verify', {
+      const response = await page.request.post(`${testConfig.backendUrl}/auth/verify`, {
         data: {
           email: 'test@example.com'
           

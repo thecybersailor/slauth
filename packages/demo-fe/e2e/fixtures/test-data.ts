@@ -55,7 +55,9 @@ export function generateApiClientData(): Partial<ApiClientData> {
  */
 export const testConfig = {
   baseUrl: process.env.FRONTEND_URL || 'http://localhost:5180',
-  mailhogUrl: 'http://localhost:8025',
+  backendUrl: process.env.BACKEND_URL || 'http://localhost:8080',
+  mailhogUrl: process.env.MAILHOG_URL || 'http://localhost:18025',
+  smshogUrl: process.env.SMSHOG_URL || 'http://localhost:18026',
   timeout: 60000,
   retries: 2
 };

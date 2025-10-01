@@ -116,7 +116,7 @@ const handleSubmit = async () => {
 
   try {
     await auth.authClient.resetPasswordForEmail(form.email, {
-      redirectTo: redirectTo.value
+      redirect_to: redirectTo.value
     })
 
     authState.setSuccessMessage(props.localization?.confirmation_text || 'Check your email for the password reset link!')

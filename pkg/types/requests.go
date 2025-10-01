@@ -19,6 +19,7 @@ type SignUpOptions struct {
 	EmailRedirectTo string `json:"emailRedirectTo,omitempty"`
 	CaptchaToken    string `json:"captchaToken,omitempty"`
 	Channel         string `json:"channel,omitempty"` // sms, whatsapp
+	RedirectTo      string `json:"redirect_to,omitempty"`
 }
 
 // SignInWithPasswordRequest represents the password login request
@@ -31,6 +32,7 @@ type SignInWithPasswordRequest struct {
 
 type SignInWithPasswordOptions struct {
 	CaptchaToken string `json:"captchaToken,omitempty"`
+	RedirectTo   string `json:"redirect_to,omitempty"`
 }
 
 // SignInWithOtpRequest represents the OTP login request
@@ -46,6 +48,7 @@ type SignInWithOtpOptions struct {
 	Data             map[string]any `json:"data,omitempty"`
 	CaptchaToken     string         `json:"captchaToken,omitempty"`
 	Channel          string         `json:"channel,omitempty"` // sms, whatsapp
+	RedirectTo       string         `json:"redirect_to,omitempty"`
 }
 
 // SendOTPRequest represents the send OTP request
@@ -66,7 +69,7 @@ type VerifyOtpRequest struct {
 }
 
 type VerifyOtpOptions struct {
-	RedirectTo   string `json:"redirectTo,omitempty"`
+	RedirectTo   string `json:"redirect_to,omitempty"`
 	CaptchaToken string `json:"captchaToken,omitempty"`
 }
 
@@ -78,7 +81,7 @@ type ResetPasswordRequest struct {
 }
 
 type ResetPasswordOptions struct {
-	RedirectTo   string `json:"redirectTo,omitempty"`
+	RedirectTo   string `json:"redirect_to,omitempty"`
 	CaptchaToken string `json:"captchaToken,omitempty"`
 }
 

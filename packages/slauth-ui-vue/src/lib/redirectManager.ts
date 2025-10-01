@@ -32,6 +32,14 @@ export const buildUrlWithPreservedParams = (basePath: string, additionalParams: 
 }
 
 
+// Get redirect parameter to send to backend
+export const getRedirectParameter = (): string | undefined => {
+  const preserved = getPreservedParams()
+  return preserved.redirect
+}
+
+// DEPRECATED: Use backend-validated redirect_to from API response instead
+// This function is kept for backward compatibility but should not be used for new code
 export const calculateRedirectUrl = (
   followRedirect: boolean = true,
   configRedirectTo?: string,

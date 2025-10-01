@@ -5,11 +5,13 @@ import { clearAuthState, getAllLocalStorage } from './helpers/auth.helper.js'
 test.describe('Complete Login Flow', () => {
   test.beforeEach(async ({ page }) => {
 
-    await page.goto('http://localhost:5180/auth/signin')
+    await page.goto(`${testConfig.baseUrl}/auth/signin`)
     await clearAuthState(page)
   })
 
-  test('Complete user login flow', async ({ page }) => {
+  test('Complete user login flow', async ({ page, testContext }) => {
+    let userEmail: string
+    let userPassword: string
 
     page.on('console', msg => {
       console.log('🔍 Browser console:', msg.text())
@@ -19,12 +21,40 @@ test.describe('Complete Login Flow', () => {
       console.log('❌ Page error:', error.message)
     })
 
+    // ==================== Step 0: Read user info from TestContext ====================
+    await test.step('Read user info from TestContext', async () => {
+      const email = testContext.get<string>('auth.email')
+      const password = testContext.get<string>('auth.password')
+      const testStatus = testContext.get<string>('test.status')
+      
+      const validStatuses = ['email_confirmed_and_signin_completed', 'signup_completed_pending_confirmation']
+
+      if (!email || !password || !validStatuses.includes(testStatus)) {
+        console.log('⚠️ No valid user info found in TestContext or incorrect user status')
+        console.log(`   📧 Email: ${email || 'none'}`)
+        console.log(`   🔑 Password: ${password ? 'exists' : 'none'}`)
+        console.log(`   📊 Test Status: ${testStatus || 'none'}`)
+        console.log(`   Expected status: ${validStatuses.join(' or ')}`)
+        console.log('   Please run 01-complete-signup-flow.spec.ts test first')
+        test.skip()
+        return
+      }
+      
+      userEmail = email
+      userPassword = password
+      
+      console.log(`🔍 Read user info from TestContext:`)
+      console.log(`   📧 Email: ${email}`)
+      console.log(`   🔑 Password: ${password.substring(0, 8)}...`)
+      console.log(`   📊 Test Status: ${testStatus}`)
+    })
+
     // ==================== Step 1: Navigate to login page ====================
-    await test.step('Navigate to login page http://localhost:5180/auth/signin', async () => {
-      await page.goto('http://localhost:5180/auth/signin')
+    await test.step(`Navigate to login page ${testConfig.baseUrl}/auth/signin`, async () => {
+      await page.goto(`${testConfig.baseUrl}/auth/signin`)
 
 
-      await expect(page).toHaveURL('http://localhost:5180/auth/signin')
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/signin`)
       console.log('✅ Successfully navigated to login page')
     })
 
@@ -35,10 +65,10 @@ test.describe('Complete Login Flow', () => {
       await expect(page.getByTestId(TEST_IDS.SIGNIN_PASSWORD)).toBeVisible({ timeout: 5000 })
 
 
-      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill('test-login-flow@example.com')
+      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill(userEmail)
 
 
-      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill('TestPassword123!')
+      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(userPassword)
 
       console.log('📝 Login form filled')
     })
@@ -89,7 +119,7 @@ test.describe('Complete Login Flow', () => {
 
 
       const userInfo = JSON.parse(authUser)
-      expect(userInfo.email).toBe('test-login-flow@example.com')
+      expect(userInfo.email).toBe(userEmail)
 
       expect(userInfo.email).toBeTruthy()
       console.log('🔍 User object fields:', Object.keys(userInfo))
@@ -140,8 +170,8 @@ test.describe('Complete Login Flow', () => {
   test('Error handling for failed login', async ({ page }) => {
     // ==================== Step 1: Navigate to login page ====================
     await test.step('Navigate to login page', async () => {
-      await page.goto('http://localhost:5180/auth/signin')
-      await expect(page).toHaveURL('http://localhost:5180/auth/signin')
+      await page.goto(`${testConfig.baseUrl}/auth/signin`)
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/signin`)
       console.log('✅ Successfully navigated to login page')
     })
 
@@ -190,14 +220,44 @@ test.describe('Complete Login Flow', () => {
     console.log('✅ Login failure handling test completed')
   })
 
-  test('Complete flow from confirmation page to login', async ({ page }) => {
+  test('Complete flow from confirmation page to login', async ({ page, testContext }) => {
+    let userEmail: string
+    let userPassword: string
+
+    // ==================== Step 0: Read user info from TestContext ====================
+    await test.step('Read user info from TestContext', async () => {
+      const email = testContext.get<string>('auth.email')
+      const password = testContext.get<string>('auth.password')
+      const testStatus = testContext.get<string>('test.status')
+      
+      const validStatuses = ['email_confirmed_and_signin_completed', 'signup_completed_pending_confirmation']
+
+      if (!email || !password || !validStatuses.includes(testStatus)) {
+        console.log('⚠️ No valid user info found in TestContext or incorrect user status')
+        console.log(`   📧 Email: ${email || 'none'}`)
+        console.log(`   🔑 Password: ${password ? 'exists' : 'none'}`)
+        console.log(`   📊 Test Status: ${testStatus || 'none'}`)
+        console.log(`   Expected status: ${validStatuses.join(' or ')}`)
+        console.log('   Please run 01-complete-signup-flow.spec.ts test first')
+        test.skip()
+        return
+      }
+      
+      userEmail = email
+      userPassword = password
+      
+      console.log(`🔍 Read user info from TestContext:`)
+      console.log(`   📧 Email: ${email}`)
+      console.log(`   🔑 Password: ${password.substring(0, 8)}...`)
+    })
+
     // ==================== Step 1: Simulate redirect from confirmation page ====================
     await test.step('Simulate redirect from confirmation page to login page', async () => {
 
-      await page.goto('http://localhost:5180/auth/signin?confirmed=true')
+      await page.goto(`${testConfig.baseUrl}/auth/signin?confirmed=true`)
 
 
-      await expect(page).toHaveURL('http://localhost:5180/auth/signin?confirmed=true')
+      await expect(page).toHaveURL(`${testConfig.baseUrl}/auth/signin?confirmed=true`)
       console.log('✅ Successfully navigated to login page with confirmation parameter')
     })
 
@@ -224,9 +284,9 @@ test.describe('Complete Login Flow', () => {
     // ==================== Step 3: Normal login flow ====================
     await test.step('Execute normal login flow', async () => {
 
-      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill('test-login-flow@example.com')
+      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill(userEmail)
 
-      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill('TestPassword123!')
+      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(userPassword)
 
       console.log('📝 Fill login credentials')
 

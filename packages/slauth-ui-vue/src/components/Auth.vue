@@ -105,7 +105,7 @@ import { ref, computed, watch, onMounted, getCurrentInstance } from 'vue'
 import type { AuthEvent } from '../types'
 import { mergeLocalization } from '../localization'
 import { useAuthContext } from '../composables/useAuthContext'
-import { getPreservedParams, buildUrlWithPreservedParams, calculateRedirectUrl } from '../lib/redirectManager'
+import { getPreservedParams, buildUrlWithPreservedParams } from '../lib/redirectManager'
 import SignIn from './SignIn.vue'
 import SignUp from './SignUp.vue'
 import MagicLink from './MagicLink.vue'
@@ -262,11 +262,8 @@ const handleEmailConfirmation = async () => {
     handleAuthEvent(authEvent)
 
     // Navigate to login page and show success message
-    const finalRedirectTo = calculateRedirectUrl(
-      authConfig.followRedirect && !!redirectParam,
-      redirectParam || undefined,
-      `${authConfig.authBaseUrl}/signin?confirmed=true`
-    )
+    // Email confirmation doesn't have backend redirect_to, use config or default
+    const finalRedirectTo = redirectParam || authConfig.redirectTo || `${authConfig.authBaseUrl}/signin?confirmed=true`
     
     smartNavigate(finalRedirectTo)
   } else {
@@ -297,7 +294,8 @@ const handleOAuthCallback = async () => {
     
     debugLog('OAuth exchange result', { 
       hasUser: !!result?.user, 
-      hasSession: !!result?.session 
+      hasSession: !!result?.session,
+      hasRedirectTo: !!(result as any)?.redirect_to
     })
     
     if (!result?.user || !result?.session) {
@@ -306,11 +304,8 @@ const handleOAuthCallback = async () => {
       return
     }
     
-    const finalRedirectTo = calculateRedirectUrl(
-      authConfig.followRedirect && !!redirectParam,
-      redirectParam || undefined,
-      authConfig.redirectTo || '/'
-    )
+    // Use backend-validated redirect_to
+    const finalRedirectTo = (result as any).redirect_to || authConfig.redirectTo || '/'
     
     debugLog('OAuth success, redirecting to', { finalRedirectTo })
     
@@ -492,29 +487,18 @@ const handleAuthFlowResponse = (response: any) => {
         break
 
       case 'completed':
-        // Auth flow completed, perform final redirect
-        const preserved = getPreservedParams()
-        const finalRedirectTo = calculateRedirectUrl(
-          authConfig.followRedirect && !!preserved.redirect,
-          preserved.redirect,
-          authConfig.redirectTo || '/'
-        )
-
-        smartNavigate(finalRedirectTo)
+        // Auth flow completed, use backend-validated redirect_to
+        const redirectTo = data?.redirect_to || authConfig.redirectTo || '/'
+        smartNavigate(redirectTo)
         break
 
       default:
     }
   } else if (data?.user && data?.session) {
     // No flow indication, direct auth success
-    const preserved = getPreservedParams()
-    const finalRedirectTo = calculateRedirectUrl(
-      authConfig.followRedirect && !!preserved.redirect,
-      preserved.redirect,
-      authConfig.redirectTo || '/'
-    )
-
-    smartNavigate(finalRedirectTo)
+    // Use backend-validated redirect_to
+    const redirectTo = data?.redirect_to || authConfig.redirectTo || '/'
+    smartNavigate(redirectTo)
   }
 }
 
@@ -530,14 +514,9 @@ const handleAuthEvent = (event: AuthEvent) => {
       if ((event as any).flowResponse) {
         handleAuthFlowResponse((event as any).flowResponse)
       } else if (authConfig.followRedirect && event.session?.user) {
-        // Traditional handling: direct redirect
-        const preserved = getPreservedParams()
-        const finalRedirectTo = calculateRedirectUrl(
-          authConfig.followRedirect && !!preserved.redirect,
-          preserved.redirect,
-          authConfig.redirectTo || '/'
-        )
-        smartNavigate(finalRedirectTo)
+        // Traditional handling: use backend-validated redirect_to if available
+        const redirectTo = (event as any).redirect_to || authConfig.redirectTo || '/'
+        smartNavigate(redirectTo)
       }
       break
     case 'SIGNED_UP':
@@ -547,14 +526,9 @@ const handleAuthEvent = (event: AuthEvent) => {
       if ((event as any).flowResponse) {
         handleAuthFlowResponse((event as any).flowResponse)
       } else if (authConfig.followRedirect && event.session?.user) {
-        // Traditional handling: direct redirect
-        const preserved = getPreservedParams()
-        const finalRedirectTo = calculateRedirectUrl(
-          authConfig.followRedirect && !!preserved.redirect,
-          preserved.redirect,
-          authConfig.redirectTo || '/'
-        )
-        smartNavigate(finalRedirectTo)
+        // Traditional handling: use backend-validated redirect_to if available
+        const redirectTo = (event as any).redirect_to || authConfig.redirectTo || '/'
+        smartNavigate(redirectTo)
       }
       break
     case 'AUTH_ID_TOKEN':

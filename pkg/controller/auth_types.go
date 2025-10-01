@@ -99,6 +99,7 @@ type AuthData struct {
 	User         *User         `json:"user,omitempty" description:"User information"`
 	Session      *Session      `json:"session,omitempty" description:"Session information with tokens"`
 	WeakPassword *WeakPassword `json:"weakPassword,omitempty" description:"Weak password warning (if applicable)"`
+	RedirectTo   string        `json:"redirect_to,omitempty" description:"Validated redirect URL"`
 }
 
 // User represents user information

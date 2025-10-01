@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,15 +10,21 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/flaboy/aira-core/pkg/aira"
 	"github.com/flaboy/aira-core/pkg/config"
+	"github.com/flaboy/aira-core/pkg/mailer"
+	"github.com/flaboy/aira-core/pkg/redis"
 	"github.com/flaboy/envconf"
 	"github.com/flaboy/pin"
 	"github.com/gin-gonic/gin"
 	"github.com/thecybersailor/slauth/pkg/auth"
+	"github.com/thecybersailor/slauth/pkg/controller"
+	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/providers/captcha/cloudflare"
 	"github.com/thecybersailor/slauth/pkg/providers/identidies/google"
 	awssms "github.com/thecybersailor/slauth/pkg/providers/sms/aws"
+	"github.com/thecybersailor/slauth/pkg/registry"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 type Config struct {
@@ -26,23 +33,57 @@ type Config struct {
 
 	GoogleClientID     string `cfg:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `cfg:"GOOGLE_CLIENT_SECRET"`
+	AWSSNSEndpoint     string `cfg:"AWS_SNS_ENDPOINT" default:"http://localhost:8026"`
+
+	AuthServiceBaseUrl string `cfg:"AUTH_SERVICE_BASE_URL" default:"http://localhost:5180/auth"`
+	SiteURL            string `cfg:"SITE_URL" default:"http://localhost:5180"`
 }
 
 var cfg *Config
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
+	// Parse command line flags
+	configFile := flag.String("c", ".env", "Configuration file path")
+	flag.Parse()
+
 	cfg = &Config{}
-	if err := envconf.Load(".env", cfg); err != nil {
+	if err := envconf.Load(*configFile, cfg); err != nil {
 		panic(err)
 	}
 
-	if err := aira.Start(&cfg.Infra); err != nil {
-		panic(err)
+	// Print configuration
+	fmt.Println("=== Configuration ===")
+	fmt.Printf("Listen: %s\n", cfg.Listen)
+	fmt.Printf("Database: SQLite :memory:\n")
+	fmt.Printf("Redis: %s (DB: %d)\n", cfg.Infra.RedisAddr, cfg.Infra.RedisDB)
+	fmt.Printf("SMTP: %s:%d (From: %s)\n", cfg.Infra.SendMail.Host, cfg.Infra.SendMail.Port, cfg.Infra.SendMail.From)
+	fmt.Printf("AWS SNS Endpoint: %s\n", cfg.AWSSNSEndpoint)
+	fmt.Printf("Auth Service Base URL: %s\n", cfg.AuthServiceBaseUrl)
+	fmt.Printf("Site URL: %s\n", cfg.SiteURL)
+	fmt.Println("====================")
+
+	// Initialize database with SQLite
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect database: %v", err))
 	}
 
-	if err := auth.Start(); err != nil {
-		panic(err)
+	// Set global DB for models package
+	models.DB = db
+
+	if err := models.AutoMigrate(db); err != nil {
+		panic(fmt.Sprintf("Failed to migrate database: %v", err))
 	}
+
+	// Initialize Redis and SMTP
+	config.Config = &cfg.Infra
+	if err := redis.InitRedis(); err != nil {
+		panic(fmt.Sprintf("Failed to initialize Redis: %v", err))
+	}
+
+	// Initialize SMTP mailer
+	mailer.InitSMTP()
 
 	// Create Gin engine
 	r := gin.Default()
@@ -64,7 +105,7 @@ func main() {
 		})),
 		awsconfig.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			if service == "SNS" {
-				return aws.Endpoint{URL: "http://localhost:8026"}, nil
+				return aws.Endpoint{URL: cfg.AWSSNSEndpoint}, nil
 			}
 			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 		})),
@@ -79,13 +120,31 @@ func main() {
 	globalJWTSecret := "your-global-jwt-secret-change-in-production"
 	globalAppSecret := "your-global-app-secret-change-in-production"
 
-	userAuth := auth.NewService("user", globalJWTSecret, globalAppSecret).
-		SetCaptchaProvider(cloudflare.NewCaptchaProvider("0x4AAAAAABeUh101CXnQ_8-z")).
+	// Register auth service with database
+	userAuth := registry.RegisterAuthService("user", globalJWTSecret, globalAppSecret, db)
+
+	// Set route handlers
+	userAuth.SetRouteHandler(&auth.ControllerRouteHandler{})
+	userAuth.SetAdminRouteHandler(&auth.AdminRouteHandler{})
+
+	// Configure providers
+	userAuth.SetCaptchaProvider(cloudflare.NewCaptchaProvider("0x4AAAAAABeUh101CXnQ_8-z")).
 		AddIdentityProvider(google.NewGoogleProvider(&google.GoogleOAuthConfig{
 			ClientID:     cfg.GoogleClientID,
 			ClientSecret: cfg.GoogleClientSecret,
 		})).
 		SetSMSProvider(smsProvider)
+
+	// Update config and save to database
+	serviceConfig := userAuth.GetConfig()
+	serviceConfig.AuthServiceBaseUrl = cfg.AuthServiceBaseUrl
+	serviceConfig.SiteURL = cfg.SiteURL
+	userAuth.SaveConfig(serviceConfig)
+
+	// Health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok", "timestamp": "2025-10-01 17:44:36", "hot_reload": "working"})
+	})
 
 	// Add delay middleware to observe loading state
 	r.Use(func(c *gin.Context) {
@@ -94,8 +153,11 @@ func main() {
 	})
 
 	// Public routes for authentication - following design document
-	userAuth.HandleAuthRequest(r.Group("/auth"))   // http://example.com/auth
-	userAuth.HandleAdminRequest(r.Group("/admin")) //http://example.com/admin
+	authGroup := r.Group("/auth")
+	controller.RegisterRoutes(authGroup, userAuth)
+
+	adminGroup := r.Group("/admin")
+	userAuth.HandleAdminRequest(adminGroup)
 
 	// Start server
 	server := &http.Server{

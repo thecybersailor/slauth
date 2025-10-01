@@ -23,7 +23,7 @@ export enum FactorStatus {
 
 export interface ResetPasswordOptions {
   captchaToken?: string;
-  redirectTo?: string;
+  redirect_to?: string;
 }
 
 export interface SignInWithOtpOptions {
@@ -32,11 +32,13 @@ export interface SignInWithOtpOptions {
   channel?: string;
   data?: Record<string, any>;
   emailRedirectTo?: string;
+  redirect_to?: string;
   shouldCreateUser?: boolean;
 }
 
 export interface SignInWithPasswordOptions {
   captchaToken?: string;
+  redirect_to?: string;
 }
 
 export interface SignUpOptions {
@@ -44,15 +46,17 @@ export interface SignUpOptions {
   /** sms, whatsapp */
   channel?: string;
   emailRedirectTo?: string;
+  redirect_to?: string;
 }
 
 export interface VerifyOtpOptions {
   captchaToken?: string;
-  redirectTo?: string;
+  redirect_to?: string;
 }
 
 /** Authentication response containing user and session information */
 export interface AuthData {
+  redirect_to?: string;
   /** Authentication session with tokens */
   session?: Session;
   /** User account information */
