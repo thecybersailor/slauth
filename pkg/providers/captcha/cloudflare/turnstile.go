@@ -25,19 +25,16 @@ func (t *TurnstileCloudflare) ValidateCaptcha(ctx context.Context, captchaToken 
 		return false, usererrors.New("turnstile response is empty")
 	}
 
-	
 	args := fasthttp.AcquireArgs()
 	defer fasthttp.ReleaseArgs(args)
 	args.Add("secret", t.CloudflareTurnstileKey)
 	args.Add("response", captchaToken)
 
-	
 	responseBody, err := httpc.DoPostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", args)
 	if err != nil {
 		return false, err
 	}
 
-	
 	var result struct {
 		Success bool `json:"success"`
 	}

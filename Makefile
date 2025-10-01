@@ -1,7 +1,10 @@
 # slauth Build System
 
-.PHONY: all build-ts-sdk build-vue-ui help docs-install generate-schemas test generate-templates clean clean-schemas regen-schemas
+.PHONY: all build-ts-sdk build-vue-ui help docs-install generate-schemas test generate-templates clean clean-schemas regen-schemas fmt lint lint-install
 .DEFAULT_GOAL := all
+
+# Go source files
+GO_FILES := $(shell find . -name "*.go" -not -path "./vendor/*")
 
 # Default target
 all: generate-templates generate-schemas build-ts-sdk build-vue-ui
@@ -40,7 +43,7 @@ packages/slauth-ts/src/types/auth-api.ts packages/slauth-ts/src/types/admin-api.
 	@echo "Optimized TypeScript types generated successfully!"
 
 # Auth API documentation
-docs/specs/auth-api.json: tools/prog/main.go $(shell find pkg -name "*.go")
+docs/specs/auth-api.json: tools/prog/main.go $(GO_FILES)
 	@echo "Generating Auth API documentation..."
 	@mkdir -p docs/specs
 	swag init -g tools/prog/main.go -o docs/temp/auth --parseDependency --parseInternal --parseDepth 1 --tags Auth
@@ -49,7 +52,7 @@ docs/specs/auth-api.json: tools/prog/main.go $(shell find pkg -name "*.go")
 	@echo "Auth API documentation generated: docs/specs/auth-api.json"
 
 # Admin API documentation  
-docs/specs/admin-api.json: tools/prog/main.go $(shell find pkg -name "*.go")
+docs/specs/admin-api.json: tools/prog/main.go $(GO_FILES)
 	@echo "Generating Admin API documentation..."
 	@mkdir -p docs/specs
 	swag init -g tools/prog/main.go -o docs/temp/admin --parseDependency --parseInternal --parseDepth 1 --tags Admin
@@ -134,6 +137,24 @@ clean-schemas:
 # Force regenerate schemas (clean + generate)
 regen-schemas: clean-schemas generate-schemas
 
+# Format Go code with gofmt -s
+fmt:
+	@echo "Formatting Go code..."
+	@gofmt -s -w $(GO_FILES)
+	@echo "Go code formatted successfully!"
+
+# Run golangci-lint
+lint:
+	@echo "Running golangci-lint..."
+	@golangci-lint run ./...
+	@echo "Linting completed!"
+
+# Install golangci-lint
+lint-install:
+	@echo "Installing golangci-lint..."
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "golangci-lint installed successfully!"
+
 # Help
 help:
 	@echo "Available targets:"
@@ -145,11 +166,14 @@ help:
 	@echo "  docs-install- Install swag tool"
 	@echo "  clean-schemas - Clean only generated schemas"
 	@echo "  regen-schemas - Force regenerate schemas"
-	@echo "  test - Run tests in tests/ directory (default: SQLite)"
-	@echo "  test-mysql - Run tests with MySQL configuration"
-	@echo "  test-pgsql - Run tests with PostgreSQL configuration"
+	@echo "  fmt         - Format Go code with gofmt -s"
+	@echo "  lint        - Run golangci-lint"
+	@echo "  lint-install- Install golangci-lint"
+	@echo "  test        - Run tests in tests/ directory (default: SQLite)"
+	@echo "  test-mysql  - Run tests with MySQL configuration"
+	@echo "  test-pgsql  - Run tests with PostgreSQL configuration"
 	@echo "  test-custom - Run tests with custom configuration file"
-	@echo "  clean - Clean all generated files and build artifacts"
+	@echo "  clean       - Clean all generated files and build artifacts"
 	@echo ""
 	@echo "Usage examples:"
 	@echo "  make test                    # Run tests with SQLite (default)"

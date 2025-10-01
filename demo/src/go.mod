@@ -6,16 +6,14 @@ toolchain go1.24.7
 
 replace github.com/thecybersailor/slauth => ../../
 
-replace github.com/flaboy/aira-core => ../../../aira-core
-
 require (
 	github.com/aws/aws-sdk-go-v2 v1.39.1
 	github.com/aws/aws-sdk-go-v2/config v1.31.10
-	github.com/thecybersailor/slauth v0.0.0
-	github.com/flaboy/aira-core v0.0.0
+	github.com/flaboy/aira-core v1.0.1
 	github.com/flaboy/envconf v1.0.3
 	github.com/flaboy/pin v0.9.8
 	github.com/gin-gonic/gin v1.9.1
+	github.com/thecybersailor/slauth v0.8.1
 )
 
 require (

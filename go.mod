@@ -69,7 +69,7 @@ require (
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
-	github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719
+	github.com/flaboy/aira-core v1.0.1
 	github.com/flaboy/pin v0.9.8
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect

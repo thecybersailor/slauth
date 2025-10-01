@@ -16,10 +16,9 @@ func NewFileTemplateResolver(basePath string) *FileTemplateResolver {
 }
 
 func (f *FileTemplateResolver) GetTemplate(domainCode, messageType, templateName string) ([]byte, bool) {
-	
+
 	templatePath := filepath.Join(f.basePath, messageType, templateName+".tmpl")
 
-	
 	content, err := os.ReadFile(templatePath)
 	if err != nil {
 		return nil, false

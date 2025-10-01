@@ -10,7 +10,7 @@ type FlowState struct {
 	AuthCode             string     `json:"auth_code" gorm:"type:varchar(255);not null"`
 	CodeChallengeMethod  string     `json:"code_challenge_method" gorm:"type:varchar(255);not null"` // USER-DEFINED type mapped to varchar
 	CodeChallenge        string     `json:"code_challenge" gorm:"type:varchar(255);not null"`
-	CodeVerifier         string     `json:"code_verifier" gorm:"type:varchar(255);not null"` 
+	CodeVerifier         string     `json:"code_verifier" gorm:"type:varchar(255);not null"`
 	ProviderType         string     `json:"provider_type" gorm:"type:varchar(255);not null"`
 	ProviderAccessToken  *string    `json:"provider_access_token" gorm:"type:varchar(255)"`
 	ProviderRefreshToken *string    `json:"provider_refresh_token" gorm:"type:varchar(255)"`

@@ -12,12 +12,12 @@ func GenerateSecureToken(length int) (string, error) {
 	if length <= 0 {
 		return "", fmt.Errorf("token length must be positive")
 	}
-	
+
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
-	
+
 	return hex.EncodeToString(bytes), nil
 }
 
@@ -35,10 +35,10 @@ func GenerateConfirmationToken() (string, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate confirmation token: %w", err)
 	}
-	
+
 	// Create hash for storage
 	tokenHash := HashToken(token)
-	
+
 	return token, tokenHash, nil
 }
 

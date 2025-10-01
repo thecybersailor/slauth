@@ -18,8 +18,8 @@
     "../*"
   ],
   "dependencies": {
-    "@cybersailor/slauth-ts": "^1.0.0",
-    "@cybersailor/slauth-ui-vue": "^1.0.0",
+    "@cybersailor/slauth-ts": "^0.8.1",
+    "@cybersailor/slauth-ui-vue": "^0.8.1",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },

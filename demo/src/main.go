@@ -9,7 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/flaboy/aira-core/pkg/arislib"
+	"github.com/flaboy/aira-core/pkg/aira"
 	"github.com/flaboy/aira-core/pkg/config"
 	"github.com/flaboy/envconf"
 	"github.com/flaboy/pin"
@@ -36,7 +36,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := arislib.Start(&cfg.Infra); err != nil {
+	if err := aira.Start(&cfg.Infra); err != nil {
 		panic(err)
 	}
 
