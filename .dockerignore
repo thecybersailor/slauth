@@ -59,6 +59,7 @@ test.db
 .env.local
 .env.*.local
 *.conf
+!docker/nginx.conf
 
 # OS files
 .DS_Store
