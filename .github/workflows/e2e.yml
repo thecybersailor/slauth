@@ -30,7 +30,7 @@ jobs:
         run: |
           docker compose -f docker-compose.e2e.yml up -d backend
           echo "Waiting for backend to be ready..."
-          timeout 60 bash -c 'until docker compose -f docker-compose.e2e.yml exec -T backend wget --quiet --tries=1 --spider http://localhost:8080/health 2>/dev/null; do echo "Waiting for backend..."; sleep 2; done'
+          timeout 30 bash -c 'until docker compose -f docker-compose.e2e.yml exec -T backend wget --quiet --tries=1 -O /dev/null http://localhost:8080/health 2>/dev/null; do echo "Waiting for backend..."; sleep 1; done'
           echo "Backend is ready!"
 
       - name: Print backend logs on startup failure
@@ -45,7 +45,7 @@ jobs:
         run: |
           docker compose -f docker-compose.e2e.yml up -d frontend
           echo "Waiting for frontend to be ready..."
-          timeout 30 bash -c 'until curl -s http://localhost:5180/health > /dev/null; do echo "Waiting for frontend..."; sleep 2; done'
+          timeout 20 bash -c 'until curl -s http://localhost:5180/health > /dev/null; do echo "Waiting for frontend..."; sleep 1; done'
           echo "Frontend is ready!"
 
       - name: Print frontend logs on startup failure
