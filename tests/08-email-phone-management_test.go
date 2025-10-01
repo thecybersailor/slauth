@@ -19,6 +19,11 @@ func (suite *EmailPhoneManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
 
+	cfg := suite.AuthService.GetConfig()
+	cfg.ConfirmEmail = true
+	err := suite.AuthService.SaveConfig(cfg)
+	suite.Require().NoError(err, "Failed to enable email confirmation")
+
 	suite.AuthService.OTPUse(func(ctx services.OTPContext, next func() error) error {
 		err := next()
 		if err == nil && ctx.Response() != nil && ctx.Response().Code != "" {

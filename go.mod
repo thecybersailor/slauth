@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.39.1
 	github.com/aws/aws-sdk-go-v2/service/sns v1.38.4
 	github.com/crewjam/saml v0.5.1
+	github.com/gobwas/glob v0.2.3
 	github.com/google/uuid v1.6.0
 	github.com/redis/go-redis/v9 v9.15.0
 	github.com/speps/go-hashids/v2 v2.0.1

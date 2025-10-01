@@ -38,6 +38,7 @@ export interface AuthEvent {
   error?: string
   email?: string
   phone?: string
+  redirect_to?: string
   data?: any
 }
 

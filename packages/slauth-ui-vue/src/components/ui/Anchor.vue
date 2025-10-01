@@ -1,6 +1,6 @@
 <template>
   <a
-    :href="href"
+    :href="computedHref"
     :class="['aira-anchor', className]"
     :data-testid="dataTestid"
   >
@@ -9,9 +9,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { AnchorProps } from '../../types'
+import { buildUrlWithPreservedParams } from '../../lib/redirectManager'
 
 const props = defineProps<AnchorProps>()
+
+// Automatically preserve URL parameters (redirect, state, etc.)
+const computedHref = computed(() => {
+  const href = props.href
+  
+  // If href already has query parameters or is external, use as is
+  if (href.includes('?') || href.startsWith('http://') || href.startsWith('https://')) {
+    return href
+  }
+  
+  // Otherwise, build URL with preserved parameters
+  return buildUrlWithPreservedParams(href)
+})
 </script>
 
 <style scoped>

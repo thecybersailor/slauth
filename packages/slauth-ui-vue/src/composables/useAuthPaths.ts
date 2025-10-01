@@ -15,7 +15,7 @@ const detectAuthBasePath = (): { basePath: string, action: string } => {
   
   if (!KNOWN_ACTIONS.some(action => currentPath.includes(`/${action}`))) {
     if (!currentPath.endsWith('/')) {
-      window.location.href = currentPath + '/'
+      window.location.href = currentPath + '/' + window.location.search + window.location.hash
       return { basePath: currentPath, action: 'signin' } 
     }
     const basePath = currentPath.replace(/\/$/, '') 

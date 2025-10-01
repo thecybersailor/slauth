@@ -23,6 +23,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/providers/identidies/google"
 	awssms "github.com/thecybersailor/slauth/pkg/providers/sms/aws"
 	"github.com/thecybersailor/slauth/pkg/registry"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -55,7 +56,12 @@ func main() {
 	// Print configuration
 	fmt.Println("=== Configuration ===")
 	fmt.Printf("Listen: %s\n", cfg.Listen)
-	fmt.Printf("Database: SQLite :memory:\n")
+	fmt.Printf("Database Type: %s\n", cfg.Infra.DB_TYPE)
+	if cfg.Infra.DB_TYPE == "pgsql" {
+		fmt.Printf("Database: PostgreSQL %s:%d/%s\n", cfg.Infra.DB_HOST, cfg.Infra.DB_PORT, cfg.Infra.DB_DBNAME)
+	} else {
+		fmt.Printf("Database: SQLite :memory:\n")
+	}
 	fmt.Printf("Redis: %s (DB: %d)\n", cfg.Infra.RedisAddr, cfg.Infra.RedisDB)
 	fmt.Printf("SMTP: %s:%d (From: %s)\n", cfg.Infra.SendMail.Host, cfg.Infra.SendMail.Port, cfg.Infra.SendMail.From)
 	fmt.Printf("AWS SNS Endpoint: %s\n", cfg.AWSSNSEndpoint)
@@ -63,21 +69,38 @@ func main() {
 	fmt.Printf("Site URL: %s\n", cfg.SiteURL)
 	fmt.Println("====================")
 
-	// Initialize database with SQLite
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to connect database: %v", err))
+	// Initialize database
+	var db *gorm.DB
+	var err error
+
+	if cfg.Infra.DB_TYPE == "pgsql" {
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
+			cfg.Infra.DB_HOST, cfg.Infra.DB_USER, cfg.Infra.DB_PASSWORD, cfg.Infra.DB_DBNAME, cfg.Infra.DB_PORT)
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to connect PostgreSQL: %v", err))
+		}
+	} else {
+		db, err = gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to connect SQLite: %v", err))
+		}
 	}
 
-	// Configure connection pool for memory database
+	// Configure connection pool
 	sqlDB, err := db.DB()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get underlying sql.DB: %v", err))
 	}
 
-	// Critical: Set MaxOpenConns to 1 for memory database to prevent table loss
-	sqlDB.SetMaxOpenConns(1)
-	sqlDB.SetMaxIdleConns(1)
+	if cfg.Infra.DB_TYPE == "pgsql" {
+		sqlDB.SetMaxOpenConns(25)
+		sqlDB.SetMaxIdleConns(5)
+	} else {
+		// Critical: Set MaxOpenConns to 1 for memory database to prevent table loss
+		sqlDB.SetMaxOpenConns(1)
+		sqlDB.SetMaxIdleConns(1)
+	}
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	// Set global DB for models package

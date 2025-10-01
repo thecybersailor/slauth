@@ -2,9 +2,11 @@ package services
 
 import (
 	"net/mail"
+	"net/url"
 	"regexp"
 	"strings"
 
+	"github.com/gobwas/glob"
 	"github.com/thecybersailor/slauth/pkg/consts"
 )
 
@@ -161,21 +163,56 @@ func (v *ValidatorService) ValidateRedirectURL(redirectURL string, allowedURLs [
 }
 
 // matchURL checks if URL matches pattern (supports wildcards)
-func (v *ValidatorService) matchURL(url, pattern string) bool {
-	// Simple wildcard matching
+func (v *ValidatorService) matchURL(redirectURL, pattern string) bool {
+	// Wildcard matching using glob library
 	if strings.Contains(pattern, "*") {
-		// Convert wildcard pattern to regex
-		regexPattern := strings.ReplaceAll(pattern, "*", ".*")
-		regexPattern = "^" + regexPattern + "$"
-
-		matched, err := regexp.MatchString(regexPattern, url)
-		if err == nil && matched {
-			return true
+		// Parse pattern to check if it has a path
+		patternParsed, err := url.Parse(pattern)
+		if err == nil && (patternParsed.Path == "" || patternParsed.Path == "/") {
+			// Pattern has no path, so match the origin and allow any path
+			// Extract origin from redirect URL (scheme + host)
+			redirectParsed, err2 := url.Parse(redirectURL)
+			if err2 == nil {
+				redirectOrigin := redirectParsed.Scheme + "://" + redirectParsed.Host
+				g, err3 := glob.Compile(pattern)
+				if err3 == nil && g.Match(redirectOrigin) {
+					return true
+				}
+			}
 		}
+
+		// Full URL pattern matching
+		g, err := glob.Compile(pattern)
+		if err != nil {
+			return false
+		}
+		return g.Match(redirectURL)
 	}
 
-	// Exact match
-	return url == pattern
+	// Parse URLs for structured comparison
+	redirectParsed, err1 := url.Parse(redirectURL)
+	patternParsed, err2 := url.Parse(pattern)
+
+	if err1 != nil || err2 != nil {
+		// Fallback to exact string match if parsing fails
+		return redirectURL == pattern
+	}
+
+	// Compare scheme and host
+	if redirectParsed.Scheme != patternParsed.Scheme {
+		return false
+	}
+	if redirectParsed.Host != patternParsed.Host {
+		return false
+	}
+
+	// Allow any path under the pattern's path
+	// If pattern is "http://localhost:3000", allow "http://localhost:3000/dashboard"
+	if patternParsed.Path == "" || patternParsed.Path == "/" {
+		return true
+	}
+
+	return strings.HasPrefix(redirectParsed.Path, patternParsed.Path)
 }
 
 // ValidateDomainCode validates domain code format
