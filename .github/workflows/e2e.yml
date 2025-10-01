@@ -33,12 +33,28 @@ jobs:
           timeout 60 bash -c 'until docker compose -f docker-compose.e2e.yml exec -T backend wget --quiet --tries=1 --spider http://localhost:8080/health 2>/dev/null; do echo "Waiting for backend..."; sleep 2; done'
           echo "Backend is ready!"
 
+      - name: Print backend logs on startup failure
+        if: failure()
+        run: |
+          echo "Backend failed to start. Printing logs..."
+          docker compose -f docker-compose.e2e.yml logs backend
+          echo "Checking container status..."
+          docker compose -f docker-compose.e2e.yml ps
+
       - name: Build and start frontend service
         run: |
           docker compose -f docker-compose.e2e.yml up -d frontend
           echo "Waiting for frontend to be ready..."
           timeout 30 bash -c 'until curl -s http://localhost:5180/health > /dev/null; do echo "Waiting for frontend..."; sleep 2; done'
           echo "Frontend is ready!"
+
+      - name: Print frontend logs on startup failure
+        if: failure()
+        run: |
+          echo "Frontend failed to start. Printing logs..."
+          docker compose -f docker-compose.e2e.yml logs frontend
+          echo "Checking container status..."
+          docker compose -f docker-compose.e2e.yml ps
 
       - name: Run E2E tests
         run: |
