@@ -131,14 +131,11 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenInvalid() {
 	suite.T().Logf("Status Code: %d", refreshResponse.ResponseRecorder.Code)
 	suite.T().Logf("Response Body: %s", refreshResponse.ResponseRecorder.Body.String())
 
-	suite.NotEqual(200, refreshResponse.ResponseRecorder.Code, "Should not succeed with invalid refresh token")
+	// Pin Response: All refresh token errors return 200 with error in body
+	suite.Equal(200, refreshResponse.ResponseRecorder.Code, "Refresh request returns 200 (Pin Response format)")
+	suite.helper.HasError(suite.T(), refreshResponse, "refresh_token_not_found", "Should fail with invalid refresh token")
 
-	// Parse response body
-	var responseBody map[string]any
-	err := json.Unmarshal(refreshResponse.ResponseRecorder.Body.Bytes(), &responseBody)
-	suite.NoError(err, "Should be able to parse response body")
-
-	suite.T().Logf("Parsed Response: %+v", responseBody)
+	suite.T().Logf("Parsed Response: %+v", refreshResponse.Response.Error)
 }
 
 // Scenario 5: Refresh Token Expired (used after revoked)
@@ -196,14 +193,12 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenExpired() {
 	suite.T().Logf("Status Code: %d", expiredRefreshResponse.ResponseRecorder.Code)
 	suite.T().Logf("Response Body: %s", expiredRefreshResponse.ResponseRecorder.Body.String())
 
-	suite.NotEqual(200, expiredRefreshResponse.ResponseRecorder.Code, "Should not succeed with expired refresh token")
+	// Pin Response: All refresh token errors return 200 with error in body
+	// Note: RevokeUserSession explicitly revokes refresh tokens, so error is refresh_token_not_found
+	suite.Equal(200, expiredRefreshResponse.ResponseRecorder.Code, "Refresh request returns 200 (Pin Response format)")
+	suite.helper.HasError(suite.T(), expiredRefreshResponse, "refresh_token_not_found", "Should fail with expired refresh token")
 
-	// Parse response body
-	var responseBody map[string]any
-	err := json.Unmarshal(expiredRefreshResponse.ResponseRecorder.Body.Bytes(), &responseBody)
-	suite.NoError(err, "Should be able to parse response body")
-
-	suite.T().Logf("Parsed Response: %+v", responseBody)
+	suite.T().Logf("Parsed Response: %+v", expiredRefreshResponse.Response.Error)
 }
 
 func TestTokenErrorScenariosTestSuite(t *testing.T) {

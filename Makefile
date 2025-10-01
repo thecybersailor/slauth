@@ -1,6 +1,6 @@
 # slauth Build System
 
-.PHONY: all build-ts-sdk build-vue-ui help docs-install generate-schemas test generate-templates clean clean-schemas regen-schemas fmt lint lint-install
+.PHONY: all build-ts-sdk build-vue-ui help docs-install generate-schemas test generate-templates clean clean-schemas regen-schemas fmt lint lint-install install-hooks
 .DEFAULT_GOAL := all
 
 # Go source files
@@ -86,19 +86,22 @@ packages/slauth-ts/src/schemas/admin-api.schemas.ts: packages/slauth-ts/src/type
 test:
 	@echo "Running tests in tests/ directory..."
 	@cd tests && go test -v ./...
-	@echo "Tests completed!"
+	@touch .test-passed
+	@echo "Tests completed and marked as passed!"
 
 # Run tests with MySQL configuration
 test-mysql:
 	@echo "Running tests with MySQL configuration..."
 	@cd tests && CONF_FILE=mysql.conf go test -v ./...
-	@echo "MySQL tests completed!"
+	@touch .test-passed
+	@echo "MySQL tests completed and marked as passed!"
 
 # Run tests with PostgreSQL configuration  
 test-pgsql:
 	@echo "Running tests with PostgreSQL configuration..."
 	@cd tests && CONF_FILE=pgsql.conf go test -v ./...
-	@echo "PostgreSQL tests completed!"
+	@touch .test-passed
+	@echo "PostgreSQL tests completed and marked as passed!"
 
 # Run tests with custom configuration file
 # Usage: make test-custom CONF_FILE=your-config.conf
@@ -110,7 +113,8 @@ test-custom:
 	fi
 	@echo "Running tests with custom configuration: $(CONF_FILE)..."
 	@cd tests && CONF_FILE=$(CONF_FILE) go test -v ./...
-	@echo "Custom configuration tests completed!"
+	@touch .test-passed
+	@echo "Custom configuration tests completed and marked as passed!"
 
 # Clean all generated files and build artifacts
 clean:
@@ -155,6 +159,12 @@ lint-install:
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	@echo "golangci-lint installed successfully!"
 
+# Install Git hooks for test verification
+install-hooks:
+	@echo "Installing Git hooks..."
+	@bash tools/install-hooks.sh
+	@echo "Git hooks installed successfully!"
+
 # Help
 help:
 	@echo "Available targets:"
@@ -169,6 +179,7 @@ help:
 	@echo "  fmt         - Format Go code with gofmt -s"
 	@echo "  lint        - Run golangci-lint"
 	@echo "  lint-install- Install golangci-lint"
+	@echo "  install-hooks - Install Git pre-push hook for test verification"
 	@echo "  test        - Run tests in tests/ directory (default: SQLite)"
 	@echo "  test-mysql  - Run tests with MySQL configuration"
 	@echo "  test-pgsql  - Run tests with PostgreSQL configuration"
