@@ -78,6 +78,7 @@ postgres_data/
 .env.*.local
 *.conf
 !/tests/*.conf
+!/docker/nginx.conf
 
 # API Documentation Temp
 docs/temp/
