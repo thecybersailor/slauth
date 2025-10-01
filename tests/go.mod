@@ -3,7 +3,7 @@ module github.com/thecybersailor/slauth/tests
 go 1.24.4
 
 require (
-	github.com/flaboy/aira-core v0.0.0-20250930074831-5aacf6fa8719
+	github.com/flaboy/aira-core v1.0.1
 	github.com/flaboy/envconf v1.0.3
 	github.com/flaboy/pin v0.9.8
 	github.com/gin-gonic/gin v1.9.1
