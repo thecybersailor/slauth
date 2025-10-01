@@ -5,23 +5,24 @@ export const KNOWN_ACTIONS = ['signup', 'signin', 'forgot-password', 'reset-pass
 
 const detectAuthBasePath = (): { basePath: string, action: string } => {
   const currentPath = window.location.pathname
+  console.log('[DEBUG] detectAuthBasePath called', { currentPath, KNOWN_ACTIONS })
   
   for (const action of KNOWN_ACTIONS) {
     if (currentPath.endsWith(`/${action}`)) {
       const basePath = currentPath.slice(0, -(action.length + 1)) 
+      console.log('[DEBUG] Matched action from path', { action, basePath, currentPath })
       return { basePath, action }
     }
   }
   
   if (!KNOWN_ACTIONS.some(action => currentPath.includes(`/${action}`))) {
-    if (!currentPath.endsWith('/')) {
-      window.location.href = currentPath + '/' + window.location.search + window.location.hash
-      return { basePath: currentPath, action: 'signin' } 
-    }
-    const basePath = currentPath.replace(/\/$/, '') 
+    console.log('[DEBUG] No known action found in path')
+    const basePath = currentPath.replace(/\/$/, '')
+    console.log('[DEBUG] Using default signin action', { basePath })
     return { basePath, action: 'signin' } 
   }
   
+  console.error('[DEBUG] Unable to detect auth base path', { currentPath })
   throw new Error(`Unable to detect valid authentication base path from current path "${currentPath}"`)
 }
 
@@ -33,6 +34,7 @@ export function useAuthPaths() {
   
   const buildAuthPath = (action: string, additionalParams: Record<string, string> = {}) => {
     const actionPath = action ? `${detectedBasePath.value}/${action}` : detectedBasePath.value
+    console.log('[DEBUG] buildAuthPath called', { action, basePath: detectedBasePath.value, actionPath, additionalParams })
     return buildUrlWithPreservedParams(actionPath, additionalParams)
   }
   

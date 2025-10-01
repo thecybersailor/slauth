@@ -10,6 +10,7 @@
     <!-- Email Form -->
     <form
       class="aira-forgot-password__form"
+      data-testid="forgot-password-form"
       @submit.prevent="handleSubmit"
     >
       <Message

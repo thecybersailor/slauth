@@ -100,14 +100,15 @@ services:
       SYS_SMTP_PORT: 1025
       SYS_SMTP_USERNAME: ""
       SYS_SMTP_PASSWORD: ""
-      SYS_SMTP_FROM: noreply@slauth-e2e.test
-      SYS_SMTP_FROM_NAME: Slauth E2E Tests
+      SYS_SMTP_MAILFROM: noreply@slauth-e2e.test
       
       # SMS configuration (SMSHog - AWS SNS Mock)
       AWS_SNS_ENDPOINT: http://smshog:3000
       
       # Service configuration
       LISTEN: ":8080"
+      AUTH_SERVICE_BASE_URL: "http://frontend:5180/auth"
+      SITE_URL: "http://frontend:5180"
       GOOGLE_CLIENT_ID: "dummy-client-id"
       GOOGLE_CLIENT_SECRET: "dummy-client-secret"
       
@@ -128,16 +129,16 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: http://backend:8080
     platform: linux/amd64
     depends_on:
       backend:
         condition: service_healthy
-    environment:
-      VITE_API_URL: http://backend:8080
     ports:
-      - "15180:80"
+      - "15180:5180"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5180/health"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -158,8 +159,11 @@ services:
         condition: service_healthy
     environment:
       CI: "true"
-      PLAYWRIGHT_BASE_URL: http://frontend:80
+      PLAYWRIGHT_BASE_URL: http://frontend:5180
+      FRONTEND_URL: http://frontend:5180
       BACKEND_URL: http://backend:8080
+      MAILHOG_URL: http://mailhog:8025
+      SMSHOG_URL: http://smshog:3000
     volumes:
       - ../packages/demo-fe/playwright-report:/app/playwright-report
       - ../packages/demo-fe/test-results:/app/test-results

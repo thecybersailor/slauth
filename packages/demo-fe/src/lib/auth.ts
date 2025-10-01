@@ -1,9 +1,10 @@
 import { createClients } from '@cybersailor/slauth-ts'
 
 // Create the API clients
+const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 export const { authClient, adminClient } = createClients({
-  auth: { url: 'http://localhost:8080/auth' },
-  admin: { url: 'http://localhost:8080/admin' },
+  auth: { url: `${baseUrl}/auth` },
+  admin: { url: `${baseUrl}/admin` },
   autoRefreshToken: true,
   persistSession: true,
   debug: true,

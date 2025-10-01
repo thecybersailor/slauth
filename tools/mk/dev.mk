@@ -99,3 +99,34 @@ dev-e2e:
 	fi
 	@echo "Backend and frontend are running. Starting E2E tests..."
 	@cd packages/demo-fe && npm run test:e2e
+
+# Run E2E tests against production build with dev infrastructure
+dev-e2e-prod:
+	@echo "Running E2E tests against production build..."
+	@echo "Using local backend and dev-services infrastructure"
+	@echo ""
+	@if ! curl -s http://localhost:8080/health > /dev/null 2>&1; then \
+		echo "Error: Backend is not running at http://localhost:8080"; \
+		echo "Please run 'make demo-backend' in another terminal first."; \
+		exit 1; \
+	fi
+	@echo "Backend is running. Checking frontend build..."
+	@if [ ! -d "packages/demo-fe/dist" ]; then \
+		echo "Frontend not built. Building now..."; \
+		cd packages/demo-fe && npm run build; \
+	fi
+	@echo "Starting production preview server..."
+	@cd packages/demo-fe && \
+		(npm run preview > /dev/null 2>&1 &); \
+		sleep 3; \
+		if ! curl -s http://localhost:4173 > /dev/null 2>&1; then \
+			echo "Error: Preview server failed to start"; \
+			exit 1; \
+		fi; \
+		echo "Preview server running at http://localhost:4173"; \
+		echo "Running E2E tests..."; \
+		PLAYWRIGHT_BASE_URL=http://localhost:4173 npm run test:e2e; \
+		TEST_EXIT=$$?; \
+		echo "Stopping preview server..."; \
+		pkill -f "vite preview" || true; \
+		exit $$TEST_EXIT

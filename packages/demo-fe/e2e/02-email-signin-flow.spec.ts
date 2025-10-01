@@ -23,6 +23,11 @@ import { clearAuthState } from './helpers/auth.helper.js';
 
 test.describe('Email SignIn Flow', () => {
   test.beforeEach(async ({ page }) => {
+    // Capture console logs
+    page.on('console', msg => {
+      console.log(`[Browser ${msg.type()}]:`, msg.text())
+    })
+    
     await page.goto('/');
     await clearAuthState(page);
   });

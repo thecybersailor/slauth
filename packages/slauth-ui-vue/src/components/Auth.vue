@@ -180,6 +180,13 @@ const debugLog = (message: string, data?: any) => {
 // Auth flow navigation function
 const navigateToAuthStep = (step: string, additionalParams: Record<string, string> = {}) => {
   const urlWithParams = buildAuthPath(step, additionalParams)
+  console.log('[DEBUG] navigateToAuthStep called', { 
+    step, 
+    additionalParams, 
+    urlWithParams, 
+    hasRouter: !!router,
+    currentPath: window.location.pathname
+  })
 
   if (router) {
     router.push(urlWithParams)
@@ -190,6 +197,12 @@ const navigateToAuthStep = (step: string, additionalParams: Record<string, strin
 
 // Smart navigation function
 const smartNavigate = (url: string) => {
+  console.log('[DEBUG] smartNavigate called', { 
+    url, 
+    hasRouter: !!router, 
+    currentPath: window.location.pathname 
+  })
+  
   if (router) {
     // Check if it's a complete URL
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -200,17 +213,22 @@ const smartNavigate = (url: string) => {
 
       if (isSameDomain) {
         // Same domain: use Vue Router navigation (only path part)
-        router.push(redirectUrl.pathname + redirectUrl.search + redirectUrl.hash)
+        const targetPath = redirectUrl.pathname + redirectUrl.search + redirectUrl.hash
+        console.log('[DEBUG] smartNavigate: same domain, using Vue Router', { targetPath })
+        router.push(targetPath)
       } else {
         // Different domain: use window.location
+        console.log('[DEBUG] smartNavigate: different domain, using window.location', { url })
         window.location.href = url
       }
     } else {
       // Relative path: ensure starts with /, use Vue Router
       const absolutePath = url.startsWith('/') ? url : `/${url}`
+      console.log('[DEBUG] smartNavigate: relative path, using Vue Router', { absolutePath })
       router.push(absolutePath)
     }
   } else {
+    console.log('[DEBUG] smartNavigate: no router, using window.location', { url })
     window.location.href = url
   }
 }
@@ -396,22 +414,27 @@ watch(currentView, (newView, oldView) => {
 
 // Watch route changes (if router exists)
 if (route) {
-  watch(() => route.path, (newPath) => {
+  watch(() => route.path, (newPath, oldPath) => {
+    console.log('[DEBUG] Route path changed', { oldPath, newPath, fullPath: window.location.href })
     // Re-detect current path action
     try {
       const { action } = detectAuthBasePath()
+      console.log('[DEBUG] Re-detected action from route change', { action, newPath })
       setViewFromAction(action)
 
       // If callback, handle OAuth callback
       if (action === 'callback') {
+        console.log('[DEBUG] Handling OAuth callback from route watch')
         handleOAuthCallback()
       }
 
       // If confirm, handle email confirmation
       if (action === 'confirm') {
+        console.log('[DEBUG] Handling email confirmation from route watch')
         handleEmailConfirmation()
       }
     } catch (error) {
+      console.error('[DEBUG] Error in route watch', error)
     }
   })
 }
