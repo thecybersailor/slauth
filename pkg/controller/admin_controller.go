@@ -1428,6 +1428,15 @@ var allowedSortFields = map[string]bool{
 	"recovery_sent_at":     true,
 }
 
+// Map from allowed sort field to actual fully-qualified column name for safety
+var allowedSortFieldColumns = map[string]string{
+	"id":         "users.id",
+	"username":   "users.username",
+	"email":      "users.email",
+	"created_at": "users.created_at",
+	"updated_at": "users.updated_at",
+}
+
 func applySorting(query *gorm.DB, sort []string) *gorm.DB {
 	for _, s := range sort {
 		parts := strings.Fields(s)
@@ -1436,20 +1445,22 @@ func applySorting(query *gorm.DB, sort []string) *gorm.DB {
 		}
 
 		field := parts[0]
-		direction := "ASC"
-
-		if len(parts) > 1 {
-			dir := strings.ToUpper(parts[1])
-			if dir == "DESC" || dir == "ASC" {
-				direction = dir
-			}
-		}
-
-		if !allowedSortFields[field] {
+		column, ok := allowedSortFieldColumns[field]
+		if !ok {
 			continue
 		}
 
-		query = query.Order("users." + field + " " + direction)
+		direction := "ASC"
+		if len(parts) > 1 {
+			dir := strings.ToUpper(parts[1])
+			if dir == "DESC" {
+				direction = "DESC"
+			}
+		}
+
+		// Compose order clause from safe column name and validated direction
+		orderExpr := fmt.Sprintf("%s %s", column, direction)
+		query = query.Order(orderExpr)
 	}
 	return query
 }
