@@ -3,7 +3,6 @@
     <AdminLayout
       :admin-client="adminClient"
       :dark-mode="isDarkMode"
-      :user-detail-sections="[]"
       :localization="localization"
     >
       <template #user-filter="{ app_metadata }">
@@ -27,25 +26,13 @@
         </div>
       </template>
 
-      <template #user-row="{user}">
-        <pre class="text-xs">{{ user }}</pre>
-      </template>
-
       <template #user-detail="{user, view}">
-        <div>
-          <h4>Custom User Detail ({{ view }} mode)</h4>
-          <div v-if="view === 'view'">
-            <p>Viewing user: {{ user?.email }}</p>
-            <p>User ID: {{ user?.id }}</p>
-          </div>
-          <div v-else-if="view === 'edit'">
-            <p>Editing user: {{ user?.email }}</p>
-            <input type="text" placeholder="Additional field for editing..." />
-          </div>
-          <div v-else-if="view === 'insert'">
-            <p>Creating new user</p>
-            <input type="text" placeholder="Additional field for new user..." />
-          </div>
+        <div data-testid="user-detail">
+          <JsonEditor
+            :model-value="user"
+            readonly
+            auto-format
+          />
         </div>
       </template>
     </AdminLayout>
@@ -54,7 +41,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { AdminLayout } from '@cybersailor/slauth-ui-vue'
+import { AdminLayout, JsonEditor } from '@cybersailor/slauth-ui-vue'
 import { authClient, adminClient } from '../lib/auth'
 
 const session = authClient.getSession()

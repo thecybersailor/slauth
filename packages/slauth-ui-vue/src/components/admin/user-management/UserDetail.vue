@@ -55,9 +55,8 @@
       </div>
 
       <!-- Sessions Card -->
-      <div v-if="showSessions" class="user-detail__card">
-        <div class="user-detail__card-header">
-          <h4 class="user-detail__card-title">Active Sessions ({{ sessions.length }})</h4>
+      <Section v-if="showSessions" :title="`Active Sessions (${sessions.length})`">
+        <template #header-actions>
           <Button
             v-if="sessions.length > 0"
             variant="outline"
@@ -66,75 +65,52 @@
           >
             Revoke All
           </Button>
-        </div>
-        <div class="user-detail__card-body">
-          <div v-if="loadingSessions" class="user-detail__loading">Loading sessions...</div>
-          <div v-else-if="sessions.length === 0" class="user-detail__empty">No active sessions</div>
-          <div v-else class="user-detail__sessions">
-            <div v-for="session in sessions" :key="session.id" class="user-detail__session-item">
-              <div class="user-detail__session-info">
-                <div class="user-detail__session-device">{{ parseUserAgent(session.user_agent) }}</div>
-                <div class="user-detail__session-meta">
-                  <span>{{ session.ip }}</span>
-                  <span>•</span>
-                  <span>{{ formatDate(session.refreshed_at) }}</span>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" @click="handleRevokeSession(session.id)">
-                Revoke
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+        </template>
+        <div v-if="loadingSessions" class="user-detail__loading">Loading sessions...</div>
+        <div v-else-if="sessions.length === 0" class="user-detail__empty">No active sessions</div>
+        <SessionItem
+          v-else
+          :api-sessions="sessions"
+          :loading="loadingSessions"
+          :short-device-label="true"
+          @revoke="handleRevokeSession"
+        />
+      </Section>
 
       <!-- Connected Accounts Card -->
-      <div v-if="showConnected" class="user-detail__card">
-        <div class="user-detail__card-header">
-          <h4 class="user-detail__card-title">Connected Accounts</h4>
-        </div>
-        <div class="user-detail__card-body">
-          <div v-if="loadingIdentities" class="user-detail__loading">Loading identities...</div>
-          <div v-else-if="identities.length === 0" class="user-detail__empty">No connected accounts</div>
-          <div v-else class="user-detail__identities">
-            <div v-for="identity in identities" :key="identity.id" class="user-detail__identity-item">
-              <div class="user-detail__identity-info">
-                <div class="user-detail__identity-provider">{{ identity.provider }}</div>
-                <div class="user-detail__identity-email">{{ identity.email }}</div>
-              </div>
-              <Button variant="ghost" size="sm" @click="handleDeleteIdentity(identity.id)">
-                Unbind
-              </Button>
+      <Section v-if="showConnected" title="Connected Accounts">
+        <div v-if="loadingIdentities" class="user-detail__loading">Loading identities...</div>
+        <div v-else-if="identities.length === 0" class="user-detail__empty">No connected accounts</div>
+        <div v-else class="user-detail__identities">
+          <div v-for="identity in identities" :key="identity.id" class="user-detail__identity-item">
+            <div class="user-detail__identity-info">
+              <div class="user-detail__identity-provider">{{ identity.provider }}</div>
+              <div class="user-detail__identity-email">{{ identity.email }}</div>
             </div>
+            <Button variant="ghost" size="sm" @click="handleDeleteIdentity(identity.id)">
+              Unbind
+            </Button>
           </div>
         </div>
-      </div>
+      </Section>
 
       <!-- App Metadata Card -->
-      <div v-if="showAppMetadata" class="user-detail__card">
-        <div class="user-detail__card-header">
-          <h4 class="user-detail__card-title">App Metadata</h4>
-        </div>
-        <div class="user-detail__card-body">
-          <JsonEditor
-            :model-value="formatJSON(user?.app_meta_data)"
-            readonly
-          />
-        </div>
-      </div>
+      <Section v-if="showAppMetadata" title="App Metadata">
+        <JsonEditor
+          :model-value="user?.app_meta_data || {}"
+          readonly
+          auto-format
+        />
+      </Section>
 
       <!-- User Metadata Card -->
-      <div v-if="showUserMetadata" class="user-detail__card">
-        <div class="user-detail__card-header">
-          <h4 class="user-detail__card-title">User Metadata</h4>
-        </div>
-        <div class="user-detail__card-body">
-          <JsonEditor
-            :model-value="formatJSON(user?.user_meta_data)"
-            readonly
-          />
-        </div>
-      </div>
+      <Section v-if="showUserMetadata" title="User Metadata">
+        <JsonEditor
+          :model-value="user?.user_meta_data || {}"
+          readonly
+          auto-format
+        />
+      </Section>
 
       <!-- User Detail Slot (View Mode) -->
       <div v-if="$slots['user-detail']" class="user-detail__slot">
@@ -296,19 +272,21 @@ import Button from '../../ui/Button.vue'
 import Input from '../../ui/Input.vue'
 import Dialog from '../../ui/Dialog.vue'
 import JsonEditor from '../../ui/JsonEditor.vue'
+import SessionItem from '../../ui/SessionItem.vue'
+import Section from '../../ui/Section.vue'
 import UserAvatar from '../../ui/icons/UserAvatar.vue'
 import ContactIcon from '../../ui/icons/ContactIcons.vue'
 import ActionIcon from '../../ui/icons/ActionIcons.vue'
 import { useAdminContext } from '../../../composables/useAdminContext'
 import type { AdminUserResponse } from '@cybersailor/slauth-ts'
 
-interface Props {
+export interface UserDetailProps {
   user?: AdminUserResponse | null
   isCreating: boolean
   submitting: boolean
 }
 
-const props = defineProps<Props>()
+const props = defineProps<UserDetailProps>()
 
 const emit = defineEmits<{
   submit: [formData: any]
@@ -363,6 +341,7 @@ const isBanned = computed(() => {
 })
 
 watch(() => props.user, async (user) => {
+  console.log('[UserDetail] User changed:', user?.id, user?.email)
   isEditing.value = false
   if (user) {
     formData.value = {
@@ -387,8 +366,12 @@ watch(() => props.user, async (user) => {
 }, { immediate: true })
 
 const loadUserData = async () => {
-  if (!props.user?.id) return
+  if (!props.user?.id) {
+    console.log('[UserDetail] loadUserData skipped: no user id')
+    return
+  }
 
+  console.log('[UserDetail] Loading user data for:', props.user.id)
   loadingSessions.value = true
   loadingIdentities.value = true
 
@@ -399,15 +382,27 @@ const loadUserData = async () => {
 
   if (sessionsResult.status === 'fulfilled') {
     sessions.value = sessionsResult.value.sessions || []
+    console.log('[UserDetail] Loaded sessions:', sessions.value.length)
+  } else {
+    console.error('[UserDetail] Failed to load sessions:', sessionsResult.reason)
   }
 
   if (identitiesResult.status === 'fulfilled') {
     identities.value = identitiesResult.value.identities || []
+    console.log('[UserDetail] Loaded identities:', identities.value.length)
+  } else {
+    console.error('[UserDetail] Failed to load identities:', identitiesResult.reason)
   }
 
   loadingSessions.value = false
   loadingIdentities.value = false
+  console.log('[UserDetail] User data loading completed')
 }
+
+// Expose load method for parent component
+defineExpose({
+  load: loadUserData
+})
 
 const handleCancel = () => {
   if (props.isCreating) {
@@ -486,20 +481,6 @@ const formatDate = (dateString: string | undefined) => {
   if (!dateString) return 'N/A'
   return new Date(dateString).toLocaleString()
 }
-
-const formatJSON = (obj: any) => {
-  if (!obj || Object.keys(obj).length === 0) return '{}'
-  return JSON.stringify(obj, null, 2)
-}
-
-const parseUserAgent = (ua: string | undefined) => {
-  if (!ua) return 'Unknown Device'
-  if (ua.includes('Chrome')) return 'Chrome Browser'
-  if (ua.includes('Safari')) return 'Safari Browser'
-  if (ua.includes('Firefox')) return 'Firefox Browser'
-  if (ua.includes('Mobile')) return 'Mobile Device'
-  return ua.substring(0, 50)
-}
 </script>
 
 <style scoped>
@@ -544,36 +525,6 @@ const parseUserAgent = (ua: string | undefined) => {
   font-size: 12px;
   font-family: monospace;
   color: #6b7280;
-}
-
-/* Card Styles */
-.user-detail__card {
-  border: 1px solid var(--admin-border, #e5e7eb);
-  border-radius: 8px;
-  background: var(--admin-card-bg, white);
-  overflow: hidden;
-}
-
-.user-detail__card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--admin-border, #e5e7eb);
-  background: var(--admin-bg, #f9fafb);
-}
-
-.user-detail__card-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--admin-text, #374151);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.user-detail__card-body {
-  padding: 16px;
 }
 
 /* Section Styles */
@@ -695,40 +646,6 @@ const parseUserAgent = (ua: string | undefined) => {
   background: rgba(239, 68, 68, 0.1);
 }
 
-/* Sessions */
-.user-detail__sessions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.user-detail__session-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid var(--admin-border, #e5e7eb);
-  border-radius: 6px;
-}
-
-.user-detail__session-info {
-  flex: 1;
-}
-
-.user-detail__session-device {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--admin-text, #374151);
-  margin-bottom: 4px;
-}
-
-.user-detail__session-meta {
-  font-size: 12px;
-  color: #6b7280;
-  display: flex;
-  gap: 6px;
-}
-
 /* Identities */
 .user-detail__identities {
   display: flex;
@@ -771,12 +688,12 @@ const parseUserAgent = (ua: string | undefined) => {
   font-size: 14px;
 }
 
-/* JSON Editor in cards */
-.user-detail__card-body :deep(.aira-json-editor) {
+/* JSON Editor in sections */
+.user-detail :deep(.aira-json-editor) {
   margin-bottom: 0;
 }
 
-.user-detail__card-body :deep(.aira-json-editor__field) {
+.user-detail :deep(.aira-json-editor__field) {
   min-height: 80px;
 }
 
@@ -842,5 +759,12 @@ const parseUserAgent = (ua: string | undefined) => {
 
 .user-detail__operation-item--danger:hover .user-detail__operation-icon {
   color: #dc2626;
+}
+
+/* Actions */
+.user-detail__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
 }
 </style>

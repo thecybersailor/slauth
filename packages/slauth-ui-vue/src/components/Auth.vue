@@ -585,6 +585,7 @@ const handleAuthEvent = (event: AuthEvent) => {
 }
 
 .slauth-ui__container {
+  background-color: var(--auth-ui-background);
   max-width: 400px;
   margin: 0 auto;
   padding: 1.5rem;

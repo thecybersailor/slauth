@@ -32,6 +32,9 @@ export { default as Anchor } from './components/ui/Anchor.vue'
 export { default as Drawer } from './components/ui/Drawer.vue'
 export { default as Dialog } from './components/ui/Dialog.vue'
 export { default as SocialButton } from './components/ui/SocialButton.vue'
+export { default as Table } from './components/ui/Table.vue'
+export { default as JsonEditor } from './components/ui/JsonEditor.vue'
+export { default as Section } from './components/ui/Section.vue'
 
 // Types
 export * from './types'

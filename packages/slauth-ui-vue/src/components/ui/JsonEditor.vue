@@ -26,18 +26,20 @@ import { ref, watch, onMounted } from 'vue'
 import Label from './Label.vue'
 
 interface JsonEditorProps {
-  modelValue: string
+  modelValue?: string | object
   label?: string
   placeholder?: string
   required?: boolean
   readonly?: boolean
+  autoFormat?: boolean
 }
 
 const props = withDefaults(defineProps<JsonEditorProps>(), {
   modelValue: '',
   placeholder: '{}',
   required: false,
-  readonly: false
+  readonly: false,
+  autoFormat: false
 })
 
 const emit = defineEmits<{
@@ -46,6 +48,16 @@ const emit = defineEmits<{
 
 const editorRef = ref<HTMLDivElement | null>(null)
 const error = ref('')
+
+const formatJSON = (value?: string | object): string => {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) {
+    return '{}'
+  }
+  return JSON.stringify(value, null, 2)
+}
 
 const highlight = (json: string): string => {
   return json
@@ -88,13 +100,17 @@ const handleBlur = () => {
 
 watch(() => props.modelValue, (newValue) => {
   if (!editorRef.value) return
-  if (editorRef.value.innerText === newValue) return
-  updateEditor(newValue)
+  
+  const formatted = props.autoFormat ? formatJSON(newValue) : (typeof newValue === 'string' ? newValue : JSON.stringify(newValue))
+  
+  if (editorRef.value.innerText === formatted) return
+  updateEditor(formatted)
 }, { immediate: true })
 
 onMounted(() => {
   if (props.modelValue) {
-    updateEditor(props.modelValue)
+    const formatted = props.autoFormat ? formatJSON(props.modelValue) : (typeof props.modelValue === 'string' ? props.modelValue : JSON.stringify(props.modelValue))
+    updateEditor(formatted)
   }
 })
 </script>

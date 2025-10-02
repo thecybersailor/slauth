@@ -73,6 +73,8 @@
       :title="isCreating ? (t.create_user || 'Create User') : (editingUser?.email || 'User Details')"
     >
       <UserDetail
+        ref="userDetailRef"
+        :key="editingUser?.id || 'new'"
         :user="editingUser"
         :is-creating="isCreating"
         :submitting="submitting"
@@ -109,6 +111,7 @@ const showDrawer = ref(false)
 const editingUser = ref<any>(null)
 const submitting = ref(false)
 const isCreating = ref(false)
+const userDetailRef = ref<InstanceType<typeof UserDetail> | null>(null)
 
 const filterData = ref({
   app_metadata: {},
@@ -160,10 +163,22 @@ const openCreateDrawer = () => {
   showDrawer.value = true
 }
 
-const viewUser = (user: any) => {
+const viewUser = async (user: any) => {
+  console.log('[Index] Opening user detail for:', user.id, user.email)
   isCreating.value = false
   editingUser.value = user
   showDrawer.value = true
+  
+  // Wait for next tick to ensure component is mounted with the key change
+  await new Promise(resolve => setTimeout(resolve, 0))
+  
+  // Explicitly load user data
+  if (userDetailRef.value) {
+    console.log('[Index] Calling userDetail.load()')
+    await userDetailRef.value.load()
+  } else {
+    console.warn('[Index] userDetailRef not available')
+  }
 }
 
 const deleteUserConfirm = async () => {

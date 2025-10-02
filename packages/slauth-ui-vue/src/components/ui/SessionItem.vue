@@ -1,54 +1,46 @@
 <template>
-  <div class="aira-session-table-wrapper">
-    <table class="aira-session-table" data-testid="session-table">
-      <thead>
-        <tr>
-          <th class="aira-session-table__th">{{ localization?.device_label || 'Device' }}</th>
-          <th class="aira-session-table__th">{{ localization?.location_label || 'Location' }}</th>
-          <th class="aira-session-table__th">{{ localization?.last_active_label || 'Last Active' }}</th>
-          <th class="aira-session-table__th aira-session-table__th--actions"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="apiSession in apiSessions"
-          :key="apiSession.id"
-          class="aira-session-table__row"
-          :data-session-id="apiSession.id"
-          data-testid="session-row"
-        >
-          <td class="aira-session-table__td aira-session-table__td--device">
-            <div class="aira-session-table__device">
-              <DeviceIcons :type="getSession(apiSession).device_type" class="aira-session-table__device-icon" />
-              <span class="aira-session-table__device-name">
-                {{ getSession(apiSession).device_name }}
-              </span>
-            </div>
-          </td>
-          <td class="aira-session-table__td">{{ getSession(apiSession).location }}</td>
-          <td class="aira-session-table__td">{{ formatLastActive(getSession(apiSession).last_active) }}</td>
-          <td class="aira-session-table__td aira-session-table__td--actions">
-            <span v-if="getSession(apiSession).is_current" class="aira-session-table__current-badge">
-              {{ localization?.current_session_label || 'Current' }}
-            </span>
-            <Button
-              v-else
-              :variant="'outline'"
-              :size="'sm'"
-              :disabled="loading"
-              @click="$emit('revoke', apiSession.id)"
-              data-testid="revoke-session-button"
-            >
-              {{ localization?.revoke_button_label || 'Revoke' }}
-            </Button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <Table
+    :columns="columns"
+    :data="sessions"
+    row-key="id"
+    test-id="session-table"
+  >
+    <template #cell-device="{ row }">
+      <div class="aira-session-device">
+        <DeviceIcons :type="row.device_type" class="aira-session-device-icon" />
+        <span class="aira-session-device-name">{{ row.device_name }}</span>
+      </div>
+    </template>
+
+    <template #cell-location="{ row }">
+      {{ row.location }}
+    </template>
+
+    <template #cell-last_active="{ row }">
+      {{ formatLastActive(row.last_active) }}
+    </template>
+
+    <template #cell-actions="{ row }">
+      <span v-if="row.is_current" class="aira-session-current-badge">
+        {{ localization?.current_session_label || 'Current' }}
+      </span>
+      <Button
+        v-else
+        :variant="'outline'"
+        :size="'sm'"
+        :disabled="loading"
+        @click="$emit('revoke', row.id)"
+        data-testid="revoke-session-button"
+      >
+        {{ localization?.revoke_button_label || 'Revoke' }}
+      </Button>
+    </template>
+  </Table>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import Table from './Table.vue'
 import Button from './Button.vue'
 import DeviceIcons from './icons/DeviceIcons.vue'
 // @ts-ignore
@@ -91,13 +83,40 @@ interface SessionItemProps {
   currentSessionId?: string
   loading?: boolean
   localization?: SessionItemLocalization
+  shortDeviceLabel?: boolean
 }
 
-const props = defineProps<SessionItemProps>()
+const props = withDefaults(defineProps<SessionItemProps>(), {
+  shortDeviceLabel: false
+})
 
 defineEmits<{
   revoke: [sessionId: string]
 }>()
+
+const columns = computed(() => [
+  {
+    key: 'location',
+    label: props.localization?.location_label || 'Location'
+  },
+  {
+    key: 'last_active',
+    label: props.localization?.last_active_label || 'Last Active'
+  },
+  {
+    key: 'device',
+    label: props.localization?.device_label || 'Device',
+    tdClass: 'aira-table__td--device'
+  },
+  {
+    key: 'actions',
+    label: '',
+    thClass: 'aira-table__th--actions',
+    tdClass: 'aira-table__td--actions'
+  }
+])
+
+const sessions = computed(() => props.apiSessions.map(getSession))
 
 // Parse user agent to extract device info using ua-parser-js
 const parseUserAgent = (userAgent: string) => {
@@ -141,22 +160,38 @@ const parseLocation = (ip: string) => {
 
 // Convert API session to display session
 const getSession = (apiSession: ApiSession): Session => {
-  const { browser, os, deviceType, deviceModel } = apiSession.user_agent 
+  const parsed = apiSession.user_agent 
     ? parseUserAgent(apiSession.user_agent)
     : { browser: 'Unknown', os: 'Unknown', deviceType: 'unknown' as const, deviceModel: '' }
   
-  // Create a more descriptive device name
-  let deviceName = `${browser} on ${os}`
-  if (deviceModel && deviceType !== 'desktop') {
-    deviceName = `${deviceModel} (${browser})`
+  // Extract browser and OS names without versions
+  const browserName = parsed.browser.split(' ')[0]
+  const osName = parsed.os.split(' ')[0]
+  
+  // Create device name based on shortDeviceLabel prop
+  let deviceName: string
+  if (props.shortDeviceLabel) {
+    // Short format: "Chrome, macOS"
+    if (parsed.deviceModel && parsed.deviceType !== 'desktop') {
+      deviceName = `${parsed.deviceModel}, ${browserName}`
+    } else {
+      deviceName = `${browserName}, ${osName}`
+    }
+  } else {
+    // Long format: "Chrome 120 on macOS 14"
+    if (parsed.deviceModel && parsed.deviceType !== 'desktop') {
+      deviceName = `${parsed.deviceModel} (${parsed.browser})`
+    } else {
+      deviceName = `${parsed.browser}, ${parsed.os}`
+    }
   }
   
   return {
     id: apiSession.id,
     device_name: deviceName,
-    device_type: deviceType,
-    browser,
-    os,
+    device_type: parsed.deviceType,
+    browser: parsed.browser,
+    os: parsed.os,
     location: apiSession.ip ? parseLocation(apiSession.ip) : 'Unknown',
     ip_address: apiSession.ip,
     last_active: apiSession.refreshed_at || apiSession.updated_at || apiSession.created_at || '',
@@ -183,79 +218,36 @@ const formatLastActive = (lastActive: string): string => {
 </script>
 
 <style scoped>
-.aira-session-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  border: 1px solid var(--auth-ui-border);
-  border-radius: 0.5rem;
-  background-color: var(--auth-ui-background);
-}
-
-.aira-session-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.aira-session-table__th {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  font-weight: 600;
-  color: var(--auth-ui-text-tertiary);
-  background-color: var(--auth-ui-background);
-  border-bottom: 1px solid var(--auth-ui-border);
-  white-space: nowrap;
-}
-
-.aira-session-table__th--actions {
+.aira-table__th--actions {
   width: 150px;
   text-align: right;
 }
 
-.aira-session-table__row {
-  transition: background-color 0.15s ease;
-}
-
-.aira-session-table__row:hover {
-  background-color: var(--auth-ui-hover-bg, rgba(0, 0, 0, 0.02));
-}
-
-.aira-session-table__td {
-  padding: 0.75rem 1rem;
-  color: var(--auth-ui-text);
-  border-bottom: 1px solid var(--auth-ui-border);
-  vertical-align: middle;
-}
-
-.aira-session-table__row:last-child .aira-session-table__td {
-  border-bottom: none;
-}
-
-.aira-session-table__td--device {
+.aira-table__td--device {
   font-weight: 500;
 }
 
-.aira-session-table__td--actions {
+.aira-table__td--actions {
   text-align: right;
 }
 
-.aira-session-table__device {
+.aira-session-device {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.aira-session-table__device-icon {
+.aira-session-device-icon {
   flex-shrink: 0;
 }
 
-.aira-session-table__device-name {
+.aira-session-device-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.aira-session-table__current-badge {
+.aira-session-current-badge {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.5rem;
