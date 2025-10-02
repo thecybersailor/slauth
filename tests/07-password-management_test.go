@@ -56,6 +56,9 @@ func (suite *PasswordManagementTestSuite) TestPasswordRecovery() {
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
 	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
 
+	mockEmailProvider := suite.helper.GetMockEmailProvider()
+	mockEmailProvider.Clear()
+
 	recoveryRequestBody := S{
 		"email": email,
 	}
@@ -67,6 +70,34 @@ func (suite *PasswordManagementTestSuite) TestPasswordRecovery() {
 	suite.NotNil(recoveryResponse.Response.Data, "Recovery response should have data")
 	recoveryData := recoveryResponse.Response.Data.(map[string]any)
 	suite.Contains(recoveryData, "message", "Recovery response should have message")
+
+	lastEmail := mockEmailProvider.GetLastEmail()
+	suite.NotNil(lastEmail, "Should have sent an email for existing user")
+	suite.Equal(email, lastEmail.To, "Email should be sent to the registered user")
+	suite.Equal("Reset Password", lastEmail.Subject, "Email subject should be correct")
+	suite.Contains(lastEmail.Body, "reset", "Email body should contain reset information")
+}
+
+func (suite *PasswordManagementTestSuite) TestPasswordRecoveryNonExistentUser() {
+	nonExistentEmail := "non-existent-user@example.com"
+
+	mockEmailProvider := suite.helper.GetMockEmailProvider()
+	mockEmailProvider.Clear()
+
+	recoveryRequestBody := S{
+		"email": nonExistentEmail,
+	}
+
+	recoveryResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/recover", recoveryRequestBody)
+	suite.Equal(200, recoveryResponse.ResponseRecorder.Code, "Password recovery request should return success even for non-existent user")
+	suite.Nil(recoveryResponse.Response.Error, "Password recovery request should not have error")
+
+	suite.NotNil(recoveryResponse.Response.Data, "Recovery response should have data")
+	recoveryData := recoveryResponse.Response.Data.(map[string]any)
+	suite.Contains(recoveryData, "message", "Recovery response should have message")
+
+	lastEmail := mockEmailProvider.GetLastEmail()
+	suite.Nil(lastEmail, "Should NOT send email for non-existent user")
 }
 
 func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL1() {

@@ -62,17 +62,7 @@ func RequestPasswordResetFlow(passwordCtx services.PasswordContext) core.Flow[co
 	return func(ctx *core.Context[core.PasswordResetData], next func() error) error {
 		slog.Info("Flow: RequestPasswordReset - Before")
 
-		resetToken := "dummy_reset_token"
-		resetURL := fmt.Sprintf("%s/auth/reset-password?token=%s", passwordCtx.Service().GetConfig().AuthServiceBaseUrl, resetToken)
-
-		ctx.Data.ResetURL = resetURL
-		ctx.Data.Token = resetToken
-
-		passwordCtx.Response().ResetURL = resetURL
-		passwordCtx.Response().Token = resetToken
-		passwordCtx.Response().Success = true
-
-		// Find user (for security, continue even if user not found)
+		// Find user first
 		var user interface{}
 		var err error
 		if ctx.Data.Email != "" {
@@ -83,11 +73,23 @@ func RequestPasswordResetFlow(passwordCtx services.PasswordContext) core.Flow[co
 		}
 
 		if err != nil {
-			slog.Warn("Flow: RequestPasswordReset - User not found or error during lookup, proceeding silently", "error", err)
-			// Still execute next and return success to prevent user enumeration
-		} else {
-			ctx.User = user
+			slog.Warn("Flow: RequestPasswordReset - User not found", "error", err)
+			// Return success without sending email to prevent user enumeration
+			passwordCtx.Response().Success = true
+			return nil
 		}
+
+		ctx.User = user
+
+		resetToken := "dummy_reset_token"
+		resetURL := fmt.Sprintf("%s/auth/reset-password?token=%s", passwordCtx.Service().GetConfig().AuthServiceBaseUrl, resetToken)
+
+		ctx.Data.ResetURL = resetURL
+		ctx.Data.Token = resetToken
+
+		passwordCtx.Response().ResetURL = resetURL
+		passwordCtx.Response().Token = resetToken
+		passwordCtx.Response().Success = true
 
 		slog.Info("Flow: RequestPasswordReset - Reset token generated", "email", ctx.Data.Email, "phone", ctx.Data.Phone)
 		return next()
