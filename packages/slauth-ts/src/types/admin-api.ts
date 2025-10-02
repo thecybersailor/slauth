@@ -22,6 +22,17 @@ export enum TimeDuration {
   Hour = 3600000000000,
 }
 
+export enum FactorType {
+  FactorTypeTOTP = "totp",
+  FactorTypeWebAuthn = "webauthn",
+  FactorTypePhone = "phone",
+}
+
+export enum FactorStatus {
+  FactorStatusUnverified = "unverified",
+  FactorStatusVerified = "verified",
+}
+
 export enum AALLevel {
   AALLevel1 = "aal1",
   AALLevel2 = "aal2",
@@ -185,16 +196,35 @@ export interface AdminUpdateUserRequest {
 }
 
 export interface AdminUserResponse {
+  aal?: any;
   app_metadata?: Record<string, any>;
+  /** @example "authenticated" */
+  aud?: string;
   banned_until?: string;
+  /** @example "2023-01-01T00:00:00Z" */
+  confirmed_at?: string;
+  /** @example "2023-01-01T00:00:00Z" */
   created_at?: string;
+  /** @example "user@example.com" */
   email?: string;
   email_confirmed?: boolean;
+  /** @example "2023-01-01T00:00:00Z" */
+  email_confirmed_at?: string;
+  factors?: Factor[];
+  /** @example "user_123" */
   id?: string;
+  identities?: UserIdentity[];
   is_anonymous?: boolean;
+  /** @example "2023-01-01T00:00:00Z" */
   last_sign_in_at?: string;
+  /** @example "+1234567890" */
   phone?: string;
   phone_confirmed?: boolean;
+  /** @example "2023-01-01T00:00:00Z" */
+  phone_confirmed_at?: string;
+  /** @example "user" */
+  role?: string;
+  /** @example "2023-01-01T00:00:00Z" */
   updated_at?: string;
   user_metadata?: Record<string, any>;
 }
@@ -202,6 +232,15 @@ export interface AdminUserResponse {
 export interface CreateSAMLProviderRequest {
   enabled?: boolean;
   name: string;
+}
+
+export interface Factor {
+  created_at?: string;
+  friendly_name?: string;
+  id?: string;
+  status?: FactorStatus;
+  type?: FactorType;
+  updated_at?: string;
 }
 
 export interface GetInstanceConfigResponse {
@@ -282,4 +321,15 @@ export interface UpdateInstanceConfigResponse {
 export interface UpdateSAMLProviderRequest {
   enabled?: boolean;
   name?: string;
+}
+
+export interface UserIdentity {
+  created_at?: string;
+  id?: string;
+  identity_data?: Record<string, any>;
+  identity_id?: string;
+  last_sign_in_at?: string;
+  provider?: string;
+  updated_at?: string;
+  user_id?: string;
 }

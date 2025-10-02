@@ -120,7 +120,7 @@ type User struct {
 	UserMetadata     map[string]any `json:"user_metadata" description:"User-defined metadata"`
 	AppMetadata      map[string]any `json:"app_metadata" description:"Application-defined metadata"`
 	Identities       []UserIdentity `json:"identities,omitempty" description:"Linked external identities"`
-	IsAnonymous      bool           `json:"is_anonymous,omitempty" description:"Whether user is anonymous"`
+	IsAnonymous      bool           `json:"is_anonymous" description:"Whether user is anonymous"`
 	Factors          []Factor       `json:"factors,omitempty" description:"MFA factors"`
 	AAL              any            `json:"aal,omitempty" description:"Authenticator Assurance Level"`
 }

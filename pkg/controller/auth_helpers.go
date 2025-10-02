@@ -16,60 +16,57 @@ import (
 	"github.com/thecybersailor/slauth/pkg/types"
 )
 
+// ===== Helper Functions =====
+
+// parseMetadata parses JSON metadata and returns empty map if nil or parse fails
+func parseMetadata(rawData *models.JSON) map[string]any {
+	result := make(map[string]any)
+	if rawData != nil {
+		var data map[string]any
+		if json.Unmarshal(*rawData, &data) == nil {
+			return data
+		}
+	}
+	return result
+}
+
+// generateHashIDOrFallback generates hashID or returns string ID as fallback
+func generateHashIDOrFallback(userID uint) string {
+	hashid, err := services.GenerateUserHashID(userID)
+	if err != nil {
+		return strconv.FormatUint(uint64(userID), 10)
+	}
+	return hashid
+}
+
 // convertUserToResponse converts a models.User to controller.User response format
 func convertUserToResponse(user *models.User) *User {
 	if user == nil {
 		return nil
 	}
 
-	// Generate hashid for user ID
-	userHashID, err := services.GenerateUserHashID(user.ID)
-	if err != nil {
-		// Fallback to raw ID if hashid generation fails
-		userHashID = strconv.FormatUint(uint64(user.ID), 10)
-	}
-
 	userResp := &User{
-		ID:           userHashID,
+		ID:           generateHashIDOrFallback(user.ID),
 		Aud:          user.DomainCode,
 		CreatedAt:    formatTime(&user.CreatedAt),
 		UpdatedAt:    formatTime(&user.UpdatedAt),
 		ConfirmedAt:  formatTime(user.ConfirmedAt),
 		LastSignInAt: formatTime(user.LastSignInAt),
 		IsAnonymous:  user.IsAnonymous,
-		UserMetadata: make(map[string]any),
-		AppMetadata:  make(map[string]any),
+		UserMetadata: parseMetadata(user.RawUserMetaData),
+		AppMetadata:  parseMetadata(user.RawAppMetaData),
 	}
 
-	// Handle email
 	if user.Email != nil {
 		userResp.Email = *user.Email
 		userResp.EmailConfirmedAt = formatTime(user.EmailConfirmedAt)
 	}
 
-	// Handle phone
 	if user.Phone != nil {
 		userResp.Phone = *user.Phone
 		userResp.PhoneConfirmedAt = formatTime(user.PhoneConfirmedAt)
 	}
 
-	// Parse user metadata
-	if user.RawUserMetaData != nil {
-		var userMetadata map[string]any
-		if err := json.Unmarshal(*user.RawUserMetaData, &userMetadata); err == nil {
-			userResp.UserMetadata = userMetadata
-		}
-	}
-
-	// Parse app metadata
-	if user.RawAppMetaData != nil {
-		var appMetadata map[string]any
-		if err := json.Unmarshal(*user.RawAppMetaData, &appMetadata); err == nil {
-			userResp.AppMetadata = appMetadata
-		}
-	}
-
-	// Convert identities
 	if len(user.Identities) > 0 {
 		userResp.Identities = make([]UserIdentity, len(user.Identities))
 		for i, identity := range user.Identities {
@@ -77,7 +74,6 @@ func convertUserToResponse(user *models.User) *User {
 		}
 	}
 
-	// Convert MFA factors
 	if len(user.MFAFactors) > 0 {
 		userResp.Factors = make([]Factor, len(user.MFAFactors))
 		for i, factor := range user.MFAFactors {

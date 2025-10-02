@@ -57,7 +57,7 @@
               </div>
               <div class="admin-users__field">
                 <span class="admin-users__label">Metadata</span>
-                <span class="admin-users__metadata">{{ formatMetadata(user.app_meta_data) }}</span>
+                <span class="admin-users__metadata">{{ formatMetadata(user.app_metadata) }}</span>
               </div>
             </div>
           </template>
@@ -145,10 +145,10 @@ const loadUsers = async () => {
   const appFilters = filterData.value.app_metadata
   if (appFilters && Object.keys(appFilters).length > 0) {
     filteredResult = filteredResult.filter((user: any) => {
-      if (!user.app_meta_data) return false
+      if (!user.app_metadata) return false
       return Object.entries(appFilters).every(([key, value]) => {
         if (!value) return true
-        return user.app_meta_data?.[key] === value
+        return user.app_metadata?.[key] === value
       })
     })
   }

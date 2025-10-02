@@ -836,44 +836,16 @@ func convertUsersToResponse(users []*services.User) []*AdminUserResponse {
 }
 
 func convertUserToAdminResponse(user *services.User) *AdminUserResponse {
+	userResp := convertUserToResponse(user.GetModel())
 	response := &AdminUserResponse{
-		ID:             user.HashID,
+		User:           *userResp,
 		EmailConfirmed: user.EmailConfirmedAt != nil,
 		PhoneConfirmed: user.PhoneConfirmedAt != nil,
-		IsAnonymous:    user.IsAnonymous(),
-		CreatedAt:      user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	if user.Email != nil {
-		response.Email = user.Email
-	}
-	if user.Phone != nil {
-		response.Phone = user.Phone
 	}
 	if user.BannedUntil != nil {
 		bannedUntil := user.BannedUntil.Format(time.RFC3339)
 		response.BannedUntil = &bannedUntil
 	}
-	if user.LastSignInAt != nil {
-		lastSignInAt := user.LastSignInAt.Format(time.RFC3339)
-		response.LastSignInAt = &lastSignInAt
-	}
-	if user.RawUserMetaData != nil {
-		// Convert JSON.RawMessage to map[string]interface{}
-		var userMeta map[string]interface{}
-		if err := json.Unmarshal(*user.RawUserMetaData, &userMeta); err == nil {
-			response.RawUserMetaData = userMeta
-		}
-	}
-	if user.RawAppMetaData != nil {
-		// Convert JSON.RawMessage to map[string]interface{}
-		var appMeta map[string]interface{}
-		if err := json.Unmarshal(*user.RawAppMetaData, &appMeta); err == nil {
-			response.RawAppMetaData = appMeta
-		}
-	}
-
 	return response
 }
 
@@ -1451,47 +1423,20 @@ func applySorting(query *gorm.DB, sort []string) *gorm.DB {
 
 // convertModelUserToAdminResponse converts models.User directly to AdminUserResponse
 func convertModelUserToAdminResponse(user *models.User) *AdminUserResponse {
-	hashid, err := services.GenerateUserHashID(user.ID)
-	if err != nil {
+	userResp := convertUserToResponse(user)
+	if userResp == nil {
 		return nil
 	}
 
 	response := &AdminUserResponse{
-		ID:             hashid,
+		User:           *userResp,
 		EmailConfirmed: user.EmailConfirmedAt != nil,
 		PhoneConfirmed: user.PhoneConfirmedAt != nil,
-		IsAnonymous:    user.IsAnonymous,
-		CreatedAt:      user.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:      user.UpdatedAt.Format(time.RFC3339),
-	}
-
-	if user.Email != nil {
-		response.Email = user.Email
-	}
-	if user.Phone != nil {
-		response.Phone = user.Phone
 	}
 	if user.BannedUntil != nil {
 		bannedUntil := user.BannedUntil.Format(time.RFC3339)
 		response.BannedUntil = &bannedUntil
 	}
-	if user.LastSignInAt != nil {
-		lastSignInAt := user.LastSignInAt.Format(time.RFC3339)
-		response.LastSignInAt = &lastSignInAt
-	}
-	if user.RawUserMetaData != nil {
-		var userMeta map[string]interface{}
-		if err := json.Unmarshal(*user.RawUserMetaData, &userMeta); err == nil {
-			response.RawUserMetaData = userMeta
-		}
-	}
-	if user.RawAppMetaData != nil {
-		var appMeta map[string]interface{}
-		if err := json.Unmarshal(*user.RawAppMetaData, &appMeta); err == nil {
-			response.RawAppMetaData = appMeta
-		}
-	}
-
 	return response
 }
 

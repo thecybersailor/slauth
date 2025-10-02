@@ -97,7 +97,7 @@
       <!-- App Metadata Card -->
       <Section v-if="showAppMetadata" title="App Metadata">
         <JsonEditor
-          :model-value="user?.app_meta_data || {}"
+          :model-value="user?.app_metadata || {}"
           readonly
           auto-format
         />
@@ -106,7 +106,7 @@
       <!-- User Metadata Card -->
       <Section v-if="showUserMetadata" title="User Metadata">
         <JsonEditor
-          :model-value="user?.user_meta_data || {}"
+          :model-value="user?.user_metadata || {}"
           readonly
           auto-format
         />
@@ -114,7 +114,7 @@
 
       <!-- User Detail Slot (View Mode) -->
       <div v-if="$slots['user-detail']" class="user-detail__slot">
-        <slot name="user-detail" :user="user" :view="'view'" />
+        <slot name="user-detail" :user="user" :viewMode="'view'" />
       </div>
 
       <!-- Operations -->
@@ -242,7 +242,7 @@
 
       <!-- User Detail Slot (Edit/Insert Mode) -->
       <div v-if="$slots['user-detail']" class="user-detail__slot">
-        <slot name="user-detail" :user="user" :view="isCreating ? 'insert' : 'edit'" />
+        <slot name="user-detail" :user="user" :viewMode="isCreating ? 'insert' : 'edit'" />
       </div>
 
       <div class="user-detail__actions">
@@ -340,31 +340,6 @@ const isBanned = computed(() => {
   return bannedUntil > new Date()
 })
 
-watch(() => props.user, async (user) => {
-  console.log('[UserDetail] User changed:', user?.id, user?.email)
-  isEditing.value = false
-  if (user) {
-    formData.value = {
-      email: user.email || '',
-      password: '',
-      phone: user.phone || '',
-      app_metadata_json: JSON.stringify(user.app_meta_data || {}, null, 2),
-      user_metadata_json: JSON.stringify(user.user_meta_data || {}, null, 2)
-    }
-    await loadUserData()
-  } else {
-    formData.value = {
-      email: '',
-      password: '',
-      phone: '',
-      app_metadata_json: '',
-      user_metadata_json: ''
-    }
-    sessions.value = []
-    identities.value = []
-  }
-}, { immediate: true })
-
 const loadUserData = async () => {
   if (!props.user?.id) {
     console.log('[UserDetail] loadUserData skipped: no user id')
@@ -398,6 +373,31 @@ const loadUserData = async () => {
   loadingIdentities.value = false
   console.log('[UserDetail] User data loading completed')
 }
+
+watch(() => props.user, async (user) => {
+  console.log('[UserDetail] User changed:', user?.id, user?.email)
+  isEditing.value = false
+  if (user) {
+    formData.value = {
+      email: user.email || '',
+      password: '',
+      phone: user.phone || '',
+      app_metadata_json: JSON.stringify(user.app_metadata || {}, null, 2),
+      user_metadata_json: JSON.stringify(user.user_metadata || {}, null, 2)
+    }
+    await loadUserData()
+  } else {
+    formData.value = {
+      email: '',
+      password: '',
+      phone: '',
+      app_metadata_json: '',
+      user_metadata_json: ''
+    }
+    sessions.value = []
+    identities.value = []
+  }
+}, { immediate: true })
 
 // Expose load method for parent component
 defineExpose({

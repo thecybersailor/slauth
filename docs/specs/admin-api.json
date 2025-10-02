@@ -1258,6 +1258,30 @@
                 "AALLevel3"
             ]
         },
+        "github_com_thecybersailor_slauth_pkg_types.FactorStatus": {
+            "type": "string",
+            "enum": [
+                "unverified",
+                "verified"
+            ],
+            "x-enum-varnames": [
+                "FactorStatusUnverified",
+                "FactorStatusVerified"
+            ]
+        },
+        "github_com_thecybersailor_slauth_pkg_types.FactorType": {
+            "type": "string",
+            "enum": [
+                "totp",
+                "webauthn",
+                "phone"
+            ],
+            "x-enum-varnames": [
+                "FactorTypeTOTP",
+                "FactorTypeWebAuthn",
+                "FactorTypePhone"
+            ]
+        },
         "pkg_controller.AdminCreateUserRequest": {
             "type": "object",
             "properties": {
@@ -1329,43 +1353,82 @@
         "pkg_controller.AdminUserResponse": {
             "type": "object",
             "properties": {
+                "aal": {},
                 "app_metadata": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
+                },
+                "aud": {
+                    "type": "string",
+                    "example": "authenticated"
                 },
                 "banned_until": {
                     "type": "string"
                 },
+                "confirmed_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
                 },
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user@example.com"
                 },
                 "email_confirmed": {
                     "type": "boolean"
                 },
+                "email_confirmed_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "factors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.Factor"
+                    }
+                },
                 "id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user_123"
+                },
+                "identities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/pkg_controller.UserIdentity"
+                    }
                 },
                 "is_anonymous": {
                     "type": "boolean"
                 },
                 "last_sign_in_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
                 },
                 "phone": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "+1234567890"
                 },
                 "phone_confirmed": {
                     "type": "boolean"
                 },
+                "phone_confirmed_at": {
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "user"
+                },
                 "updated_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2023-01-01T00:00:00Z"
                 },
                 "user_metadata": {
                     "type": "object",
-                    "additionalProperties": true
+                    "additionalProperties": {}
                 }
             }
         },
@@ -1379,6 +1442,29 @@
                     "type": "boolean"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.Factor": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "friendly_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorStatus"
+                },
+                "type": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.FactorType"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -1580,6 +1666,36 @@
                     "type": "boolean"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.UserIdentity": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "identity_data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "identity_id": {
+                    "type": "string"
+                },
+                "last_sign_in_at": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
                     "type": "string"
                 }
             }

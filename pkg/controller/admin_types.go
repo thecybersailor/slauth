@@ -29,18 +29,10 @@ type ListUsersResponse struct {
 
 // AdminUserResponse represents a user in admin responses
 type AdminUserResponse struct {
-	ID              string                 `json:"id"`
-	Email           *string                `json:"email,omitempty"`
-	Phone           *string                `json:"phone,omitempty"`
-	EmailConfirmed  bool                   `json:"email_confirmed"`
-	PhoneConfirmed  bool                   `json:"phone_confirmed"`
-	IsAnonymous     bool                   `json:"is_anonymous"`
-	BannedUntil     *string                `json:"banned_until,omitempty"`
-	LastSignInAt    *string                `json:"last_sign_in_at,omitempty"`
-	CreatedAt       string                 `json:"created_at"`
-	UpdatedAt       string                 `json:"updated_at"`
-	RawUserMetaData map[string]interface{} `json:"user_metadata,omitempty"`
-	RawAppMetaData  map[string]interface{} `json:"app_metadata,omitempty"`
+	User
+	EmailConfirmed bool    `json:"email_confirmed"`
+	PhoneConfirmed bool    `json:"phone_confirmed"`
+	BannedUntil    *string `json:"banned_until,omitempty"`
 }
 
 // AdminCreateUserRequest represents the request for creating a user

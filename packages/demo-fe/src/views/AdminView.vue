@@ -34,6 +34,7 @@
             auto-format
           />
         </div>
+        <input v-model="user.app_metadata.level" />
       </template>
     </AdminLayout>
   </div>
