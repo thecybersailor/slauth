@@ -26,8 +26,9 @@ type GetDevicesResponse = types.GetDevicesResponse
 // SignInWithOAuthRequest represents OAuth login request
 // @Description OAuth authentication request
 type SignInWithOAuthRequest struct {
-	Provider string          `json:"provider" example:"google"`
-	Options  json.RawMessage `json:"options,omitempty" swaggertype:"object,string"`
+	Provider   string          `json:"provider" example:"google"`
+	Options    json.RawMessage `json:"options,omitempty" swaggertype:"object,string"`
+	RedirectTo string          `json:"redirect_to,omitempty"`
 }
 
 // SignInWithIdTokenRequest represents ID token login request

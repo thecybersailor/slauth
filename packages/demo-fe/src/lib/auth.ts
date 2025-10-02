@@ -13,7 +13,7 @@ export const { authClient, adminClient } = createClients({
 // Auth configuration for UI components
 export const authConfig = {
   // Social providers configuration
-  providers: ['google', 'google_pkce', 'github', 'facebook', 'twitter'],
+  providers: ['google', 'google_pkce', 'github', 'facebook', 'twitter', 'mock'],
   
   // Redirect URLs
   redirectTo: `${window.location.origin}/dashboard`,

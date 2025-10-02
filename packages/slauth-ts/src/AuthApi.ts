@@ -289,9 +289,13 @@ export class AuthApi {
     
     localStorage.setItem('pkce_code_verifier', codeVerifier)
 
-    const requestBody = {
+    const requestBody: any = {
       provider: params.provider,
       options: params.options || {}
+    }
+
+    if (params.redirect_to) {
+      requestBody.redirect_to = params.redirect_to
     }
 
     const { data, error } = await this.api.postWithValidation<Types.OAuthData>(

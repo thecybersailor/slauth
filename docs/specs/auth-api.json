@@ -1836,6 +1836,9 @@
                 "provider": {
                     "type": "string",
                     "example": "google"
+                },
+                "redirect_to": {
+                    "type": "string"
                 }
             }
         },

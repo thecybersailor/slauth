@@ -4,7 +4,6 @@
       'slauth-ui',
       `slauth-ui--${appearance}`,
       `slauth-ui--${theme}`,
-      className
     ]"
     :style="style"
     data-testid="auth-container"
@@ -19,48 +18,90 @@
       {{ confirmationStatus || 'idle' }}
     </div>
     
-    <div class="slauth-ui__container">
+    <div class="slauth-ui__container" :class="class">
       <!-- Sign In View -->
       <SignIn
         v-if="currentView === 'sign_in'"
         :localization="mergedLocalization.sign_in"
         @auth-event="handleAuthEvent"
-      />
+      >
+        <template v-if="$slots.header" #header="slotProps">
+          <slot name="header" v-bind="slotProps" />
+        </template>
+        <template v-if="$slots.footer" #footer="slotProps">
+          <slot name="footer" v-bind="slotProps" />
+        </template>
+      </SignIn>
 
       <!-- Sign Up View -->
       <SignUp
         v-else-if="currentView === 'sign_up'"
         :localization="mergedLocalization.sign_up"
         @auth-event="handleAuthEvent"
-      />
+      >
+        <template v-if="$slots.header" #header="slotProps">
+          <slot name="header" v-bind="slotProps" />
+        </template>
+        <template v-if="$slots.footer" #footer="slotProps">
+          <slot name="footer" v-bind="slotProps" />
+        </template>
+      </SignUp>
 
       <!-- Magic Link View -->
       <MagicLink
         v-else-if="currentView === 'magic_link'"
         :localization="mergedLocalization.magic_link"
         @auth-event="handleAuthEvent"
-      />
+      >
+        <template v-if="$slots.header" #header="slotProps">
+          <slot name="header" v-bind="slotProps" />
+        </template>
+        <template v-if="$slots.footer" #footer="slotProps">
+          <slot name="footer" v-bind="slotProps" />
+        </template>
+      </MagicLink>
 
       <!-- Forgot Password View -->
       <ForgotPassword
         v-else-if="currentView === 'forgotten_password'"
         :localization="mergedLocalization.forgotten_password"
         @auth-event="handleAuthEvent"
-      />
+      >
+        <template v-if="$slots.header" #header="slotProps">
+          <slot name="header" v-bind="slotProps" />
+        </template>
+        <template v-if="$slots.footer" #footer="slotProps">
+          <slot name="footer" v-bind="slotProps" />
+        </template>
+      </ForgotPassword>
 
       <!-- Update Password View -->
       <UpdatePassword
         v-else-if="currentView === 'update_password'"
         :localization="mergedLocalization.update_password"
         @auth-event="handleAuthEvent"
-      />
+      >
+        <template v-if="$slots.header" #header="slotProps">
+          <slot name="header" v-bind="slotProps" />
+        </template>
+        <template v-if="$slots.footer" #footer="slotProps">
+          <slot name="footer" v-bind="slotProps" />
+        </template>
+      </UpdatePassword>
 
       <!-- Verify OTP View -->
       <VerifyOtp
         v-else-if="currentView === 'verify_otp'"
         :localization="mergedLocalization.verify_otp"
         @auth-event="handleAuthEvent"
-      />
+      >
+        <template v-if="$slots.header" #header="slotProps">
+          <slot name="header" v-bind="slotProps" />
+        </template>
+        <template v-if="$slots.footer" #footer="slotProps">
+          <slot name="footer" v-bind="slotProps" />
+        </template>
+      </VerifyOtp>
 
       <!-- Email Confirmed View -->
       <div v-else-if="currentView === 'confirmed'" class="slauth-ui__confirmed" data-testid="confirmed-view">
@@ -131,11 +172,11 @@ import VerifyOtp from './VerifyOtp.vue'
 
 const props = withDefaults(defineProps<{
   view?: 'sign_in' | 'sign_up' | 'magic_link' | 'forgotten_password' | 'update_password' | 'verify_otp' | 'auto'
-  className?: string
+  class?: string
   style?: any
 }>(), {
   view: 'auto',  // Default auto-detect
-  className: '',
+  class: '',
   style: () => ({})
 })
 
@@ -540,7 +581,6 @@ const handleAuthEvent = (event: AuthEvent) => {
 .slauth-ui {
   font-family: var(--auth-ui-font-family, system-ui, -apple-system, sans-serif);
   color: var(--auth-ui-text);
-  background-color: var(--auth-ui-background);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -550,7 +590,6 @@ const handleAuthEvent = (event: AuthEvent) => {
   padding: 1.5rem;
   border: 1px solid var(--auth-ui-border);
   border-radius: var(--auth-ui-radius-md);
-  background-color: var(--auth-ui-background);
   box-shadow: var(--auth-ui-shadow-md);
   transition: all 0.3s ease;
 }

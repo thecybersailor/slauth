@@ -1,6 +1,12 @@
 <template>
   <div class="aira-sign-up">
-    <div class="aira-sign-up__header">
+    <!-- Header Slot -->
+    <div v-if="$slots.header" class="aira-sign-up__header-slot">
+      <slot name="header" :view="'sign_up'" />
+    </div>
+    
+    <!-- Default Header -->
+    <div v-else class="aira-sign-up__header">
       <h2 class="aira-sign-up__title">Create your account</h2>
     </div>
 
@@ -79,9 +85,14 @@
       </Button>
     </form>
 
-    <!-- Sign In Link -->
+    <!-- Footer Slot -->
+    <div v-if="$slots.footer" class="aira-sign-up__footer-slot">
+      <slot name="footer" :view="'sign_up'" />
+    </div>
+    
+    <!-- Default Footer -->
     <div
-      v-if="showLinks"
+      v-else-if="showLinks"
       class="aira-sign-up__footer"
     >
       <Anchor

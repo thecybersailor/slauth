@@ -30,6 +30,7 @@ export { default as Message } from './components/ui/Message.vue'
 export { default as Divider } from './components/ui/Divider.vue'
 export { default as Anchor } from './components/ui/Anchor.vue'
 export { default as Drawer } from './components/ui/Drawer.vue'
+export { default as Dialog } from './components/ui/Dialog.vue'
 
 // Types
 export * from './types'

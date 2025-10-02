@@ -1,6 +1,12 @@
 <template>
   <div class="aira-verify-otp">
-    <div class="aira-verify-otp__header">
+    <!-- Header Slot -->
+    <div v-if="$slots.header" class="aira-verify-otp__header-slot">
+      <slot name="header" :view="'verify_otp'" />
+    </div>
+    
+    <!-- Default Header -->
+    <div v-else class="aira-verify-otp__header">
       <h2 class="aira-verify-otp__title">Verify your email</h2>
       <p class="aira-verify-otp__description">
         Enter the verification code sent to your email.
@@ -69,8 +75,13 @@
       </Button>
     </div>
 
-    <!-- Back to Sign In Link -->
-    <div class="aira-verify-otp__footer">
+    <!-- Footer Slot -->
+    <div v-if="$slots.footer" class="aira-verify-otp__footer-slot">
+      <slot name="footer" :view="'verify_otp'" />
+    </div>
+    
+    <!-- Default Footer -->
+    <div v-else class="aira-verify-otp__footer">
       <Anchor
         :href="authPaths.signin"
         text="Back to sign in"

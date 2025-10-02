@@ -1329,6 +1329,10 @@
         "pkg_controller.AdminUserResponse": {
             "type": "object",
             "properties": {
+                "app_meta_data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
                 "banned_until": {
                     "type": "string"
                 },
@@ -1356,16 +1360,12 @@
                 "phone_confirmed": {
                     "type": "boolean"
                 },
-                "raw_app_meta_data": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "raw_user_meta_data": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
                 "updated_at": {
                     "type": "string"
+                },
+                "user_meta_data": {
+                    "type": "object",
+                    "additionalProperties": true
                 }
             }
         },

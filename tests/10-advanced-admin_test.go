@@ -303,8 +303,8 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 	suite.Equal("appmeta-user@example.com", userData["email"], "Email should match")
 	suite.NotEmpty(userData["id"], "User ID should not be empty")
 
-	suite.Contains(userData, "raw_app_meta_data", "Response should contain raw_app_meta_data")
-	appMetadata := userData["raw_app_meta_data"].(map[string]interface{})
+	suite.Contains(userData, "app_meta_data", "Response should contain app_meta_data")
+	appMetadata := userData["app_meta_data"].(map[string]interface{})
 	suite.Equal("manager", appMetadata["role"], "AppMetaData role should match")
 	suite.Equal("Sales", appMetadata["department"], "AppMetaData department should match")
 
@@ -351,9 +351,9 @@ func (suite *AdvancedAdminTestSuite) TestGetUserAppMetadata() {
 
 	suite.NotNil(getResp.Response.Data, "Get user should return data")
 	retrievedUser := getResp.Response.Data.(map[string]interface{})
-	suite.Contains(retrievedUser, "raw_app_meta_data", "Response should contain raw_app_meta_data")
+	suite.Contains(retrievedUser, "app_meta_data", "Response should contain app_meta_data")
 
-	appMetadata := retrievedUser["raw_app_meta_data"].(map[string]interface{})
+	appMetadata := retrievedUser["app_meta_data"].(map[string]interface{})
 	suite.Equal("developer", appMetadata["role"], "AppMetaData role should match")
 	suite.Equal("Engineering", appMetadata["department"], "AppMetaData department should match")
 	suite.Equal("senior", appMetadata["level"], "AppMetaData level should match")
@@ -401,9 +401,9 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 
 	suite.NotNil(updateResp.Response.Data, "Update should return data")
 	updatedUser := updateResp.Response.Data.(map[string]interface{})
-	suite.Contains(updatedUser, "raw_app_meta_data", "Response should contain raw_app_meta_data")
+	suite.Contains(updatedUser, "app_meta_data", "Response should contain app_meta_data")
 
-	appMetadata := updatedUser["raw_app_meta_data"].(map[string]interface{})
+	appMetadata := updatedUser["app_meta_data"].(map[string]interface{})
 	suite.Equal("senior", appMetadata["role"], "Updated role should match")
 	suite.Equal("Engineering", appMetadata["department"], "Updated department should match")
 	suite.Equal("expert", appMetadata["level"], "Updated level should match")
@@ -500,8 +500,8 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 	for i, userInterface := range usersArray {
 		user := userInterface.(map[string]interface{})
 		if user["email"] == "search-user1@example.com" || user["email"] == "search-user3@example.com" {
-			suite.Contains(user, "raw_app_meta_data", "User %d should have raw_app_meta_data", i)
-			appMetadata := user["raw_app_meta_data"].(map[string]interface{})
+			suite.Contains(user, "app_meta_data", "User %d should have app_meta_data", i)
+			appMetadata := user["app_meta_data"].(map[string]interface{})
 			suite.Equal("admin", appMetadata["role"], "User %d should have admin role", i)
 		}
 	}
@@ -528,7 +528,7 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 	for _, userInterface := range deptUsersArray {
 		user := userInterface.(map[string]interface{})
 		if user["email"] == "search-user1@example.com" {
-			appMetadata := user["raw_app_meta_data"].(map[string]interface{})
+			appMetadata := user["app_meta_data"].(map[string]interface{})
 			suite.Equal("IT", appMetadata["department"], "User should be in IT department")
 			foundITUser = true
 			break

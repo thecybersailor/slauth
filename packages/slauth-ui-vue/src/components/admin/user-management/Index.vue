@@ -34,25 +34,33 @@
           class="admin-users__item"
           @click="viewUser(user)"
         >
-          <UserAvatar />
-          <div class="admin-users__content">
-            <div class="admin-users__field">
-              <span class="admin-users__label">Email</span>
-              <span class="admin-users__email">{{ user.email }}</span>
+          <!-- Custom user row slot -->
+          <template v-if="$slots['user-row']">
+            <slot name="user-row" :user="user" />
+          </template>
+          
+          <!-- Default user row content -->
+          <template v-else>
+            <UserAvatar />
+            <div class="admin-users__content">
+              <div class="admin-users__field">
+                <span class="admin-users__label">Email</span>
+                <span class="admin-users__email">{{ user.email }}</span>
+              </div>
+              <div class="admin-users__field">
+                <span class="admin-users__label">ID</span>
+                <span class="admin-users__id">{{ user.id }}</span>
+              </div>
+              <div class="admin-users__field">
+                <span class="admin-users__label">Last Active</span>
+                <span class="admin-users__last-active">{{ formatDate(user.last_sign_in_at) || 'Never' }}</span>
+              </div>
+              <div class="admin-users__field">
+                <span class="admin-users__label">Metadata</span>
+                <span class="admin-users__metadata">{{ formatMetadata(user.app_meta_data) }}</span>
+              </div>
             </div>
-            <div class="admin-users__field">
-              <span class="admin-users__label">ID</span>
-              <span class="admin-users__id">{{ user.id }}</span>
-            </div>
-            <div class="admin-users__field">
-              <span class="admin-users__label">Last Active</span>
-              <span class="admin-users__last-active">{{ formatDate(user.last_sign_in_at) || 'Never' }}</span>
-            </div>
-            <div class="admin-users__field">
-              <span class="admin-users__label">Metadata</span>
-              <span class="admin-users__metadata">{{ formatMetadata(user.raw_app_meta_data) }}</span>
-            </div>
-          </div>
+          </template>
         </div>
       </div>
     </div>
@@ -72,7 +80,11 @@
         @cancel="closeDrawer"
         @delete="deleteUserConfirm"
         @refresh="refreshCurrentUser"
-      />
+      >
+        <template v-if="$slots['user-detail']" #user-detail="slotProps">
+          <slot name="user-detail" v-bind="slotProps" />
+        </template>
+      </UserDetail>
     </Drawer>
   </div>
 </template>
@@ -130,10 +142,10 @@ const loadUsers = async () => {
   const appFilters = filterData.value.app_metadata
   if (appFilters && Object.keys(appFilters).length > 0) {
     filteredResult = filteredResult.filter((user: any) => {
-      if (!user.raw_app_meta_data) return false
+      if (!user.app_meta_data) return false
       return Object.entries(appFilters).every(([key, value]) => {
         if (!value) return true
-        return user.raw_app_meta_data?.[key] === value
+        return user.app_meta_data?.[key] === value
       })
     })
   }

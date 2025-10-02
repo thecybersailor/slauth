@@ -1,6 +1,12 @@
 <template>
   <div class="aira-forgot-password">
-    <div class="aira-forgot-password__header">
+    <!-- Header Slot -->
+    <div v-if="$slots.header" class="aira-forgot-password__header-slot">
+      <slot name="header" :view="'forgotten_password'" />
+    </div>
+    
+    <!-- Default Header -->
+    <div v-else class="aira-forgot-password__header">
       <h2 class="aira-forgot-password__title">Reset your password</h2>
       <p class="aira-forgot-password__description">
         Enter your email and we'll send you a link to reset your password.
@@ -43,9 +49,14 @@
       </Button>
     </form>
 
-    <!-- Back to Sign In Link -->
+    <!-- Footer Slot -->
+    <div v-if="$slots.footer" class="aira-forgot-password__footer-slot">
+      <slot name="footer" :view="'forgotten_password'" />
+    </div>
+    
+    <!-- Default Footer -->
     <div
-      v-if="showLinks"
+      v-else-if="showLinks"
       class="aira-forgot-password__footer"
     >
       <Anchor

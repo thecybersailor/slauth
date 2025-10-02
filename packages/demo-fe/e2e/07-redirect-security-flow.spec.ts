@@ -100,14 +100,9 @@ test.describe('Redirect Security Flow', () => {
         expect(updateResponse.ok()).toBeTruthy()
         console.log('✅ Email confirmation disabled')
         
-        // Verify config was actually updated
-        await page.waitForTimeout(1000)
         const getResponse = await page.request.get(`${testConfig.backendUrl}/admin/config`)
         const configData = await getResponse.json()
         console.log('📡 Current config:', configData)
-        
-        // Wait for backend hot reload to apply changes
-        await page.waitForTimeout(2000)
         console.log('⏱️ Waited for config to propagate')
       })
 

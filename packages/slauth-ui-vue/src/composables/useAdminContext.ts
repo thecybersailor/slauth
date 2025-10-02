@@ -6,6 +6,7 @@ export interface AdminContext {
   adminClient: AdminApi
   localization?: Localization
   darkMode?: boolean
+  userDetailSections?: string[]
 }
 
 export function useAdminContext(): ComputedRef<AdminContext> {

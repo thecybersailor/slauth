@@ -71,7 +71,7 @@ func (a *AuthController) SignInWithOAuth(c *pin.Context) error {
 	}
 
 	// Debug: Print request details
-	slog.Info("OAuth request", "provider", req.Provider, "options", req.Options)
+	slog.Info("OAuth request", "provider", req.Provider, "redirect_to", req.RedirectTo, "options", req.Options)
 
 	// Validate provider
 	if req.Provider == "" {
@@ -106,7 +106,7 @@ func (a *AuthController) SignInWithOAuth(c *pin.Context) error {
 
 	case types.FlowTypeAuthCode:
 
-		flowID, err := a.createOAuthFlowState(c, provider, req.Options)
+		flowID, err := a.createOAuthFlowState(c, provider, req.Options, req.RedirectTo)
 		if err != nil {
 			return consts.OAUTH_PROVIDER_NOT_SUPPORTED
 		}
@@ -123,7 +123,7 @@ func (a *AuthController) SignInWithOAuth(c *pin.Context) error {
 }
 
 // createOAuthFlowState creates OAuth flow state and returns flow ID
-func (a *AuthController) createOAuthFlowState(c *pin.Context, provider types.IdentityProvider, options json.RawMessage) (string, error) {
+func (a *AuthController) createOAuthFlowState(c *pin.Context, provider types.IdentityProvider, options json.RawMessage, redirectTo string) (string, error) {
 	// Generate PKCE parameters
 	codeVerifier, err := generateCodeVerifier()
 	if err != nil {
@@ -154,6 +154,7 @@ func (a *AuthController) createOAuthFlowState(c *pin.Context, provider types.Ide
 		CodeVerifier:         codeVerifier,
 		ProviderType:         provider.GetName(),
 		RedirectURI:          opts.RedirectURI,
+		RedirectTo:           redirectTo,
 		AuthenticationMethod: "oauth",
 		DomainCode:           a.authService.GetDomainCode(),
 		CreatedAt:            time.Now(),
@@ -169,7 +170,8 @@ func (a *AuthController) createOAuthFlowState(c *pin.Context, provider types.Ide
 	slog.Info("FlowState created",
 		"id", flowState.ID,
 		"provider", flowState.ProviderType,
-		"redirectURI", flowState.RedirectURI)
+		"redirectURI", flowState.RedirectURI,
+		"redirectTo", flowState.RedirectTo)
 
 	// Return flow ID (using hashid) - ID is now set after CreateFlowState
 	flowID, err := encodeFlowID(flowState.ID)
@@ -312,10 +314,10 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 
 	// Validate redirect URL from flow state
 	redirectTo := ""
-	if flowState.RedirectURI != "" {
+	if flowState.RedirectTo != "" {
 		redirectService := a.createRedirectService()
-		redirectTo = redirectService.ValidateAndGetRedirectTo(flowState.RedirectURI)
-		slog.Info("OAuth: Redirect URL validated", "original", flowState.RedirectURI, "validated", redirectTo)
+		redirectTo = redirectService.ValidateAndGetRedirectTo(flowState.RedirectTo)
+		slog.Info("OAuth: Redirect URL validated", "original", flowState.RedirectTo, "validated", redirectTo)
 	}
 
 	resp := &AuthData{

@@ -21,6 +21,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/providers/captcha/cloudflare"
 	"github.com/thecybersailor/slauth/pkg/providers/identidies/google"
+	"github.com/thecybersailor/slauth/pkg/providers/identidies/mock"
 	awssms "github.com/thecybersailor/slauth/pkg/providers/sms/aws"
 	"github.com/thecybersailor/slauth/pkg/registry"
 	"gorm.io/driver/postgres"
@@ -38,6 +39,7 @@ type Config struct {
 
 	AuthServiceBaseUrl string `cfg:"AUTH_SERVICE_BASE_URL" default:"http://localhost:5180/auth"`
 	SiteURL            string `cfg:"SITE_URL" default:"http://localhost:5180"`
+	MockDelay          int    `cfg:"MOCK_DELAY" default:"0"`
 }
 
 var cfg *Config
@@ -167,6 +169,9 @@ func main() {
 			ClientID:     cfg.GoogleClientID,
 			ClientSecret: cfg.GoogleClientSecret,
 		})).
+		AddIdentityProvider(mock.NewMockProvider(&mock.MockOAuthConfig{
+			ClientID: "mock-client-id",
+		})).
 		SetSMSProvider(smsProvider)
 
 	// Update config and save to database
@@ -180,9 +185,12 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "timestamp": "2025-10-01 17:44:36", "hot_reload": "working"})
 	})
 
+	// Setup mock OAuth server for testing
+	setupMockOAuthServer(r)
+
 	// Add delay middleware to observe loading state
 	r.Use(func(c *gin.Context) {
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(time.Duration(cfg.MockDelay) * time.Second)
 		c.Next()
 	})
 

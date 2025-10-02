@@ -171,6 +171,7 @@ export const SignInWithIdTokenRequestSchema = z.object({
 export const SignInWithOAuthRequestSchema = z.object({
   options: z.record(z.string(), z.string()).optional(),
   provider: z.string().optional(),
+  redirect_to: z.string().optional(),
 });
 
 export const SignInWithOtpRequestSchema = z.object({

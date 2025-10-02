@@ -66,6 +66,7 @@ interface Props {
   localization?: Localization
   darkMode?: boolean
   tabs?: string[]
+  userDetailSections?: string[]
 }
 
 interface NavigationItem {
@@ -78,7 +79,8 @@ interface NavigationItem {
 const props = withDefaults(defineProps<Props>(), {
   localization: undefined,
   darkMode: false,
-  tabs: () => ['stats', 'users', 'settings']
+  tabs: () => ['stats', 'users', 'settings'],
+  userDetailSections: undefined
 })
 
 // Merge internationalization configuration
@@ -90,7 +92,8 @@ const mergedLocalization = computed(() => {
 const adminContext = computed<AdminContext>(() => ({
   adminClient: props.adminClient,
   localization: mergedLocalization.value,
-  darkMode: props.darkMode
+  darkMode: props.darkMode,
+  userDetailSections: props.userDetailSections
 }))
 
 provide('admin-context', adminContext)

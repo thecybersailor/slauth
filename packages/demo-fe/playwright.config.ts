@@ -19,7 +19,8 @@ export default defineConfig({
     '**/02-email-signin-flow.spec.ts',
     '**/05-form-validation.spec.ts',
     '**/06-token-refresh-flow.spec.ts',
-    '**/07-redirect-security-flow.spec.ts'
+    '**/07-redirect-security-flow.spec.ts',
+    '**/08-mock-oauth-flow.spec.ts'
   ],
   /* Maximum time one test can run for. */
   timeout: 60 * 1000,

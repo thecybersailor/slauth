@@ -55,7 +55,7 @@
       </div>
 
       <!-- Sessions Card -->
-      <div class="user-detail__card">
+      <div v-if="showSessions" class="user-detail__card">
         <div class="user-detail__card-header">
           <h4 class="user-detail__card-title">Active Sessions ({{ sessions.length }})</h4>
           <Button
@@ -89,7 +89,7 @@
       </div>
 
       <!-- Connected Accounts Card -->
-      <div class="user-detail__card">
+      <div v-if="showConnected" class="user-detail__card">
         <div class="user-detail__card-header">
           <h4 class="user-detail__card-title">Connected Accounts</h4>
         </div>
@@ -111,29 +111,34 @@
       </div>
 
       <!-- App Metadata Card -->
-      <div class="user-detail__card">
+      <div v-if="showAppMetadata" class="user-detail__card">
         <div class="user-detail__card-header">
           <h4 class="user-detail__card-title">App Metadata</h4>
         </div>
         <div class="user-detail__card-body">
           <JsonEditor
-            :model-value="formatJSON(user?.raw_app_meta_data)"
+            :model-value="formatJSON(user?.app_meta_data)"
             readonly
           />
         </div>
       </div>
 
       <!-- User Metadata Card -->
-      <div class="user-detail__card">
+      <div v-if="showUserMetadata" class="user-detail__card">
         <div class="user-detail__card-header">
           <h4 class="user-detail__card-title">User Metadata</h4>
         </div>
         <div class="user-detail__card-body">
           <JsonEditor
-            :model-value="formatJSON(user?.raw_user_meta_data)"
+            :model-value="formatJSON(user?.user_meta_data)"
             readonly
           />
         </div>
+      </div>
+
+      <!-- User Detail Slot (View Mode) -->
+      <div v-if="$slots['user-detail']" class="user-detail__slot">
+        <slot name="user-detail" :user="user" :view="'view'" />
       </div>
 
       <!-- Operations -->
@@ -181,40 +186,34 @@
       </div>
 
       <!-- Ban User Dialog -->
-      <div v-if="showBanDialog" class="user-detail__dialog-overlay" @click="showBanDialog = false">
-        <div class="user-detail__dialog" @click.stop>
-          <h3>Ban User</h3>
-          <Input
-            v-model="banUntilDate"
-            type="text"
-            label="Ban Until (leave empty for permanent ban)"
-            placeholder="2024-12-31T23:59:59Z"
-          />
-          <div class="user-detail__dialog-actions">
-            <Button variant="secondary" @click="showBanDialog = false">Cancel</Button>
-            <Button variant="primary" @click="handleBanUser">Confirm Ban</Button>
-          </div>
-        </div>
-      </div>
+      <Dialog v-model="showBanDialog" title="Ban User" width="500px">
+        <Input
+          v-model="banUntilDate"
+          type="text"
+          label="Ban Until (leave empty for permanent ban)"
+          placeholder="2024-12-31T23:59:59Z"
+        />
+        <template #footer>
+          <Button variant="secondary" @click="showBanDialog = false">Cancel</Button>
+          <Button variant="primary" @click="handleBanUser">Confirm Ban</Button>
+        </template>
+      </Dialog>
 
       <!-- Reset Password Dialog -->
-      <div v-if="showResetPasswordDialog" class="user-detail__dialog-overlay" @click="showResetPasswordDialog = false">
-        <div class="user-detail__dialog" @click.stop>
-          <h3>Reset Password</h3>
-          <Input
-            v-model="newPassword"
-            type="password"
-            label="New Password"
-            placeholder="Enter new password"
-          />
-          <div class="user-detail__dialog-actions">
-            <Button variant="secondary" @click="showResetPasswordDialog = false">Cancel</Button>
-            <Button variant="primary" :loading="resettingPassword" @click="handleResetPassword">
-              Reset Password
-            </Button>
-          </div>
-        </div>
-      </div>
+      <Dialog v-model="showResetPasswordDialog" title="Reset Password" width="500px">
+        <Input
+          v-model="newPassword"
+          type="password"
+          label="New Password"
+          placeholder="Enter new password"
+        />
+        <template #footer>
+          <Button variant="secondary" @click="showResetPasswordDialog = false">Cancel</Button>
+          <Button variant="primary" :loading="resettingPassword" @click="handleResetPassword">
+            Reset Password
+          </Button>
+        </template>
+      </Dialog>
     </template>
 
     <!-- Edit Mode -->
@@ -249,7 +248,7 @@
         />
       </div>
 
-      <div v-if="!isCreating" class="user-detail__section">
+      <div v-if="!isCreating && showAppMetadata" class="user-detail__section">
         <JsonEditor
           v-model="formData.app_metadata_json"
           label="App Metadata"
@@ -257,12 +256,17 @@
         />
       </div>
 
-      <div v-if="!isCreating" class="user-detail__section">
+      <div v-if="!isCreating && showUserMetadata" class="user-detail__section">
         <JsonEditor
           v-model="formData.user_metadata_json"
           label="User Metadata"
           placeholder='{"preference": "dark", "language": "en"}'
         />
+      </div>
+
+      <!-- User Detail Slot (Edit/Insert Mode) -->
+      <div v-if="$slots['user-detail']" class="user-detail__slot">
+        <slot name="user-detail" :user="user" :view="isCreating ? 'insert' : 'edit'" />
       </div>
 
       <div class="user-detail__actions">
@@ -290,6 +294,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import Button from '../../ui/Button.vue'
 import Input from '../../ui/Input.vue'
+import Dialog from '../../ui/Dialog.vue'
 import JsonEditor from '../../ui/JsonEditor.vue'
 import UserAvatar from '../../ui/icons/UserAvatar.vue'
 import ContactIcon from '../../ui/icons/ContactIcons.vue'
@@ -314,6 +319,23 @@ const emit = defineEmits<{
 
 const adminContext = useAdminContext()
 const adminClient = adminContext.value.adminClient
+
+// User detail sections configuration
+const userDetailSections = computed(() => {
+  const sections = adminContext.value.userDetailSections
+  // If sections is undefined (not provided), show all by default
+  // If sections is an empty array (explicitly set to []), show none
+  if (sections === undefined) {
+    return ['sessions', 'connected', 'app_metadata', 'user_metadata']
+  }
+  return sections
+})
+
+// Section visibility computed properties
+const showSessions = computed(() => userDetailSections.value.includes('sessions'))
+const showConnected = computed(() => userDetailSections.value.includes('connected'))
+const showAppMetadata = computed(() => userDetailSections.value.includes('app_metadata'))
+const showUserMetadata = computed(() => userDetailSections.value.includes('user_metadata'))
 
 const isEditing = ref(false)
 const sessions = ref<any[]>([])
@@ -347,8 +369,8 @@ watch(() => props.user, async (user) => {
       email: user.email || '',
       password: '',
       phone: user.phone || '',
-      app_metadata_json: JSON.stringify(user.raw_app_meta_data || {}, null, 2),
-      user_metadata_json: JSON.stringify(user.raw_user_meta_data || {}, null, 2)
+      app_metadata_json: JSON.stringify(user.app_meta_data || {}, null, 2),
+      user_metadata_json: JSON.stringify(user.user_meta_data || {}, null, 2)
     }
     await loadUserData()
   } else {
@@ -758,6 +780,15 @@ const parseUserAgent = (ua: string | undefined) => {
   min-height: 80px;
 }
 
+/* User Detail Slot */
+.user-detail__slot {
+  padding: 16px;
+  border: 1px solid var(--admin-border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--admin-card-bg, white);
+  margin-bottom: 16px;
+}
+
 /* Operations */
 .user-detail__operations {
   display: flex;
@@ -811,40 +842,5 @@ const parseUserAgent = (ua: string | undefined) => {
 
 .user-detail__operation-item--danger:hover .user-detail__operation-icon {
   color: #dc2626;
-}
-
-/* Dialog */
-.user-detail__dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.user-detail__dialog {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  min-width: 400px;
-  max-width: 90vw;
-}
-
-.user-detail__dialog h3 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  color: var(--admin-text, #374151);
-}
-
-.user-detail__dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
 }
 </style>

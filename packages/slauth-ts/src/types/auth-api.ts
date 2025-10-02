@@ -258,6 +258,7 @@ export interface SignInWithOAuthRequest {
   options?: Record<string, string>;
   /** @example "google" */
   provider?: string;
+  redirect_to?: string;
 }
 
 export interface SignInWithOtpRequest {

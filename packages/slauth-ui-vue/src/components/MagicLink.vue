@@ -1,6 +1,12 @@
 <template>
   <div class="aira-magic-link">
-    <div class="aira-magic-link__header">
+    <!-- Header Slot -->
+    <div v-if="$slots.header" class="aira-magic-link__header-slot">
+      <slot name="header" :view="'magic_link'" />
+    </div>
+    
+    <!-- Default Header -->
+    <div v-else class="aira-magic-link__header">
       <h2 class="aira-magic-link__title">Sign in with magic link</h2>
       <p class="aira-magic-link__description">
         Enter your email and we'll send you a magic link to sign in.
@@ -42,9 +48,14 @@
       </Button>
     </form>
 
-    <!-- Back to Sign In Link -->
+    <!-- Footer Slot -->
+    <div v-if="$slots.footer" class="aira-magic-link__footer-slot">
+      <slot name="footer" :view="'magic_link'" />
+    </div>
+    
+    <!-- Default Footer -->
     <div
-      v-if="showLinks"
+      v-else-if="showLinks"
       class="aira-magic-link__footer"
     >
       <Anchor

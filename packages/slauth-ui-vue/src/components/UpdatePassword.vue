@@ -1,6 +1,12 @@
 <template>
   <div class="aira-update-password">
-    <div class="aira-update-password__header">
+    <!-- Header Slot -->
+    <div v-if="$slots.header" class="aira-update-password__header-slot">
+      <slot name="header" :view="'update_password'" />
+    </div>
+    
+    <!-- Default Header -->
+    <div v-else class="aira-update-password__header">
       <h2 class="aira-update-password__title">Update your password</h2>
       <p class="aira-update-password__description">
         Enter your new password below.
@@ -53,6 +59,11 @@
         {{ authState.formState.loading ? (localization?.loading_button_label || 'Updating...') : (localization?.button_label || 'Update password') }}
       </Button>
     </form>
+
+    <!-- Footer Slot -->
+    <div v-if="$slots.footer" class="aira-update-password__footer-slot">
+      <slot name="footer" :view="'update_password'" />
+    </div>
   </div>
 </template>
 
