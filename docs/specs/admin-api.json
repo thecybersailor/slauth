@@ -1329,7 +1329,7 @@
         "pkg_controller.AdminUserResponse": {
             "type": "object",
             "properties": {
-                "app_meta_data": {
+                "app_metadata": {
                     "type": "object",
                     "additionalProperties": true
                 },
@@ -1363,7 +1363,7 @@
                 "updated_at": {
                     "type": "string"
                 },
-                "user_meta_data": {
+                "user_metadata": {
                     "type": "object",
                     "additionalProperties": true
                 }

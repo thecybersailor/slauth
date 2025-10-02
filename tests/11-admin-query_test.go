@@ -169,7 +169,7 @@ func (suite *AdminQueryTestSuite) TestBasicQuery() {
 			S{
 				"email":           "query-admin@example.com",
 				"email_confirmed": true,
-				"app_meta_data": S{
+				"app_metadata": S{
 					"role":       "admin",
 					"level":      "senior",
 					"department": "Engineering",
@@ -227,7 +227,7 @@ func (suite *AdminQueryTestSuite) TestInQuery() {
 			S{
 				"email":           "query-admin@example.com",
 				"email_confirmed": true,
-				"app_meta_data": S{
+				"app_metadata": S{
 					"role":       "admin",
 					"level":      "senior",
 					"department": "Engineering",
@@ -236,7 +236,7 @@ func (suite *AdminQueryTestSuite) TestInQuery() {
 			S{
 				"email":           "query-manager@example.com",
 				"email_confirmed": false,
-				"app_meta_data": S{
+				"app_metadata": S{
 					"role":       "manager",
 					"level":      "senior",
 					"department": "Engineering",
@@ -550,7 +550,7 @@ func (suite *AdminQueryTestSuite) TestLastSignInExistsQuery() {
 			S{
 				"email":           "query-admin@example.com",
 				"email_confirmed": true,
-				"app_meta_data": S{
+				"app_metadata": S{
 					"role":       "admin",
 					"level":      "senior",
 					"department": "Engineering",
@@ -559,7 +559,7 @@ func (suite *AdminQueryTestSuite) TestLastSignInExistsQuery() {
 			S{
 				"email":           "query-user@example.com",
 				"email_confirmed": true,
-				"app_meta_data": S{
+				"app_metadata": S{
 					"role":       "user",
 					"level":      "junior",
 					"department": "Sales",
@@ -616,7 +616,7 @@ func (suite *AdminQueryTestSuite) TestComplexTimeAndMetadataQuery() {
 			S{
 				"email":           "query-admin@example.com",
 				"email_confirmed": true,
-				"app_meta_data": S{
+				"app_metadata": S{
 					"role":       "admin",
 					"level":      "senior",
 					"department": "Engineering",

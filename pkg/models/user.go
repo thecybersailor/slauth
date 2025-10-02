@@ -19,8 +19,8 @@ type User struct {
 	EmailChange              *string    `json:"email_change" gorm:"type:varchar(255)"`
 	EmailChangeSentAt        *time.Time `json:"email_change_sent_at"`
 	LastSignInAt             *time.Time `json:"last_sign_in_at"`
-	RawUserMetaData          *JSON      `json:"user_meta_data"`
-	RawAppMetaData           *JSON      `json:"app_meta_data"`
+	RawUserMetaData          *JSON      `json:"user_metadata"`
+	RawAppMetaData           *JSON      `json:"app_metadata"`
 	CreatedAt                time.Time  `json:"created_at"`
 	UpdatedAt                time.Time  `json:"updated_at"`
 	Phone                    *string    `json:"phone" gorm:"type:varchar(255);uniqueIndex:idx_users_phone,priority:2"`

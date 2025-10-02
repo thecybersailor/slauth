@@ -39,8 +39,8 @@ type AdminUserResponse struct {
 	LastSignInAt    *string                `json:"last_sign_in_at,omitempty"`
 	CreatedAt       string                 `json:"created_at"`
 	UpdatedAt       string                 `json:"updated_at"`
-	RawUserMetaData map[string]interface{} `json:"user_meta_data,omitempty"`
-	RawAppMetaData  map[string]interface{} `json:"app_meta_data,omitempty"`
+	RawUserMetaData map[string]interface{} `json:"user_metadata,omitempty"`
+	RawAppMetaData  map[string]interface{} `json:"app_metadata,omitempty"`
 }
 
 // AdminCreateUserRequest represents the request for creating a user

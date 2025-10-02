@@ -185,7 +185,7 @@ export interface AdminUpdateUserRequest {
 }
 
 export interface AdminUserResponse {
-  app_meta_data?: Record<string, any>;
+  app_metadata?: Record<string, any>;
   banned_until?: string;
   created_at?: string;
   email?: string;
@@ -196,7 +196,7 @@ export interface AdminUserResponse {
   phone?: string;
   phone_confirmed?: boolean;
   updated_at?: string;
-  user_meta_data?: Record<string, any>;
+  user_metadata?: Record<string, any>;
 }
 
 export interface CreateSAMLProviderRequest {

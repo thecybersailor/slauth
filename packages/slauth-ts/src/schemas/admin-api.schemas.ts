@@ -84,7 +84,7 @@ export const AdminUpdateUserRequestSchema = z.object({
 });
 
 export const AdminUserResponseSchema = z.object({
-  app_meta_data: z.record(z.string(), z.any()).optional(),
+  app_metadata: z.record(z.string(), z.any()).optional(),
   banned_until: z.string().optional(),
   created_at: z.string().optional(),
   email: z.string().optional(),
@@ -95,7 +95,7 @@ export const AdminUserResponseSchema = z.object({
   phone: z.string().optional(),
   phone_confirmed: z.boolean().optional(),
   updated_at: z.string().optional(),
-  user_meta_data: z.record(z.string(), z.any()).optional(),
+  user_metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export const CreateSAMLProviderRequestSchema = z.object({
