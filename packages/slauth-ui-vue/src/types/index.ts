@@ -347,6 +347,7 @@ export interface FormErrors {
 /** Form state */
 export interface FormState {
   loading: boolean
+  loadingSource: string
   errors: FormErrors
   message?: string
   messageType?: 'success' | 'error' | 'info'

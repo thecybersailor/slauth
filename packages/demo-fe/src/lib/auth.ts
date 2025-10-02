@@ -1,4 +1,5 @@
 import { createClients } from '@cybersailor/slauth-ts'
+import mockProvider from '../providers/mock.vue'
 
 // Create the API clients
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -13,7 +14,7 @@ export const { authClient, adminClient } = createClients({
 // Auth configuration for UI components
 export const authConfig = {
   // Social providers configuration
-  providers: ['google', 'google_pkce', 'github', 'facebook', 'twitter', 'mock'],
+  providers: ['google', 'google_pkce', 'github', 'facebook', 'twitter', mockProvider],
   
   // Redirect URLs
   redirectTo: `${window.location.origin}/dashboard`,

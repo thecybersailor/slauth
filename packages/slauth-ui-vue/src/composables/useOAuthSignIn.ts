@@ -1,3 +1,4 @@
+import { inject } from 'vue'
 import { useAuthContext } from './useAuthContext'
 import { getRedirectParameter } from '../lib/redirectManager'
 
@@ -7,6 +8,7 @@ import { getRedirectParameter } from '../lib/redirectManager'
  */
 export function useOAuthSignIn() {
   const { authClient, authConfig } = useAuthContext()
+  const authState = inject<any>('authState', null)
 
   /**
    * Initiate OAuth sign-in flow
@@ -14,7 +16,8 @@ export function useOAuthSignIn() {
    * @param options Provider-specific options (e.g. redirect_uri, scope)
    */
   const signInWithOAuth = async (provider: string, options?: Record<string, string>): Promise<any> => {
-    // Get redirect_to: URL param > authConfig.redirectTo
+    authState?.setLoading(`oauth.${provider}`)
+
     const redirectTo = getRedirectParameter() || authConfig.redirectTo
 
     return authClient.signInWithOAuth({

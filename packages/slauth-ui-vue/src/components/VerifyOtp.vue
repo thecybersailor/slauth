@@ -95,7 +95,7 @@
 import { reactive, ref } from 'vue'
 import type { AuthEvent, Localization } from '../types'
 import { useAuth } from '../composables/useAuth'
-import { useAuthState } from '../composables/useAuthState'
+import { createAuthState } from '../composables/useAuthState'
 import { useAuthPaths } from '../composables/useAuthPaths'
 import { useAuthContext } from '../composables/useAuthContext'
 import Input from './ui/Input.vue'
@@ -124,7 +124,7 @@ const emit = defineEmits<{
 
 // Composables
 const auth = useAuth(authClient)
-const authState = useAuthState()
+const authState = createAuthState()
 const { authPaths } = useAuthPaths()
 
 // Form state
@@ -154,7 +154,7 @@ const handleSubmit = async () => {
 
   if (!isValid) return
 
-  authState.setLoading(true)
+  authState.setLoading('form')
   authState.clearMessage()
 
   try {
@@ -169,7 +169,7 @@ const handleSubmit = async () => {
   } catch (error) {
     authState.setErrorMessage('An unexpected error occurred')
   } finally {
-    authState.setLoading(false)
+    authState.clearLoading()
   }
 }
 

@@ -1,8 +1,13 @@
-import { ref, reactive } from 'vue'
+import { ref, reactive, inject } from 'vue'
 import type { ViewType, FormState, FormErrors } from '../types'
 
-/** Auth state management composable */
-export function useAuthState(initialView: ViewType = 'sign_in') {
+/** Use injected auth state from parent component */
+export function useAuthState() {
+  return inject<ReturnType<typeof createAuthState> | null>('authState', null)
+}
+
+/** Create auth state (for parent component to provide) */
+export function createAuthState(initialView: ViewType = 'sign_in') {
   const currentView = ref<ViewType>(initialView)
   const message = ref<string>('')
   const messageType = ref<'success' | 'error' | 'info'>('info')
@@ -11,6 +16,7 @@ export function useAuthState(initialView: ViewType = 'sign_in') {
   // Form state
   const formState = reactive<FormState>({
     loading: false,
+    loadingSource: '',
     errors: {},
     message: '',
     messageType: 'info',
@@ -78,8 +84,14 @@ export function useAuthState(initialView: ViewType = 'sign_in') {
   }
 
   // Loading state
-  const setLoading = (loading: boolean) => {
-    formState.loading = loading
+  const setLoading = (source: string) => {
+    formState.loading = !!source
+    formState.loadingSource = source
+  }
+
+  const clearLoading = () => {
+    formState.loading = false
+    formState.loadingSource = ''
   }
 
   // Form validation
@@ -138,7 +150,7 @@ export function useAuthState(initialView: ViewType = 'sign_in') {
   const reset = () => {
     clearMessage()
     clearErrors()
-    setLoading(false)
+    clearLoading()
   }
 
   return {
@@ -174,6 +186,7 @@ export function useAuthState(initialView: ViewType = 'sign_in') {
 
     // Loading state
     setLoading,
+    clearLoading,
 
     // Validation
     validateEmail,

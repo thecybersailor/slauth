@@ -78,10 +78,11 @@
         variant="primary"
         size="md"
         full-width
-        :loading="authState.formState.loading"
+        :loading="authState.formState.loadingSource === 'form'"
+        :disabled="authState.formState.loading"
         data-testid="signup-button"
       >
-        {{ authState.formState.loading ? (localization?.loading_button_label || 'Creating account...') : (localization?.button_label || 'Sign up') }}
+        {{ authState.formState.loadingSource === 'form' ? (localization?.loading_button_label || 'Creating account...') : (localization?.button_label || 'Sign up') }}
       </Button>
     </form>
 
@@ -105,10 +106,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, provide } from 'vue'
 import type { AuthEvent, Localization } from '../types'
 import { useAuth } from '../composables/useAuth'
-import { useAuthState } from '../composables/useAuthState'
+import { createAuthState } from '../composables/useAuthState'
 import { useAuthPaths } from '../composables/useAuthPaths'
 import { useAuthContext } from '../composables/useAuthContext'
 import { getRedirectParameter } from '../lib/redirectManager'
@@ -146,8 +147,11 @@ const emit = defineEmits<{
 
 // Composables
 const auth = useAuth(authClient)
-const authState = useAuthState()
+const authState = createAuthState()
 const { authPaths } = useAuthPaths()
+
+// Provide authState to children
+provide('authState', authState)
 
 // Form state
 const form = reactive({
@@ -177,7 +181,7 @@ const handleSubmit = async () => {
 
   if (!isValid) return
 
-  authState.setLoading(true)
+  authState.setLoading('form')
   authState.clearMessage()
 
   try {
@@ -203,7 +207,7 @@ const handleSubmit = async () => {
       authState.setErrorMessage('An unexpected error occurred')
     }
   } finally {
-    authState.setLoading(false)
+    authState.clearLoading()
   }
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="providers && providers.length > 0" class="social-providers">
+  <div v-if="providers && providers.length > 0" class="social-providers" :class="{ 'loading': isLoading }">
     <div 
       v-for="(Provider, index) in resolvedProviders" 
       :key="index"
@@ -23,6 +23,7 @@ import type { SocialProvider } from '../types'
 import type { AuthEvent, Localization } from '../types'
 import { allProviders, getProvider } from '../providers'
 import { useAuthContext } from '../composables/useAuthContext'
+import { useAuthState } from '../composables/useAuthState'
 
 // Props
 interface Props {
@@ -37,6 +38,10 @@ const props = withDefaults(defineProps<Props>(), {
 // Use AuthContext
 const { authClient, authConfig } = useAuthContext()
 const providers = computed(() => authConfig.providers || [])
+
+// Inject authState from parent
+const authState = useAuthState()
+const isLoading = computed(() => authState?.formState?.loading || false)
 
 // Emits
 const emit = defineEmits<{
@@ -98,6 +103,10 @@ const handleSuccess = (data: any) => {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+.social-providers.loading {
+  pointer-events: none;
 }
 
 .social-provider {

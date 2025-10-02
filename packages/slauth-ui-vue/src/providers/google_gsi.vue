@@ -1,7 +1,5 @@
 <template>
-    <div>
-        <div id="google_login_button" :style="containerStyle"></div>
-    </div>
+  <div id="google_login_button" :style="containerStyle"></div>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'

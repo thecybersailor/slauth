@@ -31,6 +31,7 @@ export { default as Divider } from './components/ui/Divider.vue'
 export { default as Anchor } from './components/ui/Anchor.vue'
 export { default as Drawer } from './components/ui/Drawer.vue'
 export { default as Dialog } from './components/ui/Dialog.vue'
+export { default as SocialButton } from './components/ui/SocialButton.vue'
 
 // Types
 export * from './types'
@@ -42,9 +43,10 @@ export { getPreservedParams, buildUrlWithPreservedParams, calculateRedirectUrl }
 
 // Composables
 export { useAuth } from './composables/useAuth'
-export { useAuthState } from './composables/useAuthState'
+export { useAuthState, createAuthState } from './composables/useAuthState'
 export { useAuthContext, useOAuthCallbackUrl, useUserRedirectUrl, useLocalization, useDarkMode } from './composables/useAuthContext'
 export { useAdminContext } from './composables/useAdminContext'
+export { useOAuthSignIn } from './composables/useOAuthSignIn'
 
 // Theme and styling
 export { ThemeProvider } from './theme'
