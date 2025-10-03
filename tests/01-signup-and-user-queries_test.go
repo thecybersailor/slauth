@@ -332,7 +332,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetRecentSignups() {
 		suite.Fail("Failed to cast users to []any")
 	}
 
-	suite.GreaterOrEqual(len(usersInterface), 3, "Should have at least 3 recent signups")
+	suite.GreaterOrEqual(len(usersInterface), 4, "Should have at least 3 recent signups")
 
 	for _, userInterface := range usersInterface {
 		user := userInterface.(map[string]any)
@@ -342,7 +342,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetRecentSignups() {
 	}
 
 	suite.Equal(float64(1), responseData["page"], "Page should be 1")
-	suite.Equal(float64(3), responseData["page_size"], "Page size should equal total users")
+	suite.Equal(float64(4), responseData["page_size"], "Page size should equal total users")
 }
 
 // Test case verifies that when email confirmation is disabled:
