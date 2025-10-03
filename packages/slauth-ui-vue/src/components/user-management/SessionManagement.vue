@@ -34,7 +34,7 @@
         </div>
 
         <div class="aira-session-management__session-list">
-          <SessionItem
+          <SessionTable
             :api-sessions="sessions"
             :current-session-id="currentSessionId"
             :loading="formState.loading"
@@ -61,7 +61,7 @@ import type { AuthEvent } from '../../types'
 import { useAuthContext } from '../../composables/useAuthContext'
 import Button from '../ui/Button.vue'
 import Message from '../ui/Message.vue'
-import SessionItem from '../ui/SessionItem.vue'
+import SessionTable from '../ui/SessionTable.vue'
 
 interface ApiSession {
   id: string

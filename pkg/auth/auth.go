@@ -57,18 +57,3 @@ func NewService(domainCode, globalJWTSecret, globalAppSecret string) services.Au
 func Start() error {
 	return models.Init()
 }
-
-// GetCurrentUser retrieves current user information from gin context
-func GetCurrentUser(c *gin.Context) (*models.User, error) {
-	authCtx := services.GetAuthContext(c)
-	if authCtx.User == nil {
-		panic("User not found in AuthContext - middleware not properly configured")
-	}
-	return authCtx.User, nil
-}
-
-// Test comment for air reload in pkg - updated at 2024-10-01 16:54
-// Hot reload test comment
-// Test hot reload 2025年10月 1日 星期三 17时03分09秒 CST
-// Hot reload test 2025年10月 1日 星期三 17时08分33秒 CST
-// Hot reload test - 2025年10月 1日 星期三 17时14分05秒 CST

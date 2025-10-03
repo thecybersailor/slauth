@@ -710,6 +710,15 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 	}
 }
 
+// GetCurrentUser retrieves the current authenticated user from gin context
+func (s *AuthServiceImpl) GetCurrentUser(c *gin.Context) (*User, error) {
+	authCtx := GetAuthContext(c, s.domainCode)
+	if authCtx.User == nil {
+		return nil, consts.NO_AUTHORIZATION
+	}
+	return NewUserFromModel(authCtx.User, s.passwordService, s.sessionService, s.db, s.domainCode)
+}
+
 // InternalMessageTemplate internal template implementation, unified rendering logic
 type InternalMessageTemplate struct {
 	templateBytes []byte

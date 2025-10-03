@@ -65,16 +65,10 @@ type SessionData struct {
 // @Success 200 {object} UserData "User information retrieved successfully"
 // @Router /user [get]
 func (u *UserController) GetUser(c *pin.Context) error {
-	// Extract user ID from JWT
-	userID, err := u.extractUserIDFromToken(c)
+	// Get current user from gin context
+	user, err := u.authService.GetCurrentUser(c.Context)
 	if err != nil {
 		return err
-	}
-
-	// Get user from database
-	user, err := u.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
-	if err != nil {
-		return consts.USER_NOT_FOUND
 	}
 
 	// Convert to response format

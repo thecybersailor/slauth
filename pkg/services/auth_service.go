@@ -47,6 +47,7 @@ type AuthService interface {
 	HandleAuthRequest(router gin.IRouter) AuthService
 	HandleAdminRequest(router gin.IRouter) AuthService
 	RequestValidator() gin.HandlerFunc
+	GetCurrentUser(c *gin.Context) (*User, error)
 
 	GenerateOTPCode(ctx OTPContext) (string, error)
 	GetOTPService() *OTPService

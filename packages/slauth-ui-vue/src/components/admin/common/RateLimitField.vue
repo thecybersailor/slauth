@@ -81,7 +81,7 @@ function updateWindowDuration(seconds: number) {
   --rate-border: #4b5563;
   --rate-text: #f9fafb;
   --rate-text-secondary: #d1d5db;
-  --rate-input-bg: #374151;
+  --rate-input-bg: transparent;
   --rate-input-border: #4b5563;
 }
 

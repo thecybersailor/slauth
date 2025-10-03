@@ -128,7 +128,7 @@ onMounted(() => {
   --admin-text: #f9fafb;
   --admin-border: #374151;
   --admin-bg: #1f2937;
-  --admin-card-bg: #374151;
+  --admin-card-bg: transparent;
 }
 
 .admin-stats__title {

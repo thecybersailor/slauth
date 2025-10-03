@@ -233,8 +233,8 @@ watch(currentPath, (newPath) => {
   --admin-border: #374151;
   --admin-bg: #1f2937;
   --admin-input-bg: #1f2937;
-  --admin-card-bg: #374151;
-  --admin-section-bg: #374151;
+  --admin-card-bg: transparent;
+  --admin-section-bg: transparent;
 }
 
 .aira-admin__top-nav {

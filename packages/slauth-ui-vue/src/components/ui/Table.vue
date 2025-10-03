@@ -1,7 +1,8 @@
 <template>
   <div class="aira-table-wrapper">
+    <slot name="header" />
     <table class="aira-table" :data-testid="testId">
-      <thead>
+      <thead v-if="data.length > 0">
         <tr>
           <th
             v-for="column in columns"
@@ -13,7 +14,7 @@
           </th>
         </tr>
       </thead>
-      <tbody>
+      <tbody v-if="data.length > 0">
         <tr
           v-for="(row, index) in data"
           :key="getRowKey(row, index)"
@@ -38,7 +39,17 @@
           </td>
         </tr>
       </tbody>
+      <tbody v-else>
+        <tr>
+          <td :colspan="columns.length" class="aira-table__empty">
+            <slot name="empty">
+              No data
+            </slot>
+          </td>
+        </tr>
+      </tbody>
     </table>
+    <slot name="footer" />
   </div>
 </template>
 
@@ -76,7 +87,6 @@ const getCellValue = (row: T, key: string): any => {
   overflow-x: auto;
   border: 1px solid var(--auth-ui-border);
   border-radius: 0.5rem;
-  background-color: var(--auth-ui-background);
 }
 
 .aira-table {
@@ -90,7 +100,6 @@ const getCellValue = (row: T, key: string): any => {
   text-align: left;
   font-weight: 600;
   color: var(--auth-ui-text-tertiary);
-  background-color: var(--auth-ui-background);
   border-bottom: 1px solid var(--auth-ui-border);
   white-space: nowrap;
 }
@@ -112,6 +121,13 @@ const getCellValue = (row: T, key: string): any => {
 
 .aira-table__row:last-child .aira-table__td {
   border-bottom: none;
+}
+
+.aira-table__empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--auth-ui-text-tertiary);
+  font-size: 0.875rem;
 }
 </style>
 

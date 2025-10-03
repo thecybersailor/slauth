@@ -47,7 +47,7 @@ const toggle = () => {
 }
 
 .config-section--dark {
-  --section-bg: #374151;
+  --section-bg: transparent;
   --section-border: #4b5563;
   --section-text: #f9fafb;
   --section-text-secondary: #d1d5db;

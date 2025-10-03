@@ -54,28 +54,37 @@
         </div>
       </div>
 
+      <!-- User Detail Slot (View Mode) -->
+      <div v-if="$slots['user-detail']" class="user-detail__slot">
+        <slot name="user-detail" :user="user" :viewMode="'view'" />
+      </div>
+
       <!-- Sessions Card -->
-      <Section v-if="showSessions" :title="`Active Sessions (${sessions.length})`">
-        <template #header-actions>
-          <Button
-            v-if="sessions.length > 0"
-            variant="outline"
-            size="sm"
-            @click="handleRevokeAllSessions"
-          >
-            Revoke All
-          </Button>
+      <SessionTable
+        v-if="showSessions"
+        :api-sessions="sessions"
+        :loading="loadingSessions"
+        :short-device-label="true"
+        @revoke="handleRevokeSession"
+      >
+        <template #header>
+          <div class="user-detail__section-header">
+            <h4 class="user-detail__section-title">Active Sessions ({{ sessions.length }})</h4>
+            <Button
+              v-if="sessions.length > 0"
+              variant="outline"
+              size="sm"
+              @click="handleRevokeAllSessions"
+            >
+              Revoke All
+            </Button>
+          </div>
         </template>
-        <div v-if="loadingSessions" class="user-detail__loading">Loading sessions...</div>
-        <div v-else-if="sessions.length === 0" class="user-detail__empty">No active sessions</div>
-        <SessionItem
-          v-else
-          :api-sessions="sessions"
-          :loading="loadingSessions"
-          :short-device-label="true"
-          @revoke="handleRevokeSession"
-        />
-      </Section>
+        <template #empty>
+          <div v-if="loadingSessions" class="user-detail__loading">Loading sessions...</div>
+          <div v-else class="user-detail__empty">No active sessions</div>
+        </template>
+      </SessionTable>
 
       <!-- Connected Accounts Card -->
       <Section v-if="showConnected" title="Connected Accounts">
@@ -112,16 +121,11 @@
         />
       </Section>
 
-      <!-- User Detail Slot (View Mode) -->
-      <div v-if="$slots['user-detail']" class="user-detail__slot">
-        <slot name="user-detail" :user="user" :viewMode="'view'" />
-      </div>
-
       <!-- Operations -->
       <div class="user-detail__operations">
         <a 
           class="user-detail__operation-item" 
-          @click="isEditing = true"
+          @click="startEdit"
           data-testid="admin-users-edit-link"
         >
           <span class="user-detail__operation-icon">
@@ -224,6 +228,11 @@
         />
       </div>
 
+      <!-- User Detail Slot (Edit/Insert Mode) -->
+      <div v-if="$slots['user-detail']" class="user-detail__slot">
+        <slot name="user-detail" :user="editableUser" :viewMode="isCreating ? 'insert' : 'edit'" />
+      </div>
+
       <div v-if="!isCreating && showAppMetadata" class="user-detail__section">
         <JsonEditor
           v-model="formData.app_metadata_json"
@@ -240,11 +249,6 @@
         />
       </div>
 
-      <!-- User Detail Slot (Edit/Insert Mode) -->
-      <div v-if="$slots['user-detail']" class="user-detail__slot">
-        <slot name="user-detail" :user="user" :viewMode="isCreating ? 'insert' : 'edit'" />
-      </div>
-
       <div class="user-detail__actions">
         <Button
           variant="secondary"
@@ -257,7 +261,7 @@
           variant="primary"
           :loading="submitting"
           data-testid="admin-users-submit-button"
-          @click="$emit('submit', formData)"
+          @click="handleSubmit"
         >
           {{ isCreating ? 'Create' : 'Save Changes' }}
         </Button>
@@ -272,7 +276,7 @@ import Button from '../../ui/Button.vue'
 import Input from '../../ui/Input.vue'
 import Dialog from '../../ui/Dialog.vue'
 import JsonEditor from '../../ui/JsonEditor.vue'
-import SessionItem from '../../ui/SessionItem.vue'
+import SessionTable from '../../ui/SessionTable.vue'
 import Section from '../../ui/Section.vue'
 import UserAvatar from '../../ui/icons/UserAvatar.vue'
 import ContactIcon from '../../ui/icons/ContactIcons.vue'
@@ -286,7 +290,13 @@ export interface UserDetailProps {
   submitting: boolean
 }
 
+export interface UserDetailSlots {
+  'user-detail'?: (props: { user: AdminUserResponse | null | undefined; viewMode: 'view' | 'edit' | 'insert' }) => any
+}
+
 const props = defineProps<UserDetailProps>()
+
+defineSlots<UserDetailSlots>()
 
 const emit = defineEmits<{
   submit: [formData: any]
@@ -333,6 +343,8 @@ const formData = ref({
   app_metadata_json: '',
   user_metadata_json: ''
 })
+
+const editableUser = ref<AdminUserResponse | null>(null)
 
 const isBanned = computed(() => {
   if (!props.user?.banned_until) return false
@@ -399,10 +411,28 @@ watch(() => props.user, async (user) => {
   }
 }, { immediate: true })
 
+const startEdit = () => {
+  if (!props.user) return
+  editableUser.value = {
+    ...props.user,
+    app_metadata: props.user.app_metadata || {},
+    user_metadata: props.user.user_metadata || {}
+  }
+  isEditing.value = true
+}
+
 // Expose load method for parent component
 defineExpose({
   load: loadUserData
 })
+
+const handleSubmit = () => {
+  if (editableUser.value) {
+    formData.value.app_metadata_json = JSON.stringify(editableUser.value.app_metadata, null, 2)
+    formData.value.user_metadata_json = JSON.stringify(editableUser.value.user_metadata, null, 2)
+  }
+  emit('submit', formData.value)
+}
 
 const handleCancel = () => {
   if (props.isCreating) {
@@ -532,6 +562,14 @@ const formatDate = (dateString: string | undefined) => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.user-detail__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid var(--admin-border, #e5e7eb);
 }
 
 .user-detail__section-title {
@@ -695,15 +733,6 @@ const formatDate = (dateString: string | undefined) => {
 
 .user-detail :deep(.aira-json-editor__field) {
   min-height: 80px;
-}
-
-/* User Detail Slot */
-.user-detail__slot {
-  padding: 16px;
-  border: 1px solid var(--admin-border, #e5e7eb);
-  border-radius: 8px;
-  background: var(--admin-card-bg, white);
-  margin-bottom: 16px;
 }
 
 /* Operations */

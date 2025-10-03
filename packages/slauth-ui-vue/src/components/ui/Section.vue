@@ -24,7 +24,6 @@ defineProps<SectionProps>()
 .aira-section {
   border: 1px solid var(--admin-border, #e5e7eb);
   border-radius: 8px;
-  background: var(--admin-card-bg, white);
   overflow: hidden;
 }
 

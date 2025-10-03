@@ -25,24 +25,13 @@
           </div>
         </div>
       </template>
-
-      <template #user-detail="{user, view}">
-        <div data-testid="user-detail">
-          <JsonEditor
-            :model-value="user"
-            readonly
-            auto-format
-          />
-        </div>
-        <input v-model="user.app_metadata.level" />
-      </template>
     </AdminLayout>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { AdminLayout, JsonEditor } from '@cybersailor/slauth-ui-vue'
+import { AdminLayout, Section } from '@cybersailor/slauth-ui-vue'
 import { authClient, adminClient } from '../lib/auth'
 
 const session = authClient.getSession()
@@ -59,6 +48,9 @@ const updateDarkMode = () => {
 
 const isDarkMode = ref(updateDarkMode())
 
+const updateAppMetadata = (value: any) => {
+  console.log('updateAppMetadata called with:', value)
+}
 
 let observer: MutationObserver | null = null
 

@@ -5,6 +5,18 @@
     row-key="id"
     test-id="session-table"
   >
+    <template #header>
+      <slot name="header" />
+    </template>
+
+    <template #footer>
+      <slot name="footer" />
+    </template>
+
+    <template #empty>
+      <slot name="empty" />
+    </template>
+
     <template #cell-device="{ row }">
       <div class="aira-session-device">
         <DeviceIcons :type="row.device_type" class="aira-session-device-icon" />

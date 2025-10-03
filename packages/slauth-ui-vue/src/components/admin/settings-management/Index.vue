@@ -763,7 +763,7 @@ onMounted(() => {
 .settings-management--dark {
   --settings-text: #f9fafb;
   --settings-bg: #1f2937;
-  --settings-card-bg: #374151;
+  --settings-card-bg: transparent;
   --settings-border: #4b5563;
   --settings-input-bg: #1f2937;
   --settings-input-border: #4b5563;

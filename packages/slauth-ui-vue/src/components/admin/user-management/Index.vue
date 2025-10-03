@@ -100,6 +100,17 @@ import UserDetail from './UserDetail.vue'
 import UserAvatar from '../../ui/icons/UserAvatar.vue'
 import type { AdminUserResponse } from '@cybersailor/slauth-ts'
 
+export interface UserManagementSlots {
+  'user-filter'?: (props: {
+    app_metadata: Record<string, any>
+    user_metadata: Record<string, any>
+  }) => any
+  'user-row'?: (props: { user: AdminUserResponse }) => any
+  'user-detail'?: (props: { user: AdminUserResponse | null | undefined; viewMode: 'view' | 'edit' | 'insert' }) => any
+}
+
+defineSlots<UserManagementSlots>()
+
 const adminContext = useAdminContext()
 const adminClient = adminContext.value.adminClient
 const darkMode = computed(() => adminContext.value.darkMode ?? false)
@@ -108,12 +119,15 @@ const t = computed(() => adminContext.value.localization?.admin?.user_management
 const users = ref<AdminUserResponse[]>([])
 const loading = ref(false)
 const showDrawer = ref(false)
-const editingUser = ref<any>(null)
+const editingUser = ref<AdminUserResponse | null>(null)
 const submitting = ref(false)
 const isCreating = ref(false)
 const userDetailRef = ref<InstanceType<typeof UserDetail> | null>(null)
 
-const filterData = ref({
+const filterData = ref<{
+  app_metadata: Record<string, any>
+  user_metadata: Record<string, any>
+}>({
   app_metadata: {},
   user_metadata: {}
 })
@@ -182,9 +196,9 @@ const viewUser = async (user: any) => {
 }
 
 const deleteUserConfirm = async () => {
-  if (!editingUser.value) return
+  if (!editingUser.value?.id) return
   if (confirm(`Delete user ${editingUser.value.email}?`)) {
-    await adminClient.deleteUser(editingUser.value.id)
+    await adminClient.deleteUser(editingUser.value.id!)
     closeDrawer()
     await loadUsers()
   }
@@ -220,7 +234,7 @@ const createUserSubmit = async (formData: any) => {
 }
 
 const updateUserSubmit = async (formData: any) => {
-  if (!editingUser.value) return
+  if (!editingUser.value?.id) return
   
   submitting.value = true
   
@@ -235,7 +249,7 @@ const updateUserSubmit = async (formData: any) => {
     user_data = JSON.parse(formData.user_metadata_json)
   }
   
-  await adminClient.updateUser(editingUser.value.id, {
+  await adminClient.updateUser(editingUser.value.id!, {
     email: formData.email,
     phone: formData.phone || undefined,
     app_metadata,
@@ -284,7 +298,7 @@ onMounted(() => {
   --admin-border: #374151;
   --admin-bg: #1f2937;
   --admin-input-bg: #1f2937;
-  --admin-card-bg: #374151;
+  --admin-card-bg: transparent;
 }
 
 .admin-users__header {

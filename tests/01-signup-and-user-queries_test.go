@@ -431,6 +431,64 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignupWithoutEmailConfirmation()
 	suite.Equal(200, restoreResponse.ResponseRecorder.Code, "Config restore should succeed")
 }
 
+// Test case verifies GetCurrentUser functionality:
+// - User can signup and signin to get access token
+// - With valid token, /auth/user endpoint uses GetCurrentUser to retrieve user info
+// - Without token, request should fail with 401
+// - With invalid token, request should fail with 401
+func (suite *SignupAndUserQueriesTestSuite) TestGetCurrentUser() {
+	email := "getcurrentuser@example.com"
+	password := "MySecurePassword2024!"
+
+	// Disable email confirmation for immediate signin
+	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}, nil)
+	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+
+	// Signup user
+	signupBody := S{
+		"email":    email,
+		"password": password,
+	}
+	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupBody)
+	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+
+	// Get access token from signup response
+	signupData := signupResponse.Response.Data.(map[string]any)
+	sessionData := signupData["session"].(map[string]any)
+	accessToken := sessionData["access_token"].(string)
+	suite.NotEmpty(accessToken, "Access token should be present")
+
+	// Test 1: Get current user with valid token (uses GetCurrentUser internally)
+	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
+	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed with valid token")
+	suite.Nil(userResponse.Response.Error, "Get user should not have error")
+
+	userData := userResponse.Response.Data.(map[string]any)
+	userInfo := userData["user"].(map[string]any)
+	suite.Equal(email, userInfo["email"], "User email should match")
+	suite.NotEmpty(userInfo["id"], "User ID should not be empty")
+
+	// Test 2: Get current user without token (should fail)
+	unauthorizedResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/user")
+	suite.Equal(401, unauthorizedResponse.ResponseRecorder.Code, "Get user should fail without token")
+
+	// Test 3: Get current user with invalid token (should fail)
+	invalidTokenResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", "invalid-token-12345")
+	suite.Equal(401, invalidTokenResponse.ResponseRecorder.Code, "Get user should fail with invalid token")
+
+	// Restore email confirmation setting
+	restoreResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"confirm_email": true,
+		},
+	}, nil)
+	suite.Equal(200, restoreResponse.ResponseRecorder.Code, "Config restore should succeed")
+}
+
 func TestSignupAndUserQueriesTestSuite(t *testing.T) {
 	suite.Run(t, new(SignupAndUserQueriesTestSuite))
 }
