@@ -2,7 +2,6 @@
   <SocialButton
     :loading="loading"
     :error="error"
-    data-testid="oauth-button-mock"
     @click="handleMockLogin"
   >
     <template #icon>
@@ -36,7 +35,6 @@ const handleMockLogin = async () => {
   if (loading.value) return
   
   error.value = ''
-  authState?.reset()
   
   try {
     const mockOAuthServerUrl = import.meta.env.VITE_MOCK_OAUTH_SERVER || 'http://localhost:8080/mock-oauth'
@@ -49,6 +47,7 @@ const handleMockLogin = async () => {
     if (!oauthData.flow_id) {
       const err = new Error('No flow ID received')
       error.value = err.message
+      authState?.reset()
       emit('error', err)
       return
     }

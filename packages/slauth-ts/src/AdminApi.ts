@@ -1,5 +1,5 @@
 import { createHttpClient } from './lib/fetch'
-import { Session } from './lib/types'
+import { Session, AuthError } from './lib/types'
 import { ValidatedApiClient } from './lib/validated-client'
 import * as Types from './types/admin-api'
 import * as Schemas from './schemas/admin-api.schemas'
@@ -61,8 +61,8 @@ export class AdminApi {
       Schemas.SAMLProviderResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -74,8 +74,8 @@ export class AdminApi {
       Schemas.ListSAMLProvidersResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -87,8 +87,8 @@ export class AdminApi {
       Schemas.SAMLProviderResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -102,8 +102,8 @@ export class AdminApi {
       Schemas.SAMLProviderResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -141,8 +141,8 @@ export class AdminApi {
   }): Promise<Types.ListUsersResponse> {
     const { data, error } = await this.api.post('/users/query', params || {})
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -162,8 +162,8 @@ export class AdminApi {
       Schemas.AdminUserResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -177,8 +177,8 @@ export class AdminApi {
       Schemas.AdminUserResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -200,8 +200,8 @@ export class AdminApi {
       Schemas.AdminUserResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -242,8 +242,8 @@ export class AdminApi {
       Schemas.ListSessionsResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -255,8 +255,8 @@ export class AdminApi {
       Schemas.ListSessionsResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -282,8 +282,8 @@ export class AdminApi {
   async listUserIdentities(userId: string): Promise<any> {
     const { data, error } = await this.api.get(`/users/${userId}/identities`)
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -304,8 +304,8 @@ export class AdminApi {
       Schemas.StatsResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -317,8 +317,8 @@ export class AdminApi {
       Schemas.SessionStatsResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -327,8 +327,8 @@ export class AdminApi {
   async getRecentSignups(): Promise<any> {
     const { data, error } = await this.api.get('/stats/recent-signups')
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -337,8 +337,8 @@ export class AdminApi {
   async getRecentSignins(): Promise<any> {
     const { data, error } = await this.api.get('/stats/recent-signins')
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -347,28 +347,14 @@ export class AdminApi {
   /**
    * Get instance configuration
    */
-  async getInstanceConfig() {
-    const { data, error } = await this.api.get('/config')
-
-    if (error) {
-      return Promise.reject(error)
-    }
-
-    return data
+  async getInstanceConfig(): Promise<{ data: Types.GetInstanceConfigResponse | null; error: AuthError | null }> {
+    return this.api.get<Types.GetInstanceConfigResponse>('/config')
   }
 
   /**
    * Update instance configuration
    */
   async updateInstanceConfig(config: any) {
-    const { data, error } = await this.api.put('/config', {
-      config,
-    })
-
-    if (error) {
-      return Promise.reject(error)
-    }
-
-    return data
+    return this.api.put('/config', { config })
   }
 }

@@ -36,9 +36,9 @@ export interface ServiceConfig {
 /** Client configuration options */
 export interface ClientsConfig {
   /** Auth service configuration */
-  auth: ServiceConfig
+  auth?: ServiceConfig
   /** Admin service configuration */
-  admin: ServiceConfig
+  admin?: ServiceConfig
   /** API key for authentication */
   apiKey?: string
   /** Additional headers to send with requests */

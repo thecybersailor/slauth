@@ -687,7 +687,13 @@ const loadConfig = async () => {
   loading.value = true
   message.value = ''
 
-  const result = await adminClient.getInstanceConfig()
+  const { data: result, error } = await adminClient.getInstanceConfig()
+
+  if (error || !result || !result.config) {
+    message.value = error?.message || 'Failed to load configuration'
+    loading.value = false
+    return
+  }
 
   // Basic config
   Object.assign(config, result.config)

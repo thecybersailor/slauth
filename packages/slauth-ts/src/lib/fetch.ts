@@ -23,18 +23,11 @@ export interface HttpClientConfig {
   onAuthError?: (error: AuthError) => void
 }
 
-/** Request options */
-export interface RequestOptions {
-  headers?: { [key: string]: string }
+/** Request options - extends AxiosRequestConfig for maximum flexibility */
+export interface RequestOptions extends Omit<AxiosRequestConfig, 'url' | 'method' | 'data' | 'baseURL'> {
   noResolveJson?: boolean
   redirectTo?: string
   body?: any
-}
-
-/** Response wrapper */
-export interface FetchResponse<T = any> {
-  data: T
-  error: AuthError | null
 }
 
 /** HTTP client for slauth API */
@@ -150,146 +143,33 @@ export class HttpClient {
   }
 
   /** Make a GET request */
-  async get<T = any>(url: string, options: RequestOptions = {}): Promise<FetchResponse<T>> {
-    try {
-      const response = await this.client.get<T>(url, {
-        ...(options.headers && { headers: options.headers })
-      })
-
-      // Check if response contains error field (backend returns { data, error } format)
-      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
-        const errorData = (response.data as any).error
-        if (errorData && errorData !== null) {
-          return { data: null as any, error: errorData }
-        }
-      }
-
-      // Extract the actual data from the Pin framework response format
-      const actualData = response.data && typeof response.data === 'object' && 'data' in response.data
-        ? (response.data as any).data
-        : response.data
-
-      return { data: actualData as T, error: null }
-    } catch (error) {
-      return { data: null as any, error: this.handleError(error) }
-    }
+  async get<T = any>(url: string, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
+    const { noResolveJson, redirectTo, body, ...axiosConfig } = options
+    return this.client.get<T>(url, axiosConfig)
   }
 
   /** Make a POST request */
-  async post<T = any>(url: string, body?: any, options: RequestOptions = {}): Promise<FetchResponse<T>> {
-    try {
-      const response = await this.client.post<T>(url, body, {
-        ...(options.headers && { headers: options.headers })
-      })
-
-      // Debug: Log the actual response data
-      if (this.debug) {
-        console.log('[slauth] POST Response data:', JSON.stringify(response.data, null, 2))
-      }
-
-      // Check if response contains error field (backend returns { data, error } format)
-      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
-        const errorData = (response.data as any).error
-        if (errorData && errorData !== null) {
-          if (this.debug) {
-            console.log('[slauth] Error detected in response:', errorData)
-          }
-          const authError: AuthError = {
-            message: errorData.message || 'Authentication failed',
-            key: errorData.code || errorData.key || 'auth_error',
-            type: errorData.type
-          }
-          return { data: null as any, error: authError }
-        }
-      }
-
-      // Extract the actual data from the Pin framework response format
-      const actualData = response.data && typeof response.data === 'object' && 'data' in response.data
-        ? (response.data as any).data
-        : response.data
-
-      return { data: actualData as T, error: null }
-    } catch (error) {
-      return { data: null as any, error: this.handleError(error) }
-    }
+  async post<T = any>(url: string, body?: any, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
+    const { noResolveJson, redirectTo, body: _, ...axiosConfig } = options
+    return this.client.post<T>(url, body, axiosConfig)
   }
 
   /** Make a PUT request */
-  async put<T = any>(url: string, body?: any, options: RequestOptions = {}): Promise<FetchResponse<T>> {
-    try {
-      const response = await this.client.put<T>(url, body, {
-        ...(options.headers && { headers: options.headers })
-      })
-
-      // Check if response contains error field (backend returns { data, error } format)
-      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
-        const errorData = (response.data as any).error
-        if (errorData && errorData !== null) {
-          return { data: null as any, error: errorData }
-        }
-      }
-
-      // Extract the actual data from the Pin framework response format
-      const actualData = response.data && typeof response.data === 'object' && 'data' in response.data
-        ? (response.data as any).data
-        : response.data
-
-      return { data: actualData as T, error: null }
-    } catch (error) {
-      return { data: null as any, error: this.handleError(error) }
-    }
+  async put<T = any>(url: string, body?: any, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
+    const { noResolveJson, redirectTo, body: _, ...axiosConfig } = options
+    return this.client.put<T>(url, body, axiosConfig)
   }
 
   /** Make a PATCH request */
-  async patch<T = any>(url: string, body?: any, options: RequestOptions = {}): Promise<FetchResponse<T>> {
-    try {
-      const response = await this.client.patch<T>(url, body, {
-        ...(options.headers && { headers: options.headers })
-      })
-
-      // Check if response contains error field (backend returns { data, error } format)
-      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
-        const errorData = (response.data as any).error
-        if (errorData && errorData !== null) {
-          return { data: null as any, error: errorData }
-        }
-      }
-
-      // Extract the actual data from the Pin framework response format
-      const actualData = response.data && typeof response.data === 'object' && 'data' in response.data
-        ? (response.data as any).data
-        : response.data
-
-      return { data: actualData as T, error: null }
-    } catch (error) {
-      return { data: null as any, error: this.handleError(error) }
-    }
+  async patch<T = any>(url: string, body?: any, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
+    const { noResolveJson, redirectTo, body: _, ...axiosConfig } = options
+    return this.client.patch<T>(url, body, axiosConfig)
   }
 
   /** Make a DELETE request */
-  async delete<T = any>(url: string, options: RequestOptions = {}): Promise<FetchResponse<T>> {
-    try {
-      const response = await this.client.delete<T>(url, {
-        ...(options.headers && { headers: options.headers })
-      })
-
-      // Check if response contains error field (backend returns { data, error } format)
-      if (response.data && typeof response.data === 'object' && 'error' in response.data) {
-        const errorData = (response.data as any).error
-        if (errorData && errorData !== null) {
-          return { data: null as any, error: errorData }
-        }
-      }
-
-      // Extract the actual data from the Pin framework response format
-      const actualData = response.data && typeof response.data === 'object' && 'data' in response.data
-        ? (response.data as any).data
-        : response.data
-
-      return { data: actualData as T, error: null }
-    } catch (error) {
-      return { data: null as any, error: this.handleError(error) }
-    }
+  async delete<T = any>(url: string, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
+    const { noResolveJson, redirectTo, body, ...axiosConfig } = options
+    return this.client.delete<T>(url, axiosConfig)
   }
 
   /** Handle axios errors and convert to AuthError */

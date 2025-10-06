@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-container">
+  <div class="dashboard-container" data-testid="dashboard-page">
     <!-- Navigation Header -->
     <nav class="dashboard-nav">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

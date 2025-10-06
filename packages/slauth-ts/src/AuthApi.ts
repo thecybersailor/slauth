@@ -52,7 +52,7 @@ export class AuthApi {
         Schemas.AuthDataSchema
       )
       
-      if (error || !data.session) {
+      if (error || !data || !data.session) {
         return false
       }
       
@@ -146,8 +146,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -168,8 +168,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -190,8 +190,8 @@ export class AuthApi {
       Schemas.SendOTPResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -205,8 +205,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -230,8 +230,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -255,8 +255,8 @@ export class AuthApi {
       Schemas.SSODataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -270,8 +270,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -305,8 +305,8 @@ export class AuthApi {
       Schemas.OAuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -339,8 +339,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -360,8 +360,8 @@ export class AuthApi {
       Schemas.SendOTPResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -380,8 +380,8 @@ export class AuthApi {
       Schemas.SendOTPResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -396,8 +396,8 @@ export class AuthApi {
       Schemas.SendSMSOTPResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -409,8 +409,8 @@ export class AuthApi {
       Schemas.SuccessResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -424,8 +424,8 @@ export class AuthApi {
       Schemas.UserResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -455,8 +455,8 @@ export class AuthApi {
       Schemas.UserDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -474,8 +474,8 @@ export class AuthApi {
       Schemas.UserDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     // Update current user
@@ -497,8 +497,8 @@ export class AuthApi {
     // Clear session regardless of API response
     await this.clearSession()
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -523,8 +523,8 @@ export class AuthApi {
       Schemas.AuthDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     if (data.session) {
@@ -541,8 +541,8 @@ export class AuthApi {
 
     const { data, error } = await this.api.put('/password', request)
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data || {}
@@ -560,8 +560,8 @@ export class AuthApi {
       Schemas.SuccessResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -579,8 +579,8 @@ export class AuthApi {
       Schemas.SuccessResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -599,8 +599,8 @@ export class AuthApi {
       Schemas.SuccessResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -618,8 +618,8 @@ export class AuthApi {
       Schemas.SuccessResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -636,8 +636,8 @@ export class AuthApi {
       Schemas.ListSessionsResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -680,8 +680,8 @@ export class AuthApi {
       Schemas.GetAuditLogResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -697,8 +697,8 @@ export class AuthApi {
       Schemas.GetDevicesResponseSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -717,8 +717,8 @@ export class AuthApi {
       Schemas.MFAEnrollDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -736,8 +736,8 @@ export class AuthApi {
       Schemas.MFAChallengeDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data
@@ -755,8 +755,8 @@ export class AuthApi {
       Schemas.MFAVerifyDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     // Update session if verification successful
@@ -796,8 +796,8 @@ export class AuthApi {
       Schemas.MFAListFactorsDataSchema
     )
 
-    if (error) {
-      return Promise.reject(error)
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
     return data

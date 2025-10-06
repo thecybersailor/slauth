@@ -19,16 +19,14 @@ export function createClients(config: ClientsConfig) {
     onAuthError: config.onAuthError
   }
   
-  // Create clients
-  const authClient = new AuthApi(
-    config.auth.url,
-    sharedConfig
-  )
+  // Create clients only if config is provided
+  const authClient = config.auth 
+    ? new AuthApi(config.auth.url, sharedConfig)
+    : null
   
-  const adminClient = new AdminApi(
-    config.admin.url,
-    sharedConfig
-  )
+  const adminClient = config.admin
+    ? new AdminApi(config.admin.url, sharedConfig)
+    : null
 
   return {
     authClient,

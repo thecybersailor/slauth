@@ -23,6 +23,7 @@ import type { Localization } from '../types'
 import { interpolate, getProviderDisplayName } from '../localization'
 import { useAuthContext } from '../composables/useAuthContext'
 import { useAuthState } from '../composables/useAuthState'
+import { useOAuthSignIn } from '../composables/useOAuthSignIn'
 import SocialButton from '../components/ui/SocialButton.vue'
 
 const emit = defineEmits<{
@@ -35,12 +36,11 @@ const props = defineProps<{
   localization?: Localization['sign_in']
 }>()
 
-const { authClient, authConfig } = useAuthContext()
+const { authConfig } = useAuthContext()
+const { signInWithOAuth } = useOAuthSignIn()
 const authState = useAuthState()
-const client = authClient
 
 const callbackUrl = computed(() => `${authConfig.authBaseUrl}/callback`)
-const redirectTo = computed(() => authConfig.redirectTo)
 const loading = computed(() => authState?.formState?.loadingSource === 'oauth.google')
 const error = ref<string>('')
 
@@ -56,23 +56,22 @@ const buttonText = computed(() => {
 })
 
 const handleGoogleLogin = async () => {
+  if (loading.value) return
+  
   error.value = ''
-  authState?.reset()
   
   try {
     const scope = authConfig?.scope || 'openid email profile'
     const googleClientId = authConfig?.googleClientId || 'YOUR_GOOGLE_CLIENT_ID'
 
-    const oauthData = await client.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirect_uri: callbackUrl.value
-      }
+    const oauthData = await signInWithOAuth('google', {
+      redirect_uri: callbackUrl.value
     })
 
     if (!oauthData.flow_id) {
       const err = new Error('No flow ID received')
       error.value = err.message
+      authState?.reset()
       emit('error', err)
       return
     }

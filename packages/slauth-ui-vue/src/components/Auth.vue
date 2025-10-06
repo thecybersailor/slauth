@@ -7,6 +7,7 @@
     ]"
     :style="style"
     data-testid="auth-container"
+    :data-status="currentView"
   >
     <!-- Confirmation status indicator -->
     <div 
@@ -123,7 +124,7 @@
         </div>
       </div>
 
-      <div v-else-if="currentView === 'callback'" class="slauth-ui__callback-mask">
+      <div v-else-if="currentView === 'callback'" class="slauth-ui__callback-mask" data-testid="auth-callback-loading">
         <div class="slauth-ui__callback-content">
           <!-- Error state -->
           <template v-if="callbackError">
