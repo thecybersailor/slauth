@@ -1196,52 +1196,32 @@
             "type": "object",
             "properties": {
                 "access_token_ttl": {
-                    "description": "Access token TTL\nThe time-to-live (TTL) for access tokens. Recommendation: 1 hour.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/time.Duration"
-                        }
-                    ]
+                    "description": "Access token TTL (in seconds)\nThe time-to-live (TTL) for access tokens. Recommendation: 1 hour.",
+                    "type": "integer"
                 },
                 "enforce_single_session_per_user": {
                     "description": "Enforce single session per user\nIf enabled, all but a user's most recently active session will be terminated.",
                     "type": "boolean"
                 },
                 "inactivity_timeout": {
-                    "description": "Inactivity timeout\nThe amount of time a user needs to be inactive to be forced to sign in again. Use 0 for never.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/time.Duration"
-                        }
-                    ]
+                    "description": "Inactivity timeout (in seconds)\nThe amount of time a user needs to be inactive to be forced to sign in again. Use 0 for never.",
+                    "type": "integer"
                 },
                 "refresh_token_reuse_interval": {
-                    "description": "Refresh token reuse interval\nTime interval where the same refresh token can be used multiple times\nto request for an access token. Recommendation: 10 seconds.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/time.Duration"
-                        }
-                    ]
+                    "description": "Refresh token reuse interval (in seconds)\nTime interval where the same refresh token can be used multiple times\nto request for an access token. Recommendation: 10 seconds.",
+                    "type": "integer"
                 },
                 "refresh_token_ttl": {
-                    "description": "Refresh token TTL\nThe time-to-live (TTL) for refresh tokens. Recommendation: 1 week.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/time.Duration"
-                        }
-                    ]
+                    "description": "Refresh token TTL (in seconds)\nThe time-to-live (TTL) for refresh tokens. Recommendation: 1 week.",
+                    "type": "integer"
                 },
                 "revoke_compromised_refresh_tokens": {
                     "description": "Detect and revoke potentially compromised refresh tokens\nPrevent replay attacks from potentially compromised refresh tokens.",
                     "type": "boolean"
                 },
                 "time_box_user_sessions": {
-                    "description": "Time-box user sessions\nThe amount of time before a user is forced to sign in again. Use 0 for never.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/time.Duration"
-                        }
-                    ]
+                    "description": "Time-box user sessions (in seconds)\nThe amount of time before a user is forced to sign in again. Use 0 for never.",
+                    "type": "integer"
                 }
             }
         },

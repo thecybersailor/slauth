@@ -92,13 +92,14 @@ test.describe('Redirect Security Flow', () => {
         const updateResponse = await page.request.put(`${testConfig.backendUrl}/admin/config`, {
           data: {
             config: {
-              confirm_email: false
+              confirm_email: false,
+              allow_new_users: true
             }
           }
         })
         
         expect(updateResponse.ok()).toBeTruthy()
-        console.log('✅ Email confirmation disabled')
+        console.log('✅ Email confirmation disabled and new user registration enabled')
         
         const getResponse = await page.request.get(`${testConfig.backendUrl}/admin/config`)
         const configData = await getResponse.json()

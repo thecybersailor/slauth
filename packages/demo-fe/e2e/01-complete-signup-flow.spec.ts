@@ -48,7 +48,8 @@ test.describe('Complete Signup Flow', () => {
       const configResponse = await page.request.put(`${testConfig.backendUrl}/admin/config`, {
         data: {
           config: {
-            confirm_email: true
+            confirm_email: true,
+            allow_new_users: true
           }
         }
       });
@@ -58,7 +59,7 @@ test.describe('Complete Signup Flow', () => {
       console.log('📡 Config update response:', JSON.stringify(configResult, null, 2));
       
       expect(configResponse.ok()).toBeTruthy();
-      console.log('✅ Email confirmation enabled');
+      console.log('✅ Email confirmation and new user registration enabled');
     });
     
     // ==================== Step 1: Navigate to homepage ====================

@@ -133,41 +133,41 @@ export interface GithubComThecybersailorSlauthPkgConfigSecurityConfig {
 
 export interface GithubComThecybersailorSlauthPkgConfigSessionConfig {
   /**
-   * Access token TTL
+   * Access token TTL (in seconds)
    * The time-to-live (TTL) for access tokens. Recommendation: 1 hour.
    */
-  access_token_ttl?: TimeDuration;
+  access_token_ttl?: number;
   /**
    * Enforce single session per user
    * If enabled, all but a user's most recently active session will be terminated.
    */
   enforce_single_session_per_user?: boolean;
   /**
-   * Inactivity timeout
+   * Inactivity timeout (in seconds)
    * The amount of time a user needs to be inactive to be forced to sign in again. Use 0 for never.
    */
-  inactivity_timeout?: TimeDuration;
+  inactivity_timeout?: number;
   /**
-   * Refresh token reuse interval
+   * Refresh token reuse interval (in seconds)
    * Time interval where the same refresh token can be used multiple times
    * to request for an access token. Recommendation: 10 seconds.
    */
-  refresh_token_reuse_interval?: TimeDuration;
+  refresh_token_reuse_interval?: number;
   /**
-   * Refresh token TTL
+   * Refresh token TTL (in seconds)
    * The time-to-live (TTL) for refresh tokens. Recommendation: 1 week.
    */
-  refresh_token_ttl?: TimeDuration;
+  refresh_token_ttl?: number;
   /**
    * Detect and revoke potentially compromised refresh tokens
    * Prevent replay attacks from potentially compromised refresh tokens.
    */
   revoke_compromised_refresh_tokens?: boolean;
   /**
-   * Time-box user sessions
+   * Time-box user sessions (in seconds)
    * The amount of time before a user is forced to sign in again. Use 0 for never.
    */
-  time_box_user_sessions?: TimeDuration;
+  time_box_user_sessions?: number;
 }
 
 export interface AdminCreateUserRequest {
