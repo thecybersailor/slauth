@@ -29,7 +29,7 @@ var (
 	// General database conflict, such as concurrent requests on resources that should not be modified concurrently. Can often occur when you have too many session refresh requests firing off at the same time for a user. Check your app for concurrency issues, and if detected, back off exponentially.
 	CONFLICT = usererrors.New("auth.conflict", "Too many simultaneous requests. Please wait a moment and try again.")
 
-	// Example and test domains are currently not supported. Use a different email address.
+	// Example and test instances are currently not supported. Use a different email address.
 	EMAIL_ADDRESS_INVALID = usererrors.New("auth.email_address_invalid", "This email address is not supported. Please use a different email.")
 
 	// Email sending is not allowed for this address as your project is using the default SMTP service. Emails can only be sent to members in your auth organization. If you want to send emails to others, set up a custom SMTP provider.
@@ -225,8 +225,8 @@ var (
 	// Sending an SMS message failed. Check your SMS provider configuration.
 	SMS_SEND_FAILED = usererrors.New("auth.sms_send_failed", "SMS delivery failed. Please try again or contact support.")
 
-	// (Admin API.) Only one SSO domain can be registered per SSO identity provider.
-	SSO_DOMAIN_ALREADY_EXISTS = usererrors.New("auth.sso_domain_already_exists", "SSO domain already registered. Please use a different domain.")
+	// (Admin API.) Only one SSO instance can be registered per SSO identity provider.
+	SSO_DOMAIN_ALREADY_EXISTS = usererrors.New("auth.sso_instance_already_exists", "SSO instance already registered. Please use a different instance.")
 
 	// SSO provider not found. Check the arguments in auth.auth.signInWithSSO().
 	SSO_PROVIDER_NOT_FOUND = usererrors.New("auth.sso_provider_not_found", "SSO provider not found. Please check your settings.")

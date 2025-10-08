@@ -24,26 +24,26 @@ func NewAdminSessionService(db *gorm.DB, sessionService *SessionService) *AdminS
 }
 
 // GetSessionStats returns session statistics
-func (s *AdminSessionService) GetSessionStats(ctx context.Context, domainCode string) (*SessionStats, error) {
+func (s *AdminSessionService) GetSessionStats(ctx context.Context, instanceId string) (*SessionStats, error) {
 	var totalSessions, activeSessions, expiredSessions int64
 
 	// Get total sessions count
 	if err := s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("domain_code = ?", domainCode).
+		Where("instance_id = ?", instanceId).
 		Count(&totalSessions).Error; err != nil {
 		return nil, err
 	}
 
 	// Get active sessions count
 	if err := s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("domain_code = ? AND (not_after IS NULL OR not_after > ?)", domainCode, time.Now()).
+		Where("instance_id = ? AND (not_after IS NULL OR not_after > ?)", instanceId, time.Now()).
 		Count(&activeSessions).Error; err != nil {
 		return nil, err
 	}
 
 	// Get expired sessions count
 	if err := s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("domain_code = ? AND not_after IS NOT NULL AND not_after <= ?", domainCode, time.Now()).
+		Where("instance_id = ? AND not_after IS NOT NULL AND not_after <= ?", instanceId, time.Now()).
 		Count(&expiredSessions).Error; err != nil {
 		return nil, err
 	}
@@ -56,12 +56,12 @@ func (s *AdminSessionService) GetSessionStats(ctx context.Context, domainCode st
 }
 
 // RevokeSession revokes a specific session by sessionID
-func (s *AdminSessionService) RevokeSession(ctx context.Context, domainCode, sessionID string) error {
-	return s.RevokeUserSession(ctx, domainCode, sessionID)
+func (s *AdminSessionService) RevokeSession(ctx context.Context, instanceId, sessionID string) error {
+	return s.RevokeUserSession(ctx, instanceId, sessionID)
 }
 
 // RevokeUserSession revokes a specific session and its refresh tokens
-func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode, sessionID string) error {
+func (s *AdminSessionService) RevokeUserSession(ctx context.Context, instanceId, sessionID string) error {
 	// Parse sessionID to get real ID
 	realSessionID, err := GetSessionIDFromHashID(sessionID)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode,
 
 	// 1. Set session.not_after
 	if err := tx.Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", realSessionID, domainCode).
+		Where("id = ? AND instance_id = ?", realSessionID, instanceId).
 		Updates(map[string]any{
 			"not_after":  now,
 			"updated_at": now,
@@ -91,7 +91,7 @@ func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode,
 
 	// 2. Revoke all refresh tokens for this session (industry best practice)
 	if err := tx.Model(&models.RefreshToken{}).
-		Where("session_id = ? AND domain_code = ?", realSessionID, domainCode).
+		Where("session_id = ? AND instance_id = ?", realSessionID, instanceId).
 		Updates(map[string]any{
 			"revoked":    true,
 			"updated_at": now,
@@ -104,12 +104,12 @@ func (s *AdminSessionService) RevokeUserSession(ctx context.Context, domainCode,
 }
 
 // ListAllSessions retrieves all sessions with pagination and filters
-func (s *AdminSessionService) ListAllSessions(ctx context.Context, domainCode string, page, pageSize int, filters map[string]any) ([]*Session, int64, error) {
+func (s *AdminSessionService) ListAllSessions(ctx context.Context, instanceId string, page, pageSize int, filters map[string]any) ([]*Session, int64, error) {
 	var sessions []models.Session
 	var total int64
 
 	// Build query
-	query := s.db.WithContext(ctx).Model(&models.Session{}).Where("domain_code = ?", domainCode)
+	query := s.db.WithContext(ctx).Model(&models.Session{}).Where("instance_id = ?", instanceId)
 
 	// Apply filters
 	if userID, ok := filters["user_id"]; ok {

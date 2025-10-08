@@ -47,7 +47,7 @@ func convertUserToResponse(user *models.User) *User {
 
 	userResp := &User{
 		ID:           generateHashIDOrFallback(user.ID),
-		Aud:          user.DomainCode,
+		Aud:          user.InstanceId,
 		CreatedAt:    formatTime(&user.CreatedAt),
 		UpdatedAt:    formatTime(&user.UpdatedAt),
 		ConfirmedAt:  formatTime(user.ConfirmedAt),

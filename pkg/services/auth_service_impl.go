@@ -31,7 +31,7 @@ type AuthServiceImpl struct {
 	passwordService *PasswordService
 	otpService      *OTPService
 	validator       *ValidatorService
-	domainCode      string
+	instanceId      string
 
 	// External providers
 	captchaProvider          types.CaptchaProvider
@@ -66,9 +66,9 @@ type AuthServiceImpl struct {
 
 // NewAuthServiceImpl creates a new authentication service with global secrets
 // This is an internal implementation, use auth.NewService() instead
-func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecret string) *AuthServiceImpl {
+func NewAuthServiceImpl(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecret string) *AuthServiceImpl {
 	// Create config loader
-	configLoader := NewConfigLoader(db, domainCode, globalJWTSecret, globalAppSecret)
+	configLoader := NewConfigLoader(db, instanceId, globalJWTSecret, globalAppSecret)
 
 	// Load config for the first time
 	cfg := configLoader.GetConfig()
@@ -77,7 +77,7 @@ func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecre
 	s := &AuthServiceImpl{
 		db:           db,
 		configLoader: configLoader,
-		domainCode:   domainCode,
+		instanceId:   instanceId,
 	}
 
 	// Now create jwtService with closure that references configLoader
@@ -96,7 +96,7 @@ func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecre
 	hashIDService := NewHashIDService(cfg)
 	SetGlobalHashIDService(hashIDService)
 
-	userService := NewUserServiceWithDomain(db, domainCode)
+	userService := NewUserServiceWithInstance(db, instanceId)
 	sessionService := NewSessionService(db)
 	passwordService := NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore)
 
@@ -114,7 +114,7 @@ func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecre
 	// Initialize admin service layers
 	s.adminSessionService = NewAdminSessionService(db, sessionService)
 	s.adminIdentityService = NewAdminIdentityService(db)
-	s.adminSystemService = NewAdminSystemService(db, userService, NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore), domainCode)
+	s.adminSystemService = NewAdminSystemService(db, userService, NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore), instanceId)
 
 	// Initialize middleware slices
 	s.signupMiddlewares = make([]func(ctx SignupContext, next func() error) error, 0)
@@ -142,7 +142,7 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	slog.Info("AuthenticateUser called",
 		"emailOrPhone", emailOrPhone,
 		"hasPassword", password != "",
-		"domainCode", s.domainCode,
+		"instanceId", s.instanceId,
 	)
 
 	if emailOrPhone == "" || password == "" {
@@ -152,7 +152,7 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 
 	// Find user
 	var user models.User
-	query := s.db.Where("domain_code = ?", s.domainCode)
+	query := s.db.Where("instance_id = ?", s.instanceId)
 
 	// Try email first, then phone
 	if err := s.validator.ValidateEmail(emailOrPhone); err == nil {
@@ -213,7 +213,7 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	slog.Info("Authentication successful", "userID", user.ID, "email", user.Email)
 
 	// Wrap as User
-	userObj, err := NewUserFromModel(&user, s.passwordService, s.sessionService, s.db, s.domainCode)
+	userObj, err := NewUserFromModel(&user, s.passwordService, s.sessionService, s.db, s.instanceId)
 	if err != nil {
 		slog.Error("Failed to create user object", "error", err, "userID", user.ID)
 		return nil, consts.UNEXPECTED_FAILURE
@@ -228,10 +228,10 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	config := s.GetConfig()
 	if config.SessionConfig.EnforceSingleSessionPerUser {
 		// Terminate all existing sessions for this user
-		s.db.Where("user_id = ? AND domain_code = ?", user.ID, s.domainCode).Delete(&models.Session{})
+		s.db.Where("user_id = ? AND instance_id = ?", user.ID, s.instanceId).Delete(&models.Session{})
 		// Revoke all existing refresh tokens for this user
 		s.db.Model(&models.RefreshToken{}).
-			Where("user_id = ? AND domain_code = ?", user.ID, s.domainCode).
+			Where("user_id = ? AND instance_id = ?", user.ID, s.instanceId).
 			Update("revoked", true)
 	}
 
@@ -239,7 +239,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	now := time.Now()
 	session := &models.Session{
 		UserID:      user.ID,
-		DomainCode:  s.domainCode,
+		InstanceId:  s.instanceId,
 		AAL:         &aal,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -260,14 +260,14 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 
 	// SQLite auto increment fix: refresh the session to get the correct ID
 	if session.ID == 0 {
-		if err := s.db.First(session, "user_id = ? AND domain_code = ? AND created_at = ?",
-			user.ID, s.domainCode, session.CreatedAt).Error; err != nil {
+		if err := s.db.First(session, "user_id = ? AND instance_id = ? AND created_at = ?",
+			user.ID, s.instanceId, session.CreatedAt).Error; err != nil {
 			return nil, "", "", 0, err
 		}
 	}
 
 	// Debug: Check if session.ID was set correctly
-	slog.Info("Session created", "sessionID", session.ID, "userID", user.ID, "domainCode", s.domainCode)
+	slog.Info("Session created", "sessionID", session.ID, "userID", user.ID, "instanceId", s.instanceId)
 
 	// Parse user metadata
 	var userMeta, appMeta map[string]any
@@ -289,7 +289,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	}
 
 	accessToken, expiresAt, err := s.jwtService.GenerateAccessTokenWithExpiry(
-		user.HashID, s.domainCode, email, phone, "authenticated",
+		user.HashID, s.instanceId, email, phone, "authenticated",
 		aal, amr, session.ID, userMeta, appMeta,
 	)
 	if err != nil {
@@ -307,7 +307,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 		Token:      refreshToken,
 		UserID:     user.ID,
 		SessionID:  session.ID,
-		DomainCode: s.domainCode,
+		InstanceId: s.instanceId,
 		Revoked:    false,
 	}
 
@@ -371,7 +371,7 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 	}
 
 	accessToken, expiresAt, err := s.jwtService.GenerateAccessTokenWithExpiry(
-		user.HashID, s.domainCode, email, phone, "authenticated",
+		user.HashID, s.instanceId, email, phone, "authenticated",
 		aal, amr, session.ID, userMeta, appMeta,
 	)
 	if err != nil {
@@ -389,7 +389,7 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 		Token:      refreshToken,
 		UserID:     user.ID,
 		SessionID:  session.ID,
-		DomainCode: s.domainCode,
+		InstanceId: s.instanceId,
 		Revoked:    false,
 	}
 
@@ -409,8 +409,8 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 // ValidateRefreshToken validates and returns refresh token info
 func (s *AuthServiceImpl) ValidateRefreshToken(ctx context.Context, tokenString string) (*models.RefreshToken, error) {
 	var token models.RefreshToken
-	err := s.db.WithContext(ctx).Preload("Session").Where("token = ? AND domain_code = ? AND (revoked IS NULL OR revoked = false)",
-		tokenString, s.domainCode).First(&token).Error
+	err := s.db.WithContext(ctx).Preload("Session").Where("token = ? AND instance_id = ? AND (revoked IS NULL OR revoked = false)",
+		tokenString, s.instanceId).First(&token).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -432,7 +432,7 @@ func (s *AuthServiceImpl) ValidateRefreshToken(ctx context.Context, tokenString 
 // RevokeRefreshToken revokes a refresh token
 func (s *AuthServiceImpl) RevokeRefreshToken(ctx context.Context, tokenString string) error {
 	result := s.db.Model(&models.RefreshToken{}).
-		Where("token = ? AND domain_code = ?", tokenString, s.domainCode).
+		Where("token = ? AND instance_id = ?", tokenString, s.instanceId).
 		Update("revoked", true)
 
 	if result.Error != nil {
@@ -456,7 +456,7 @@ func (s *AuthServiceImpl) CreateFlowState(ctx context.Context, flowState *models
 // GetFlowStateByID retrieves flow state by ID
 func (s *AuthServiceImpl) GetFlowStateByID(ctx context.Context, id uint) (*models.FlowState, error) {
 	var flowState models.FlowState
-	err := s.db.WithContext(ctx).Where("id = ? AND domain_code = ?", id, s.domainCode).First(&flowState).Error
+	err := s.db.WithContext(ctx).Where("id = ? AND instance_id = ?", id, s.instanceId).First(&flowState).Error
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +489,7 @@ func (s *AuthServiceImpl) ValidateJWT(token string) (map[string]any, error) {
 	// Check if session is still valid (not revoked)
 	// Get session from database to check if it's revoked
 	var session models.Session
-	err = s.db.Where("id = ? AND domain_code = ?", claims.SessionID, claims.DomainCode).First(&session).Error
+	err = s.db.Where("id = ? AND instance_id = ?", claims.SessionID, claims.InstanceId).First(&session).Error
 	if err != nil {
 		return nil, consts.SESSION_NOT_FOUND
 	}
@@ -527,7 +527,7 @@ func (s *AuthServiceImpl) ValidateJWT(token string) (map[string]any, error) {
 	// Extract user information from claims
 	userClaims := map[string]any{
 		"user_id":     claims.UserID, // Now stores hashid
-		"domain_code": claims.DomainCode,
+		"instance_id": claims.InstanceId,
 		"email":       claims.Email,
 		"role":        claims.Role,
 		"aal":         aalValue, // Use current AAL from session
@@ -594,9 +594,9 @@ func (s *AuthServiceImpl) RegisterMessageTemplateResolver(resolver types.Message
 }
 
 // GetMessageTemplate finds the first valid template resolver
-func (s *AuthServiceImpl) GetMessageTemplate(domainCode, messageType, templateName string) (types.MessageTemplate, bool) {
+func (s *AuthServiceImpl) GetMessageTemplate(instanceId, messageType, templateName string) (types.MessageTemplate, bool) {
 	for _, resolver := range s.messageTemplateResolvers {
-		if templateBytes, found := resolver.GetTemplate(domainCode, messageType, templateName); found {
+		if templateBytes, found := resolver.GetTemplate(instanceId, messageType, templateName); found {
 			// Create internal template implementation
 			template := &InternalMessageTemplate{
 				templateBytes: templateBytes,
@@ -623,8 +623,8 @@ func (s *AuthServiceImpl) GetDB() *gorm.DB {
 	return s.db
 }
 
-func (s *AuthServiceImpl) GetDomainCode() string {
-	return s.domainCode
+func (s *AuthServiceImpl) GetInstanceId() string {
+	return s.instanceId
 }
 
 func (s *AuthServiceImpl) GetConfig() *config.AuthServiceConfig {
@@ -684,8 +684,8 @@ func (s *AuthServiceImpl) SetAdminRouteHandler(handler RouteHandler) AuthService
 
 // HandleAuthRequest handles authentication-related public routes
 func (s *AuthServiceImpl) HandleAuthRequest(router gin.IRouter) AuthService {
-	// Set domain middleware
-	router.Use(s.domainMiddleware())
+	// Set instance middleware
+	router.Use(s.instanceMiddleware())
 
 	// Call the configured route handler
 	if s.authRouteHandler != nil {
@@ -697,8 +697,8 @@ func (s *AuthServiceImpl) HandleAuthRequest(router gin.IRouter) AuthService {
 
 // HandleAdminRequest handles admin-related routes
 func (s *AuthServiceImpl) HandleAdminRequest(router gin.IRouter) AuthService {
-	// Set domain middleware
-	router.Use(s.domainMiddleware())
+	// Set instance middleware
+	router.Use(s.instanceMiddleware())
 
 	// Call the configured admin route handler
 	if s.adminRouteHandler != nil {
@@ -708,10 +708,10 @@ func (s *AuthServiceImpl) HandleAdminRequest(router gin.IRouter) AuthService {
 	return s
 }
 
-func (s *AuthServiceImpl) domainMiddleware() gin.HandlerFunc {
+func (s *AuthServiceImpl) instanceMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authCtx := &AuthContext{
-			DomainCode:  s.domainCode,
+			InstanceId:  s.instanceId,
 			AuthService: s,
 		}
 		SetAuthContext(c, authCtx)
@@ -724,9 +724,9 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		pinCtx := pin.Context{Context: c}
 
-		// Set domain context
+		// Set instance context
 		authCtx := &AuthContext{
-			DomainCode:  s.domainCode,
+			InstanceId:  s.instanceId,
 			AuthService: s,
 		}
 		SetAuthContext(c, authCtx)
@@ -784,11 +784,11 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 
 // GetCurrentUser retrieves the current authenticated user from gin context
 func (s *AuthServiceImpl) GetCurrentUser(c *gin.Context) (*User, error) {
-	authCtx := GetAuthContext(c, s.domainCode)
+	authCtx := GetAuthContext(c, s.instanceId)
 	if authCtx.User == nil {
 		return nil, consts.NO_AUTHORIZATION
 	}
-	return NewUserFromModel(authCtx.User, s.passwordService, s.sessionService, s.db, s.domainCode)
+	return NewUserFromModel(authCtx.User, s.passwordService, s.sessionService, s.db, s.instanceId)
 }
 
 // InternalMessageTemplate internal template implementation, unified rendering logic
@@ -896,7 +896,7 @@ func checkEmailRateLimitWrapper(ctx OTPContext, next func() error) error {
 		ctx,
 		req.Email,
 		"email_send",
-		authService.GetDomainCode(),
+		authService.GetInstanceId(),
 		config.RatelimitConfig.EmailRateLimit,
 		config,
 	)
@@ -932,7 +932,7 @@ func checkSMSRateLimitWrapper(ctx OTPContext, next func() error) error {
 		ctx,
 		req.Phone,
 		"sms_send",
-		authService.GetDomainCode(),
+		authService.GetInstanceId(),
 		config.RatelimitConfig.SMSRateLimit,
 		config,
 	)

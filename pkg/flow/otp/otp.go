@@ -73,11 +73,11 @@ func GenerateOTPFlow(ctx services.OTPContext, next func() error) error {
 
 	otpService := authServiceImpl.GetOTPService()
 	db := authServiceImpl.GetDB()
-	domainCode := ctx.Service().GetDomainCode()
+	instanceId := ctx.Service().GetInstanceId()
 
 	tokenType := types.OneTimeTokenTypeConfirmation
 
-	err = otpService.StoreOTP(ctx, req.Email, req.Phone, code, tokenType, domainCode, db)
+	err = otpService.StoreOTP(ctx, req.Email, req.Phone, code, tokenType, instanceId, db)
 	if err != nil {
 		return fmt.Errorf("failed to store OTP: %w", err)
 	}

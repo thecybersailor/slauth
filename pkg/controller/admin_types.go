@@ -154,7 +154,7 @@ type UpdateInstanceConfigRequest struct {
 
 // GetInstanceConfigResponse represents the response for getting instance config
 type GetInstanceConfigResponse struct {
-	DomainCode string                   `json:"domain_code"`
+	InstanceId string                   `json:"instance_id"`
 	Config     config.AuthServiceConfig `json:"config"`
 }
 

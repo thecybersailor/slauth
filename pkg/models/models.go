@@ -27,7 +27,7 @@ func AllModels() []interface{} {
 		&SAMLRelayState{},
 		&SSOProvider{},
 		&SAMLProvider{},
-		&SSODomain{},
+		&SSOInstance{},
 		&AuthInstance{},
 	}
 }

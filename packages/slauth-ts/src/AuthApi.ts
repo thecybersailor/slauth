@@ -244,7 +244,7 @@ export class AuthApi {
   async signInWithSSO(credentials: Types.SignInWithSSORequest): Promise<Types.SSOData> {
     const requestBody = {
       provider_id: credentials.providerId,
-      domain: credentials.domain,
+      instance: credentials.instance,
       redirect_to: credentials.options?.redirectTo
     }
 

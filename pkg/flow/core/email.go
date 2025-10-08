@@ -14,7 +14,7 @@ type EmailFlowConfig struct {
 	EmailProvider types.EmailProvider
 	TemplateName  string
 	MessageType   string
-	DomainCode    string
+	InstanceId    string
 }
 
 func EmailFlow[T any](config EmailFlowConfig, getEmail func(T) string, getData func(T) map[string]interface{}) Flow[T] {
@@ -33,7 +33,7 @@ func EmailFlow[T any](config EmailFlowConfig, getEmail func(T) string, getData f
 		}
 
 		template, found := config.AuthService.GetMessageTemplate(
-			config.DomainCode,
+			config.InstanceId,
 			config.MessageType,
 			config.TemplateName,
 		)

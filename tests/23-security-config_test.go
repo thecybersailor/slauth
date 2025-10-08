@@ -18,7 +18,7 @@ func (suite *SecurityConfigTestSuite) SetupSuite() {
 	suite.helper = NewTestHelper(
 		suite.DB,
 		suite.Router,
-		suite.TestDomain,
+		suite.TestInstance,
 		suite.EmailProvider,
 		suite.SMSProvider,
 	)

@@ -25,7 +25,7 @@ type TokenRevocationBestPracticesTestSuite struct {
 
 func (suite *TokenRevocationBestPracticesTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 }
 
 // TestLogoutRevokesAllDevicesRefreshTokens verifies that POST /logout revokes

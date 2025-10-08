@@ -51,9 +51,9 @@ func (a *AuthController) VerifyOtp(c *pin.Context) error {
 	// Verify OTP
 	otpService := authServiceImpl.GetOTPService()
 	db := authServiceImpl.GetDB()
-	domainCode := a.authService.GetDomainCode()
+	instanceId := a.authService.GetInstanceId()
 
-	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, req.Phone, req.Token, types.OneTimeTokenTypeConfirmation, domainCode, db)
+	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, req.Phone, req.Token, types.OneTimeTokenTypeConfirmation, instanceId, db)
 	if err != nil {
 		slog.Warn("OTP verification failed", "error", err, "email", req.Email)
 		return consts.VALIDATION_FAILED
@@ -244,7 +244,7 @@ func (a *AuthController) ConfirmEmail(c *pin.Context) error {
 	tokenHash := services.HashToken(token)
 
 	// Find token record
-	otToken, err := otTokenService.GetWithUser(context.Background(), tokenHash, a.authService.GetDomainCode())
+	otToken, err := otTokenService.GetWithUser(context.Background(), tokenHash, a.authService.GetInstanceId())
 	if err != nil {
 		slog.Warn("ConfirmEmail: Token not found", "error", err)
 		return consts.VALIDATION_FAILED
@@ -264,14 +264,14 @@ func (a *AuthController) ConfirmEmail(c *pin.Context) error {
 
 	// Confirm user email
 	userService := authServiceImpl.GetUserService()
-	err = userService.ConfirmEmail(context.Background(), *otToken.UserID, a.authService.GetDomainCode())
+	err = userService.ConfirmEmail(context.Background(), *otToken.UserID, a.authService.GetInstanceId())
 	if err != nil {
 		slog.Error("ConfirmEmail: Failed to confirm email", "error", err, "userID", otToken.UserID)
 		return consts.UNEXPECTED_FAILURE
 	}
 
 	// Delete used token
-	err = otTokenService.DeleteByID(context.Background(), otToken.ID, a.authService.GetDomainCode())
+	err = otTokenService.DeleteByID(context.Background(), otToken.ID, a.authService.GetInstanceId())
 	if err != nil {
 		slog.Warn("ConfirmEmail: Failed to delete token", "error", err, "tokenID", otToken.ID)
 		// Don't return error because email has been confirmed successfully

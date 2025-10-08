@@ -13,9 +13,8 @@ type SessionManagementTestSuite struct {
 
 func (suite *SessionManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 }
-
 
 func (suite *SessionManagementTestSuite) TestRefreshToken() {
 	email := "refresh-token@example.com"
@@ -59,13 +58,11 @@ func (suite *SessionManagementTestSuite) TestRefreshToken() {
 	refreshData := refreshResponse.Response.Data.(map[string]any)
 	newSession := refreshData["session"].(map[string]any)
 
-	
 	suite.Contains(newSession, "access_token", "New session should have access_token")
 	suite.Contains(newSession, "refresh_token", "New session should have refresh_token")
 	suite.Contains(newSession, "expires_at", "New session should have expires_at")
 	suite.Contains(newSession, "user", "New session should have user")
 
-	
 	newAccessToken := newSession["access_token"].(string)
 	originalAccessToken := session["access_token"].(string)
 	suite.NotEqual(newAccessToken, originalAccessToken, "New access token should be different from original")
@@ -74,7 +71,6 @@ func (suite *SessionManagementTestSuite) TestRefreshToken() {
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Should be able to access user info with new token")
 	suite.Nil(userResponse.Response.Error, "Should not have error accessing user info")
 }
-
 
 func (suite *SessionManagementTestSuite) TestLogout() {
 	email := "logout-test@example.com"
@@ -125,7 +121,6 @@ func (suite *SessionManagementTestSuite) TestLogout() {
 	suite.NotNil(userResponseAfterLogout.Response.Error, "Should have error after logout")
 }
 
-
 func (suite *SessionManagementTestSuite) TestRevokeSession() {
 	email := "revoke-session@example.com"
 	password := "MySecurePassword2024!"
@@ -173,7 +168,6 @@ func (suite *SessionManagementTestSuite) TestRevokeSession() {
 	suite.NotNil(userResponseAfterRevoke.Response.Error, "Should have error after session revoke")
 }
 
-
 func (suite *SessionManagementTestSuite) TestRevokeAllSessions() {
 	email := "revoke-all-sessions@example.com"
 	password := "MySecurePassword2024!"
@@ -218,7 +212,6 @@ func (suite *SessionManagementTestSuite) TestRevokeAllSessions() {
 	suite.Equal(401, userResponseAfterRevokeAll.ResponseRecorder.Code, "Should return 401 after revoke all")
 	suite.NotNil(userResponseAfterRevokeAll.Response.Error, "Should have error after revoke all sessions")
 }
-
 
 func (suite *SessionManagementTestSuite) TestAdminRevokeUserSession() {
 	email := "admin-revoke-session@example.com"
@@ -270,7 +263,6 @@ func (suite *SessionManagementTestSuite) TestAdminRevokeUserSession() {
 	suite.NotNil(userResponseAfterAdminRevoke.Response.Error, "Should have error after admin session revoke")
 }
 
-
 func (suite *SessionManagementTestSuite) TestAdminRevokeAllUserSessions() {
 	email := "admin-revoke-all-sessions@example.com"
 	password := "MySecurePassword2024!"
@@ -318,7 +310,6 @@ func (suite *SessionManagementTestSuite) TestAdminRevokeAllUserSessions() {
 	suite.Equal(401, userResponseAfterAdminRevokeAll.ResponseRecorder.Code, "Should return 401 after admin revoke all")
 	suite.NotNil(userResponseAfterAdminRevokeAll.Response.Error, "Should have error after admin revoke all user sessions")
 }
-
 
 func TestSessionManagementTestSuite(t *testing.T) {
 	suite.Run(t, new(SessionManagementTestSuite))

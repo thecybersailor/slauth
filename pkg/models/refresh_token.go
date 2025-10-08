@@ -13,7 +13,7 @@ type RefreshToken struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 	Parent     *uint     `json:"parent" gorm:"type:varchar(255)"`
 	SessionID  uint      `json:"session_id"`
-	DomainCode string    `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId string    `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	Session *Session `json:"session,omitempty" gorm:"foreignKey:SessionID;references:ID"`

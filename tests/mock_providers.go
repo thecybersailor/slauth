@@ -206,14 +206,14 @@ func (m *MockOAuthProvider) ExchangeCodeForToken(ctx context.Context, code strin
 type MockSAMLProvider struct {
 	Name     string
 	EntityID string
-	Domain   string
+	Instance string
 }
 
-func NewMockSAMLProvider(name, entityID, domain string) *MockSAMLProvider {
+func NewMockSAMLProvider(name, entityID, instance string) *MockSAMLProvider {
 	return &MockSAMLProvider{
 		Name:     name,
 		EntityID: entityID,
-		Domain:   domain,
+		Instance: instance,
 	}
 }
 
@@ -241,13 +241,13 @@ func (m *MockSAMLProvider) ExchangeCodeForToken(ctx context.Context, samlRespons
 
 	userInfo := &types.ExternalUserInfo{
 		UID:    "saml-user-123",
-		Email:  "saml-user@" + m.Domain,
+		Email:  "saml-user@" + m.Instance,
 		Name:   "SAML Test User",
 		Locale: "en",
 		Metadata: map[string]any{
 			"provider":  "saml",
 			"entity_id": m.EntityID,
-			"domain":    m.Domain,
+			"instance":  m.Instance,
 		},
 	}
 

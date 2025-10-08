@@ -11,7 +11,7 @@ import (
 
 type ConfigLoader struct {
 	db         *gorm.DB
-	domainCode string
+	instanceId string
 
 	cachedConfig *config.AuthServiceConfig
 	cacheMutex   sync.RWMutex
@@ -22,10 +22,10 @@ type ConfigLoader struct {
 	globalAppSecret string
 }
 
-func NewConfigLoader(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecret string) *ConfigLoader {
+func NewConfigLoader(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecret string) *ConfigLoader {
 	return &ConfigLoader{
 		db:              db,
-		domainCode:      domainCode,
+		instanceId:      instanceId,
 		globalJWTSecret: globalJWTSecret,
 		globalAppSecret: globalAppSecret,
 		cacheTTL:        30 * time.Second,
@@ -57,7 +57,7 @@ func (l *ConfigLoader) GetConfig() *config.AuthServiceConfig {
 func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 	var instance models.AuthInstance
 
-	err := l.db.Where("domain_code = ?", l.domainCode).First(&instance).Error
+	err := l.db.Where("instance_id = ?", l.instanceId).First(&instance).Error
 	if err == gorm.ErrRecordNotFound {
 		return l.createDefaultInstance()
 	}
@@ -84,7 +84,7 @@ func (l *ConfigLoader) createDefaultInstance() *config.AuthServiceConfig {
 	cfg := config.NewDefaultAuthServiceConfig()
 
 	instance := models.AuthInstance{
-		DomainCode: l.domainCode,
+		InstanceId: l.instanceId,
 		ConfigData: cfg, // BeforeSave hook will marshal this
 	}
 
@@ -118,11 +118,11 @@ func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
 	mergedConfig := l.mergeConfigs(currentConfig, cfg)
 
 	var instance models.AuthInstance
-	err := l.db.Where("domain_code = ?", l.domainCode).First(&instance).Error
+	err := l.db.Where("instance_id = ?", l.instanceId).First(&instance).Error
 
 	if err == gorm.ErrRecordNotFound {
 		instance = models.AuthInstance{
-			DomainCode: l.domainCode,
+			InstanceId: l.instanceId,
 			ConfigData: mergedConfig, // BeforeSave hook will marshal this
 		}
 		err = l.db.Create(&instance).Error

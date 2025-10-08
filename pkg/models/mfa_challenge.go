@@ -13,7 +13,7 @@ type MFAChallenge struct {
 	IPAddress           string           `json:"ip_address" gorm:"type:varchar(200);not null"`
 	OTPCode             *string          `json:"-" gorm:"column:otp_code;type:text"`
 	WebAuthnSessionData *json.RawMessage `json:"web_authn_session_data"`
-	DomainCode          string           `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId          string           `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	Factor *MFAFactor `json:"factor,omitempty" gorm:"foreignKey:FactorID;references:ID"`

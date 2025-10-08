@@ -13,7 +13,7 @@ type ServiceConfigTestSuite struct {
 
 func (suite *ServiceConfigTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 }
 
 // Test case: Enable and disable anonymous sign-ins configuration
@@ -101,7 +101,7 @@ func (suite *ServiceConfigTestSuite) TestAllowNewUsersConfiguration() {
 
 	// Verify user was not created in database
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&count).Error
+	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
 	suite.NoError(err)
 	suite.Equal(int64(0), count, "User should not exist in database when signup is disabled")
 
@@ -128,7 +128,7 @@ func (suite *ServiceConfigTestSuite) TestAllowNewUsersConfiguration() {
 
 	// Verify user was created in database
 	var countAfter int64
-	err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&countAfter).Error
+	err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&countAfter).Error
 	suite.NoError(err)
 	suite.Equal(int64(1), countAfter, "User should exist in database after signup is enabled")
 }

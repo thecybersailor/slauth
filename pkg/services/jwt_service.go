@@ -16,7 +16,7 @@ import (
 type JWTClaims struct {
 	jwt.RegisteredClaims
 	UserID     string         `json:"user_id"`
-	DomainCode string         `json:"domain_code"`
+	InstanceId string         `json:"instance_id"`
 	Email      string         `json:"email,omitempty"`
 	Phone      string         `json:"phone,omitempty"`
 	Role       string         `json:"role,omitempty"`
@@ -46,20 +46,20 @@ func NewJWTService(secretKey string, getAccessTokenTTL, getRefreshTokenTTL func(
 }
 
 // GenerateAccessToken generates a new access token
-func (j *JWTService) GenerateAccessToken(userID string, domainCode, email, phone, role string, aal types.AALLevel, amr []string, sessionID uint, userMeta, appMeta map[string]any) (string, error) {
+func (j *JWTService) GenerateAccessToken(userID string, instanceId, email, phone, role string, aal types.AALLevel, amr []string, sessionID uint, userMeta, appMeta map[string]any) (string, error) {
 	now := time.Now()
 	claims := &JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
 			Subject:   userID,
 			Issuer:    j.issuer,
-			Audience:  []string{domainCode},
+			Audience:  []string{instanceId},
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(j.getAccessTokenTTL())),
 		},
 		UserID:     userID,
-		DomainCode: domainCode,
+		InstanceId: instanceId,
 		Email:      email,
 		Phone:      phone,
 		Role:       role,
@@ -75,7 +75,7 @@ func (j *JWTService) GenerateAccessToken(userID string, domainCode, email, phone
 }
 
 // GenerateAccessTokenWithExpiry generates a new access token and returns both token and expiry time
-func (j *JWTService) GenerateAccessTokenWithExpiry(userID string, domainCode, email, phone, role string, aal types.AALLevel, amr []string, sessionID uint, userMeta, appMeta map[string]any) (string, int64, error) {
+func (j *JWTService) GenerateAccessTokenWithExpiry(userID string, instanceId, email, phone, role string, aal types.AALLevel, amr []string, sessionID uint, userMeta, appMeta map[string]any) (string, int64, error) {
 	now := time.Now()
 	expiresAt := now.Add(j.getAccessTokenTTL())
 	claims := &JWTClaims{
@@ -83,13 +83,13 @@ func (j *JWTService) GenerateAccessTokenWithExpiry(userID string, domainCode, em
 			ID:        uuid.New().String(),
 			Subject:   userID,
 			Issuer:    j.issuer,
-			Audience:  []string{domainCode},
+			Audience:  []string{instanceId},
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
 		UserID:     userID,
-		DomainCode: domainCode,
+		InstanceId: instanceId,
 		Email:      email,
 		Phone:      phone,
 		Role:       role,

@@ -578,9 +578,9 @@ func (u *UserController) VerifyEmailChange(c *pin.Context) error {
 
 	otpService := authServiceImpl.GetOTPService()
 	db := authServiceImpl.GetDB()
-	domainCode := u.authService.GetDomainCode()
+	instanceId := u.authService.GetInstanceId()
 
-	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, "", req.Token, types.OneTimeTokenTypeConfirmation, domainCode, db)
+	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, "", req.Token, types.OneTimeTokenTypeConfirmation, instanceId, db)
 	if err != nil {
 		slog.Warn("Email change OTP verification failed", "error", err, "email", req.Email)
 		return consts.VALIDATION_FAILED
@@ -690,9 +690,9 @@ func (u *UserController) VerifyPhoneChange(c *pin.Context) error {
 
 	otpService := authServiceImpl.GetOTPService()
 	db := authServiceImpl.GetDB()
-	domainCode := u.authService.GetDomainCode()
+	instanceId := u.authService.GetInstanceId()
 
-	valid, err := otpService.VerifyOTP(c.Request.Context(), "", req.Phone, req.Token, types.OneTimeTokenTypeConfirmation, domainCode, db)
+	valid, err := otpService.VerifyOTP(c.Request.Context(), "", req.Phone, req.Token, types.OneTimeTokenTypeConfirmation, instanceId, db)
 	if err != nil {
 		slog.Warn("Phone change OTP verification failed", "error", err, "phone", req.Phone)
 		return consts.VALIDATION_FAILED
@@ -813,7 +813,7 @@ func (u *UserController) RevokeSession(c *pin.Context) error {
 	}
 
 	// Use admin service to revoke session (since we need to verify ownership)
-	err = u.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), u.authService.GetDomainCode(), sessionID)
+	err = u.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), u.authService.GetInstanceId(), sessionID)
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}

@@ -13,6 +13,6 @@ type SAMLRelayState struct {
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 	FlowStateID   uint       `json:"flow_state_id"`
-	DomainCode    string     `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId    string     `json:"instance_id" gorm:"type:varchar(255)"`
 	FlowState     *FlowState `json:"flow_state,omitempty" gorm:"foreignKey:FlowStateID;references:ID"`
 }

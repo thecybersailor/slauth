@@ -17,7 +17,7 @@ type OneTimeToken struct {
 	ExpiresAt  *time.Time             `json:"expires_at" gorm:"type:timestamp"` // For OTP expiry
 	CreatedAt  time.Time              `json:"created_at" gorm:"type:timestamp;not null"`
 	UpdatedAt  time.Time              `json:"updated_at" gorm:"type:timestamp;not null"`
-	DomainCode string                 `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId string                 `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`

@@ -29,8 +29,8 @@ func (r *RedirectService) ValidateAndGetRedirectTo(redirect_to string) string {
 		return r.config.SiteURL
 	}
 
-	// Allow same domain redirects automatically
-	if r.isSameDomain(redirect_to) {
+	// Allow same instance redirects automatically
+	if r.isSameInstance(redirect_to) {
 		return redirect_to
 	}
 
@@ -49,8 +49,8 @@ func (r *RedirectService) ValidateAndGetRedirectToOrError(redirect_to string) (s
 		return r.config.SiteURL, nil
 	}
 
-	// Allow same domain redirects automatically
-	if r.isSameDomain(redirect_to) {
+	// Allow same instance redirects automatically
+	if r.isSameInstance(redirect_to) {
 		return redirect_to, nil
 	}
 
@@ -61,9 +61,9 @@ func (r *RedirectService) ValidateAndGetRedirectToOrError(redirect_to string) (s
 	return redirect_to, nil
 }
 
-// isSameDomain checks if redirect_to is the same domain as SiteURL
-func (r *RedirectService) isSameDomain(redirect_to string) bool {
-	// Relative paths are always same domain
+// isSameInstance checks if redirect_to is the same instance as SiteURL
+func (r *RedirectService) isSameInstance(redirect_to string) bool {
+	// Relative paths are always same instance
 	if strings.HasPrefix(redirect_to, "/") {
 		return true
 	}

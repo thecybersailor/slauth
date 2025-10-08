@@ -14,7 +14,7 @@ type SessionConfigTestSuite struct {
 
 func (suite *SessionConfigTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 }
 
 // Test case: Enforce single session per user configuration

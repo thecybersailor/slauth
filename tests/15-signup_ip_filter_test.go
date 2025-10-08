@@ -17,7 +17,7 @@ type SignupIPFilterTestSuite struct {
 
 func (suite *SignupIPFilterTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
 	suite.setupIPFilterMiddleware()
 }
@@ -113,7 +113,7 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithBlockedIP() {
 	suite.helper.HasError(suite.T(), response, "unexpected_failure", "Blocked IP should return error")
 
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&count).Error
+	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), count, "User should not be created with blocked IP")
 }
@@ -131,7 +131,7 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithAnotherBlockedIP() {
 	suite.helper.HasError(suite.T(), response, "unexpected_failure", "Another blocked IP should return error")
 
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&count).Error
+	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), count, "User should not be created with blocked IP")
 }
@@ -151,7 +151,7 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithXForwardedForHeader() {
 	suite.helper.HasError(suite.T(), response, "unexpected_failure", "X-Forwarded-For header with blocked IP should return error")
 
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&count).Error
+	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), count, "User should not be created with blocked IP in X-Forwarded-For header")
 }

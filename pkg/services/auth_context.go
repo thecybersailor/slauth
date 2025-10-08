@@ -6,19 +6,19 @@ import (
 )
 
 type AuthContext struct {
-	DomainCode  string         `json:"domain_code"`
+	InstanceId  string         `json:"instance_id"`
 	AuthService AuthService    `json:"-"`
 	UserClaims  map[string]any `json:"user_claims,omitempty"`
 	JWTToken    string         `json:"jwt_token,omitempty"`
 	User        *models.User   `json:"user,omitempty"`
 }
 
-func getAuthContextKey(domainCode string) string {
-	return "auth_context." + domainCode
+func getAuthContextKey(instanceId string) string {
+	return "auth_context." + instanceId
 }
 
-func GetAuthContext(c *gin.Context, domainCode string) *AuthContext {
-	ctx, exists := c.Get(getAuthContextKey(domainCode))
+func GetAuthContext(c *gin.Context, instanceId string) *AuthContext {
+	ctx, exists := c.Get(getAuthContextKey(instanceId))
 	if !exists {
 		panic("AuthContext not found in gin.Context - middleware not properly configured")
 	}
@@ -30,5 +30,5 @@ func GetAuthContext(c *gin.Context, domainCode string) *AuthContext {
 }
 
 func SetAuthContext(c *gin.Context, authCtx *AuthContext) {
-	c.Set(getAuthContextKey(authCtx.DomainCode), authCtx)
+	c.Set(getAuthContextKey(authCtx.InstanceId), authCtx)
 }

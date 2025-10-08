@@ -188,7 +188,7 @@ func main() {
     adminRoutes := r.Group("/api/admin")
     adminRoutes.Use(adminAuth.RequestValidator()) // Validates admin JWT
     {
-        adminRoutes.GET("/users", getAllUsers)               // All users from all domains
+        adminRoutes.GET("/users", getAllUsers)               // All users from all instances
         adminRoutes.GET("/staff", getAllStaff)               // Manage staff accounts
         adminRoutes.POST("/system/config", updateConfig)     // System configuration
     }

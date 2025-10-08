@@ -10,7 +10,7 @@ import (
 
 type AuthInstance struct {
 	ID         uint            `gorm:"primaryKey" json:"id"`
-	DomainCode string          `gorm:"uniqueIndex;not null;size:255" json:"domain_code"`
+	InstanceId string          `gorm:"uniqueIndex;not null;size:255" json:"instance_id"`
 	Config     json.RawMessage `gorm:"type:json;not null" json:"config"`
 	CreatedAt  time.Time       `json:"created_at"`
 	UpdatedAt  time.Time       `json:"updated_at"`

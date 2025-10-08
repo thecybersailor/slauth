@@ -512,8 +512,8 @@ test.describe('OTP Verification Flow', () => {
       console.log('❌ Email missing @ symbol send failed, error:', responseData.error)
     })
 
-    // ==================== Step 4: Test email missing domain part ====================
-    await test.step('Test email missing domain part', async () => {
+    // ==================== Step 4: Test email missing instance part ====================
+    await test.step('Test email missing instance part', async () => {
       const response = await page.request.post(`${testConfig.backendUrl}/auth/otp`, {
         data: {
           email: 'user@'
@@ -523,7 +523,7 @@ test.describe('OTP Verification Flow', () => {
       expect(response.status()).toBe(200)
       const responseData = await response.json()
       expect(responseData.error).toBeDefined()
-      console.log('❌ Email missing domain part send failed, error:', responseData.error)
+      console.log('❌ Email missing instance part send failed, error:', responseData.error)
     })
 
     // ==================== Step 5: Test missing email field ====================

@@ -282,7 +282,7 @@ export interface SignInWithSSOOptions {
 }
 
 export interface SignInWithSSORequest {
-  domain?: string;
+  instance?: string;
   options?: SignInWithSSOOptions;
   providerId?: string;
 }

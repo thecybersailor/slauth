@@ -20,7 +20,7 @@ type PasswordManagementTestSuite struct {
 
 func (suite *PasswordManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
 	suite.AuthService.OTPUse(func(ctx services.OTPContext, next func() error) error {
 		err := next()
@@ -1286,7 +1286,7 @@ func (suite *PasswordManagementTestSuite) TestSecurityConfigurationEdgeCases() {
 	}{
 		{"", "Empty email", false},
 		{"invalid", "Invalid format", false},
-		{"test@", "Incomplete domain", false},
+		{"test@", "Incomplete instance", false},
 		{"@example.com", "Missing username", false},
 		{"valid@example.com", "Normal email", true},
 		{"user+tag@example.com", "Email with tag", true},

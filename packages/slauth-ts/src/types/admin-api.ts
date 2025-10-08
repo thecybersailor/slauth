@@ -75,7 +75,7 @@ export interface GithubComThecybersailorSlauthPkgConfigAuthServiceConfig {
   ratelimit_config?: GithubComThecybersailorSlauthPkgConfigRatelimitConfig;
   /**
    * Redirect URLs
-   * URLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.domain.com
+   * URLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.instance.com
    */
   redirect_urls?: string[];
   /** Security configuration */
@@ -245,7 +245,7 @@ export interface Factor {
 
 export interface GetInstanceConfigResponse {
   config?: GithubComThecybersailorSlauthPkgConfigAuthServiceConfig;
-  domain_code?: string;
+  instance_id?: string;
 }
 
 export interface ListSAMLProvidersResponse {

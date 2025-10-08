@@ -14,7 +14,7 @@ type SMSFlowConfig struct {
 	SMSProvider  types.SMSProvider
 	TemplateName string
 	MessageType  string
-	DomainCode   string
+	InstanceId   string
 }
 
 func SMSFlow[T any](config SMSFlowConfig, getPhone func(T) string, getData func(T) map[string]interface{}) Flow[T] {
@@ -33,7 +33,7 @@ func SMSFlow[T any](config SMSFlowConfig, getPhone func(T) string, getData func(
 		}
 
 		template, found := config.AuthService.GetMessageTemplate(
-			config.DomainCode,
+			config.InstanceId,
 			config.MessageType,
 			config.TemplateName,
 		)

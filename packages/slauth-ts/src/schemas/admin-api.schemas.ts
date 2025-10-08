@@ -251,5 +251,5 @@ export const UpdateInstanceConfigResponseSchema = z.object({
 export const GetInstanceConfigResponseSchema = z.object({
   config:
     GithubComThecybersailorSlauthPkgConfigAuthServiceConfigSchema.optional(),
-  domain_code: z.string().optional(),
+  instance_id: z.string().optional(),
 });

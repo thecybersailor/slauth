@@ -75,8 +75,8 @@ suite.helper.HasError(suite.T(), response, "user_already_exists")
 ```go
 
 var countAfter int64
-err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", 
-    email, suite.TestDomain).Scan(&countAfter).Error
+err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", 
+    email, suite.TestInstance).Scan(&countAfter).Error
 suite.Require().NoError(err)
 suite.Equal(int64(1), countAfter, "User should exist after signup")
 ```

@@ -21,7 +21,7 @@ type Session struct {
 	UserAgent    *string         `json:"user_agent" gorm:"type:varchar(255)"`
 	IP           *string         `json:"ip" gorm:"type:varchar(255)"`
 	Tag          *string         `json:"tag" gorm:"type:varchar(255)"`
-	DomainCode   string          `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId   string          `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	User          *User          `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`
@@ -52,7 +52,7 @@ func (s *Session) AfterFind(tx *gorm.DB) error {
 
 				slog.Info("Session AfterFind: AAL expired, auto-downgrading", "sessionID", s.ID)
 
-				err := tx.Model(s).Where("id = ? AND domain_code = ?", s.ID, s.DomainCode).
+				err := tx.Model(s).Where("id = ? AND instance_id = ?", s.ID, s.InstanceId).
 					Update("aal", types.AALLevel1).Error
 				if err != nil {
 					slog.Warn("Session AfterFind: Failed to downgrade expired AAL", "sessionID", s.ID, "error", err)

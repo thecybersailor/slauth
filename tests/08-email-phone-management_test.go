@@ -17,7 +17,7 @@ type EmailPhoneManagementTestSuite struct {
 
 func (suite *EmailPhoneManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
 	cfg := suite.AuthService.GetConfig()
 	trueVal := true

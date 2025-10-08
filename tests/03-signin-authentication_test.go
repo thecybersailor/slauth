@@ -13,9 +13,8 @@ type SigninAuthenticationTestSuite struct {
 
 func (suite *SigninAuthenticationTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 }
-
 
 func (suite *SigninAuthenticationTestSuite) TestPasswordLogin() {
 	email := "signin-password@example.com"
@@ -43,20 +42,16 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLogin() {
 	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
 	responseData := loginResponse.Response.Data.(map[string]any)
 
-	
 	suite.T().Logf("Login response data: %+v", responseData)
 
-	
 	suite.NotNil(responseData["session"], "Should have session info")
 	sessionInfo := responseData["session"].(map[string]any)
 
-	
 	suite.NotEmpty(sessionInfo["access_token"], "Should have access token")
 	suite.NotEmpty(sessionInfo["refresh_token"], "Should have refresh token")
 	suite.NotEmpty(sessionInfo["expires_in"], "Should have expires_in")
 	suite.Equal("Bearer", sessionInfo["token_type"], "Token type should be Bearer")
 
-	
 	suite.NotNil(responseData["user"], "Should have user info")
 	userInfo := responseData["user"].(map[string]any)
 	suite.Equal(email, userInfo["email"], "User email should match")
@@ -101,7 +96,7 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithNonexistentUser
 }
 
 func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithMissingFields() {
-	
+
 	loginRequestBody := S{
 		"grant_type": "password",
 		"password":   "Password123!",
@@ -111,7 +106,6 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithMissingFields()
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Should return 200 status code")
 	suite.NotNil(loginResponse.Response.Error, "Should have error for missing email")
 
-	
 	loginRequestBody = S{
 		"grant_type": "password",
 		"email":      "test@example.com",
@@ -121,7 +115,6 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithMissingFields()
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Should return 200 status code")
 	suite.NotNil(loginResponse.Response.Error, "Should have error for missing password")
 }
-
 
 func (suite *SigninAuthenticationTestSuite) TestIDTokenLogin() {
 	mockProvider := NewMockOAuthProvider("mock-oauth")
@@ -142,32 +135,26 @@ func (suite *SigninAuthenticationTestSuite) TestIDTokenLogin() {
 	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
 	responseData := loginResponse.Response.Data.(map[string]any)
 
-	
 	suite.T().Logf("ID Token login response data: %+v", responseData)
 
-	
 	suite.NotNil(responseData["session"], "Should have session info")
 	sessionInfo := responseData["session"].(map[string]any)
 
-	
 	suite.NotEmpty(sessionInfo["access_token"], "Should have access token")
 	suite.NotEmpty(sessionInfo["refresh_token"], "Should have refresh token")
 	suite.NotEmpty(sessionInfo["expires_in"], "Should have expires_in")
 	suite.Equal("Bearer", sessionInfo["token_type"], "Token type should be Bearer")
 
-	
 	suite.NotNil(responseData["user"], "Should have user info")
 	userInfo := responseData["user"].(map[string]any)
 	suite.Equal("mock-user@example.com", userInfo["email"], "User email should match mock provider")
 	suite.NotEmpty(userInfo["id"], "User should have ID")
 }
 
-
 func (suite *SigninAuthenticationTestSuite) TestOAuthLogin() {
-	
+
 	suite.testOAuthIDTokenFlow()
 
-	
 	suite.testOAuthAuthCodeFlow()
 }
 
@@ -187,10 +174,8 @@ func (suite *SigninAuthenticationTestSuite) testOAuthIDTokenFlow() {
 	suite.NotNil(oauthResponse.Response.Data, "OAuth response should have data")
 	responseData := oauthResponse.Response.Data.(map[string]any)
 
-	
 	suite.T().Logf("OAuth ID Token flow response data: %+v", responseData)
 
-	
 	suite.Equal("mock-oauth-idtoken", responseData["provider"], "Provider should match")
 	suite.NotNil(responseData["config"], "Should have config")
 	config := responseData["config"].(map[string]any)
@@ -215,37 +200,31 @@ func (suite *SigninAuthenticationTestSuite) testOAuthAuthCodeFlow() {
 	suite.NotNil(oauthResponse.Response.Data, "OAuth response should have data")
 	responseData := oauthResponse.Response.Data.(map[string]any)
 
-	
 	suite.T().Logf("OAuth AuthCode flow response data: %+v", responseData)
 
-	
 	suite.Equal("mock-oauth-authcode", responseData["provider"], "Provider should match")
 	suite.NotNil(responseData["config"], "Should have config")
 	config := responseData["config"].(map[string]any)
 	suite.Equal("mock-client-id", config["client_id"], "Should have client_id")
 
-	
 	suite.NotNil(responseData["flow_id"], "AuthCode flow should have flow_id")
 	suite.NotEmpty(responseData["flow_id"], "flow_id should not be empty")
 }
 
-
 func (suite *SigninAuthenticationTestSuite) TestSSOLogin() {
-	
-	
 
 	ssoRequestBody := S{}
 	ssoResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO request should return 200")
-	suite.NotNil(ssoResponse.Response.Error, "SSO request without domain should have error")
+	suite.NotNil(ssoResponse.Response.Error, "SSO request without instance should have error")
 	suite.Equal("auth.validation_failed", ssoResponse.Response.Error.Key, "Should return validation_failed error")
 
 	ssoRequestBody = S{
-		"domain": "nonexistent.com",
+		"instance": "nonexistent.com",
 	}
 	ssoResponse = suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO request should return 200")
-	suite.NotNil(ssoResponse.Response.Error, "SSO request with nonexistent domain should have error")
+	suite.NotNil(ssoResponse.Response.Error, "SSO request with nonexistent instance should have error")
 	suite.Equal("auth.sso_provider_not_found", ssoResponse.Response.Error.Key, "Should return sso_provider_not_found error")
 
 	ssoRequestBody = S{
@@ -265,8 +244,6 @@ func (suite *SigninAuthenticationTestSuite) TestSSOLogin() {
 
 	callbackResponse := suite.helper.MakePOSTFormRequest(suite.T(), "/auth/sso/callback", callbackData)
 
-	
-	
 	suite.Equal(200, callbackResponse.ResponseRecorder.Code, "All endpoints should return 200")
 	suite.NotNil(callbackResponse.Response.Error, "Invalid SAML callback should have error")
 	suite.T().Log("✅ SSO callback endpoint validation test completed successfully")
@@ -275,14 +252,12 @@ func (suite *SigninAuthenticationTestSuite) TestSSOLogin() {
 	suite.T().Log("ℹ️  Note: Full SAML integration testing requires proper certificates and IdP configuration")
 }
 
-
 func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 	mockSAMLServer := NewMockSAMLServer(
 		"https://mock-idp.example.com",
 		"https://mock-idp.example.com/sso",
 	)
 
-	
 	mockSAMLServer.AddUser(
 		"saml-user@testcompany.com",
 		"saml-user@testcompany.com",
@@ -296,13 +271,12 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 		},
 	)
 
-	testDomain := "testcompany.com"
+	testInstance := "testcompany.com"
 
-	
 	ssoProviderData := map[string]any{
 		"name":        "Test Company SSO",
 		"enabled":     true,
-		"domain_code": suite.TestDomain,
+		"instance_id": suite.TestInstance,
 	}
 
 	var ssoProviderID uint
@@ -310,11 +284,10 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 	suite.Nil(err, "Should create SSO provider")
 
 	err = suite.DB.Table("sso_providers").
-		Where("name = ? AND domain_code = ?", "Test Company SSO", suite.TestDomain).
+		Where("name = ? AND instance_id = ?", "Test Company SSO", suite.TestInstance).
 		Pluck("id", &ssoProviderID).Error
 	suite.Nil(err, "Should get SSO provider ID")
 
-	
 	metadata := mockSAMLServer.GenerateMetadata()
 	attributeMappingJSON := []byte(`{
 		"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": "email",
@@ -330,24 +303,23 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 		"metadata_xml":      metadata,
 		"name_id_format":    "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
 		"attribute_mapping": attributeMappingJSON,
-		"domain_code":       suite.TestDomain,
+		"instance_id":       suite.TestInstance,
 	}
 
 	err = suite.DB.Table("saml_providers").Create(samlConfigData).Error
 	suite.Nil(err, "Should create SAML configuration")
 
-	
-	domainMappingData := map[string]any{
+	instanceMappingData := map[string]any{
 		"sso_provider_id": ssoProviderID,
-		"domain":          testDomain,
-		"domain_code":     suite.TestDomain,
+		"instance":        testInstance,
+		"instance_id":     suite.TestInstance,
 	}
 
-	err = suite.DB.Table("sso_domains").Create(domainMappingData).Error
-	suite.Nil(err, "Should create domain mapping")
+	err = suite.DB.Table("sso_instances").Create(instanceMappingData).Error
+	suite.Nil(err, "Should create instance mapping")
 
 	ssoRequestBody := S{
-		"domain": testDomain,
+		"instance": testInstance,
 		"options": S{
 			"redirect_to": "/dashboard",
 		},
@@ -356,34 +328,27 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 	ssoResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO initiation should succeed")
 
-	
-	
 	if ssoResponse.Response.Error != nil {
 		suite.T().Logf("⚠️  SSO initiation failed - Key: %s, Message: %s", ssoResponse.Response.Error.Key, ssoResponse.Response.Error.Message)
 
-		
 		suite.T().Log("🔄 Testing SAML response processing directly...")
 
-		
 		mockRelayState := "mock-relay-state-12345"
 
-		
 		relayStateData := map[string]any{
 			"sso_provider_id": ssoProviderID,
 			"request_id":      mockRelayState,
 			"for_email":       nil,
 			"redirect_to":     "/dashboard",
-			"domain_code":     suite.TestDomain,
+			"instance_id":     suite.TestInstance,
 		}
 
 		err = suite.DB.Table("saml_relay_states").Create(relayStateData).Error
 		suite.Nil(err, "Should create relay state")
 
-		
 		samlResponse := mockSAMLServer.GenerateSAMLResponse("saml-user@testcompany.com", mockRelayState)
 		suite.NotEmpty(samlResponse, "Should generate SAML response")
 
-		
 		callbackData := map[string]string{
 			"SAMLResponse": samlResponse,
 			"RelayState":   mockRelayState,
@@ -392,12 +357,11 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 		callbackResponse := suite.helper.MakePOSTFormRequest(suite.T(), "/auth/sso/callback", callbackData)
 		suite.Equal(200, callbackResponse.ResponseRecorder.Code, "SAML callback should return 200")
 
-		
 		if callbackResponse.Response.Error != nil {
 			suite.T().Logf("⚠️  SAML callback processing failed - Key: %s, Message: %s", callbackResponse.Response.Error.Key, callbackResponse.Response.Error.Message)
 			suite.T().Log("✅ SAML integration test completed with expected limitations")
 		} else {
-			
+
 			suite.NotNil(callbackResponse.Response.Data, "SAML callback should have data")
 			responseData := callbackResponse.Response.Data.(map[string]any)
 
@@ -410,21 +374,18 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 			suite.T().Log("✅ SAML integration test completed successfully!")
 		}
 
-		
 		suite.DB.Table("saml_relay_states").Where("request_id = ?", mockRelayState).Delete(nil)
 	} else {
 		suite.T().Log("✅ SSO initiation succeeded - full integration test possible")
-		
-		
+
 	}
 
-	suite.DB.Table("sso_domains").Where("domain = ?", testDomain).Delete(nil)
+	suite.DB.Table("sso_instances").Where("instance = ?", testInstance).Delete(nil)
 	suite.DB.Table("saml_providers").Where("sso_provider_id = ?", ssoProviderID).Delete(nil)
 	suite.DB.Table("sso_providers").Where("id = ?", ssoProviderID).Delete(nil)
 
 	suite.T().Log("✅ SAML integration test with MockSAMLServer completed")
 }
-
 
 func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 	mockProvider := NewMockOAuthProviderWithFlow("mock-oauth-pkce", "auth_code")
@@ -443,7 +404,6 @@ func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 	flowID := responseData["flow_id"].(string)
 	suite.NotEmpty(flowID, "Should have flow_id")
 
-	
 	suite.T().Logf("Generated flow_id: %s", flowID)
 
 	exchangeRequestBody := S{
@@ -459,20 +419,16 @@ func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 	suite.NotNil(exchangeResponse.Response.Data, "Exchange response should have data")
 	exchangeData := exchangeResponse.Response.Data.(map[string]any)
 
-	
 	suite.T().Logf("PKCE code exchange response data: %+v", exchangeData)
 
-	
 	suite.NotNil(exchangeData["session"], "Should have session info")
 	sessionInfo := exchangeData["session"].(map[string]any)
 
-	
 	suite.NotEmpty(sessionInfo["access_token"], "Should have access token")
 	suite.NotEmpty(sessionInfo["refresh_token"], "Should have refresh token")
 	suite.NotEmpty(sessionInfo["expires_in"], "Should have expires_in")
 	suite.Equal("Bearer", sessionInfo["token_type"], "Token type should be Bearer")
 
-	
 	suite.NotNil(exchangeData["user"], "Should have user info")
 	userInfo := exchangeData["user"].(map[string]any)
 	suite.Equal("mock-user@example.com", userInfo["email"], "User email should match mock provider")

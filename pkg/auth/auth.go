@@ -44,8 +44,8 @@ func NewAuthServiceConfig() *config.AuthServiceConfig {
 
 // NewService creates and registers a new auth service with global secrets
 // The service will automatically load dynamic config from database
-func NewService(domainCode, globalJWTSecret, globalAppSecret string) services.AuthService {
-	authService := registry.RegisterAuthService(domainCode, globalJWTSecret, globalAppSecret, database.Database())
+func NewService(instanceId, globalJWTSecret, globalAppSecret string) services.AuthService {
+	authService := registry.RegisterAuthService(instanceId, globalJWTSecret, globalAppSecret, database.Database())
 
 	// Set route handlers
 	authService.SetRouteHandler(&ControllerRouteHandler{})

@@ -30,17 +30,17 @@ func getDefaultPasswordStrengthScore() int {
 // UserService provides database operations for User model
 type UserService struct {
 	db         *gorm.DB
-	domainCode string
+	instanceId string
 }
 
 // NewUserService creates a new user service
 func NewUserService(db *gorm.DB) *UserService {
-	return &UserService{db: db, domainCode: ""}
+	return &UserService{db: db, instanceId: ""}
 }
 
-// NewUserServiceWithDomain creates a new user service with domain code
-func NewUserServiceWithDomain(db *gorm.DB, domainCode string) *UserService {
-	return &UserService{db: db, domainCode: domainCode}
+// NewUserServiceWithInstance creates a new user service with instance code
+func NewUserServiceWithInstance(db *gorm.DB, instanceId string) *UserService {
+	return &UserService{db: db, instanceId: instanceId}
 }
 
 // Create creates a new user
@@ -50,48 +50,48 @@ func (s *UserService) Create(ctx context.Context, user *models.User) error {
 
 // CreateWithMetadata creates a new user with metadata
 func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, password string, userMetadata, appMetadata map[string]any) (*User, error) {
-	return CreateUserWithMetadata(ctx, s.db, s.domainCode, email, phone, password, userMetadata, appMetadata)
+	return CreateUserWithMetadata(ctx, s.db, s.instanceId, email, phone, password, userMetadata, appMetadata)
 }
 
-// GetByID retrieves user by ID and domain code
-func (s *UserService) GetByID(ctx context.Context, id uint, domainCode string) (*models.User, error) {
+// GetByID retrieves user by ID and instance code
+func (s *UserService) GetByID(ctx context.Context, id uint, instanceId string) (*models.User, error) {
 	var user models.User
-	err := s.db.WithContext(ctx).Where("id = ? AND domain_code = ?", id, domainCode).First(&user).Error
+	err := s.db.WithContext(ctx).Where("id = ? AND instance_id = ?", id, instanceId).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-// GetByPhone retrieves user by phone and domain code
-func (s *UserService) GetByPhone(ctx context.Context, phone, domainCode string) (*models.User, error) {
+// GetByPhone retrieves user by phone and instance code
+func (s *UserService) GetByPhone(ctx context.Context, phone, instanceId string) (*models.User, error) {
 	var user models.User
-	err := s.db.WithContext(ctx).Where("phone = ? AND domain_code = ?", phone, domainCode).First(&user).Error
+	err := s.db.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, instanceId).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-// GetByEmailOrPhone retrieves user by email or phone and domain code
-func (s *UserService) GetByEmailOrPhone(ctx context.Context, emailOrPhone, domainCode string) (*models.User, error) {
+// GetByEmailOrPhone retrieves user by email or phone and instance code
+func (s *UserService) GetByEmailOrPhone(ctx context.Context, emailOrPhone, instanceId string) (*models.User, error) {
 	var user models.User
-	err := s.db.WithContext(ctx).Where("(email = ? OR phone = ?) AND domain_code = ?",
-		emailOrPhone, emailOrPhone, domainCode).First(&user).Error
+	err := s.db.WithContext(ctx).Where("(email = ? OR phone = ?) AND instance_id = ?",
+		emailOrPhone, emailOrPhone, instanceId).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-// GetByHashID retrieves user by hashid and domain code
+// GetByHashID retrieves user by hashid and instance code
 func (s *UserService) GetByHashID(ctx context.Context, hashID string) (*User, error) {
-	return GetUserByHashID(ctx, s.db, s.domainCode, hashID)
+	return GetUserByHashID(ctx, s.db, s.instanceId, hashID)
 }
 
-// GetByEmail retrieves user by email and domain code
+// GetByEmail retrieves user by email and instance code
 func (s *UserService) GetByEmail(ctx context.Context, email string) (*User, error) {
-	return GetUserByEmail(ctx, s.db, s.domainCode, email)
+	return GetUserByEmail(ctx, s.db, s.instanceId, email)
 }
 
 // Update updates user fields
@@ -102,18 +102,18 @@ func (s *UserService) Update(ctx context.Context, user *models.User) error {
 }
 
 // UpdateLastSignIn updates user's last sign in timestamp
-func (s *UserService) UpdateLastSignIn(ctx context.Context, userID uint, domainCode string) error {
+func (s *UserService) UpdateLastSignIn(ctx context.Context, userID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Update("last_sign_in_at", now).Error
 }
 
 // UpdateEmail updates user's email
-func (s *UserService) UpdateEmail(ctx context.Context, userID uint, domainCode, email string) error {
+func (s *UserService) UpdateEmail(ctx context.Context, userID uint, instanceId, email string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"email":      email,
 			"updated_at": now,
@@ -121,10 +121,10 @@ func (s *UserService) UpdateEmail(ctx context.Context, userID uint, domainCode, 
 }
 
 // UpdatePhone updates user's phone
-func (s *UserService) UpdatePhone(ctx context.Context, userID uint, domainCode, phone string) error {
+func (s *UserService) UpdatePhone(ctx context.Context, userID uint, instanceId, phone string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"phone":      phone,
 			"updated_at": now,
@@ -132,12 +132,12 @@ func (s *UserService) UpdatePhone(ctx context.Context, userID uint, domainCode, 
 }
 
 // UpdatePassword updates user's password
-func (s *UserService) UpdatePassword(ctx context.Context, userID uint, domainCode, hashedPassword string) error {
+func (s *UserService) UpdatePassword(ctx context.Context, userID uint, instanceId, hashedPassword string) error {
 	now := time.Now()
-	slog.Info("DEBUG: UpdatePassword called", "userID", userID, "domainCode", domainCode, "hashedPassword", hashedPassword[:10]+"...")
+	slog.Info("DEBUG: UpdatePassword called", "userID", userID, "instanceId", instanceId, "hashedPassword", hashedPassword[:10]+"...")
 
 	result := s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"encrypted_password": hashedPassword,
 			"updated_at":         now,
@@ -148,10 +148,10 @@ func (s *UserService) UpdatePassword(ctx context.Context, userID uint, domainCod
 }
 
 // ConfirmEmail marks user's email as confirmed
-func (s *UserService) ConfirmEmail(ctx context.Context, userID uint, domainCode string) error {
+func (s *UserService) ConfirmEmail(ctx context.Context, userID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"email_confirmed_at": now,
 			"confirmed_at":       now,
@@ -160,10 +160,10 @@ func (s *UserService) ConfirmEmail(ctx context.Context, userID uint, domainCode 
 }
 
 // ConfirmPhone marks user's phone as confirmed
-func (s *UserService) ConfirmPhone(ctx context.Context, userID uint, domainCode string) error {
+func (s *UserService) ConfirmPhone(ctx context.Context, userID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"phone_confirmed_at": now,
 			"confirmed_at":       now,
@@ -172,10 +172,10 @@ func (s *UserService) ConfirmPhone(ctx context.Context, userID uint, domainCode 
 }
 
 // SetBan bans user until specified time
-func (s *UserService) SetBan(ctx context.Context, userID uint, domainCode string, until time.Time) error {
+func (s *UserService) SetBan(ctx context.Context, userID uint, instanceId string, until time.Time) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"banned_until": until,
 			"updated_at":   now,
@@ -183,10 +183,10 @@ func (s *UserService) SetBan(ctx context.Context, userID uint, domainCode string
 }
 
 // RemoveBan removes user ban
-func (s *UserService) RemoveBan(ctx context.Context, userID uint, domainCode string) error {
+func (s *UserService) RemoveBan(ctx context.Context, userID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Updates(map[string]any{
 			"banned_until": nil,
 			"updated_at":   now,
@@ -194,36 +194,36 @@ func (s *UserService) RemoveBan(ctx context.Context, userID uint, domainCode str
 }
 
 // Delete soft deletes user
-func (s *UserService) Delete(ctx context.Context, userID uint, domainCode string) error {
+func (s *UserService) Delete(ctx context.Context, userID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", userID, domainCode).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Update("deleted_at", now).Error
 }
 
 // ExistsByEmail checks if user exists by email
-func (s *UserService) ExistsByEmail(ctx context.Context, email, domainCode string) (bool, error) {
+func (s *UserService) ExistsByEmail(ctx context.Context, email, instanceId string) (bool, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Model(&models.User{}).
-		Where("email = ? AND domain_code = ? AND deleted_at IS NULL", email, domainCode).
+		Where("email = ? AND instance_id = ? AND deleted_at IS NULL", email, instanceId).
 		Count(&count).Error
 	return count > 0, err
 }
 
 // ExistsByPhone checks if user exists by phone
-func (s *UserService) ExistsByPhone(ctx context.Context, phone, domainCode string) (bool, error) {
+func (s *UserService) ExistsByPhone(ctx context.Context, phone, instanceId string) (bool, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Model(&models.User{}).
-		Where("phone = ? AND domain_code = ? AND deleted_at IS NULL", phone, domainCode).
+		Where("phone = ? AND instance_id = ? AND deleted_at IS NULL", phone, instanceId).
 		Count(&count).Error
 	return count > 0, err
 }
 
 // GetWithIdentities retrieves user with their identities
-func (s *UserService) GetWithIdentities(ctx context.Context, userID uint, domainCode string) (*models.User, error) {
+func (s *UserService) GetWithIdentities(ctx context.Context, userID uint, instanceId string) (*models.User, error) {
 	var user models.User
 	err := s.db.WithContext(ctx).Preload("Identities").
-		Where("id = ? AND domain_code = ?", userID, domainCode).First(&user).Error
+		Where("id = ? AND instance_id = ?", userID, instanceId).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -231,10 +231,10 @@ func (s *UserService) GetWithIdentities(ctx context.Context, userID uint, domain
 }
 
 // GetWithMFAFactors retrieves user with their MFA factors
-func (s *UserService) GetWithMFAFactors(ctx context.Context, userID uint, domainCode string) (*models.User, error) {
+func (s *UserService) GetWithMFAFactors(ctx context.Context, userID uint, instanceId string) (*models.User, error) {
 	var user models.User
 	err := s.db.WithContext(ctx).Preload("MFAFactors").
-		Where("id = ? AND domain_code = ?", userID, domainCode).First(&user).Error
+		Where("id = ? AND instance_id = ?", userID, instanceId).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -242,20 +242,20 @@ func (s *UserService) GetWithMFAFactors(ctx context.Context, userID uint, domain
 }
 
 // List retrieves users with pagination
-func (s *UserService) List(ctx context.Context, domainCode string, offset, limit int) ([]models.User, int64, error) {
+func (s *UserService) List(ctx context.Context, instanceId string, offset, limit int) ([]models.User, int64, error) {
 	var users []models.User
 	var total int64
 
 	// Get total count
 	err := s.db.WithContext(ctx).Model(&models.User{}).
-		Where("domain_code = ? AND deleted_at IS NULL", domainCode).
+		Where("instance_id = ? AND deleted_at IS NULL", instanceId).
 		Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// Get users with pagination
-	err = s.db.WithContext(ctx).Where("domain_code = ? AND deleted_at IS NULL", domainCode).
+	err = s.db.WithContext(ctx).Where("instance_id = ? AND deleted_at IS NULL", instanceId).
 		Order("updated_at DESC").Offset(offset).Limit(limit).Find(&users).Error
 	if err != nil {
 		return nil, 0, err
@@ -264,11 +264,11 @@ func (s *UserService) List(ctx context.Context, domainCode string, offset, limit
 	return users, total, nil
 }
 
-// CountByDomain counts users in domain
-func (s *UserService) CountByDomain(ctx context.Context, domainCode string) (int64, error) {
+// CountByInstance counts users in instance
+func (s *UserService) CountByInstance(ctx context.Context, instanceId string) (int64, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Model(&models.User{}).
-		Where("domain_code = ? AND deleted_at IS NULL", domainCode).
+		Where("instance_id = ? AND deleted_at IS NULL", instanceId).
 		Count(&count).Error
 	return count, err
 }
@@ -281,7 +281,7 @@ type User struct {
 	passwordService *PasswordService `json:"-"`
 	sessionService  *SessionService  `json:"-"`
 	db              *gorm.DB         `json:"-"`
-	domainCode      string           `json:"-"`
+	instanceId      string           `json:"-"`
 }
 
 // GetModel Return underlying models.User
@@ -293,8 +293,8 @@ func (u *User) GetDB() *gorm.DB {
 	return u.db
 }
 
-func (u *User) GetDomainCode() string {
-	return u.domainCode
+func (u *User) GetInstanceId() string {
+	return u.instanceId
 }
 
 // Session related methods - transferred from SessionService
@@ -302,8 +302,8 @@ func (u *User) GetDomainCode() string {
 // GetActiveSessions Get user's active sessions
 func (u *User) GetActiveSessions(ctx context.Context) ([]*Session, error) {
 	var sessions []models.Session
-	err := u.db.WithContext(ctx).Where("user_id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
-		u.ID, u.domainCode, time.Now()).Order("updated_at DESC").Find(&sessions).Error
+	err := u.db.WithContext(ctx).Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
+		u.ID, u.instanceId, time.Now()).Order("updated_at DESC").Find(&sessions).Error
 	if err != nil {
 		return nil, err
 	}
@@ -335,8 +335,8 @@ func (u *User) RevokeAllSessions(ctx context.Context) error {
 
 	// 1. Set not_after for all active sessions
 	if err := tx.Model(&models.Session{}).
-		Where("user_id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
-			u.ID, u.domainCode, now).
+		Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
+			u.ID, u.instanceId, now).
 		Updates(map[string]any{
 			"not_after":  now,
 			"updated_at": now,
@@ -347,7 +347,7 @@ func (u *User) RevokeAllSessions(ctx context.Context) error {
 
 	// 2. Revoke all refresh tokens for this user (Supabase best practice)
 	if err := tx.Model(&models.RefreshToken{}).
-		Where("user_id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("user_id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"revoked":    true,
 			"updated_at": now,
@@ -363,8 +363,8 @@ func (u *User) RevokeAllSessions(ctx context.Context) error {
 func (u *User) RevokeAllSessionsExcept(ctx context.Context, exceptSessionID uint) error {
 	now := time.Now()
 	return u.db.WithContext(ctx).Model(&models.Session{}).
-		Where("user_id = ? AND domain_code = ? AND id != ? AND (not_after IS NULL OR not_after > ?)",
-			u.ID, u.domainCode, exceptSessionID, now).
+		Where("user_id = ? AND instance_id = ? AND id != ? AND (not_after IS NULL OR not_after > ?)",
+			u.ID, u.instanceId, exceptSessionID, now).
 		Updates(map[string]any{
 			"not_after":  now,
 			"updated_at": now,
@@ -375,8 +375,8 @@ func (u *User) RevokeAllSessionsExcept(ctx context.Context, exceptSessionID uint
 func (u *User) CountActiveSessions(ctx context.Context) (int64, error) {
 	var count int64
 	err := u.db.WithContext(ctx).Model(&models.Session{}).
-		Where("user_id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
-			u.ID, u.domainCode, time.Now()).
+		Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
+			u.ID, u.instanceId, time.Now()).
 		Count(&count).Error
 	return count, err
 }
@@ -385,8 +385,8 @@ func (u *User) CountActiveSessions(ctx context.Context) (int64, error) {
 func (u *User) GetSessionsWithRefreshTokens(ctx context.Context) ([]models.Session, error) {
 	var sessions []models.Session
 	err := u.db.WithContext(ctx).Preload("RefreshTokens").
-		Where("user_id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
-			u.ID, u.domainCode, time.Now()).Order("updated_at DESC").Find(&sessions).Error
+		Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
+			u.ID, u.instanceId, time.Now()).Order("updated_at DESC").Find(&sessions).Error
 	return sessions, err
 }
 
@@ -398,14 +398,14 @@ func (u *User) ListSessions(ctx context.Context, page, pageSize int) ([]*Session
 
 	// Get total count
 	if err := u.db.WithContext(ctx).Model(&models.Session{}).
-		Where("user_id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("user_id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	// Get sessions with pagination
 	offset := (page - 1) * pageSize
-	if err := u.db.WithContext(ctx).Where("user_id = ? AND domain_code = ?", u.ID, u.domainCode).
+	if err := u.db.WithContext(ctx).Where("user_id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Order("updated_at DESC").Offset(offset).Limit(pageSize).Find(&sessions).Error; err != nil {
 		return nil, 0, err
 	}
@@ -428,7 +428,7 @@ func (u *User) ListSessions(ctx context.Context, page, pageSize int) ([]*Session
 // ListIdentities List user identity records
 func (u *User) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
 	var identities []models.Identity
-	if err := u.db.WithContext(ctx).Where("user_id = ? AND domain_code = ?", u.ID, u.domainCode).
+	if err := u.db.WithContext(ctx).Where("user_id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Find(&identities).Error; err != nil {
 		return nil, err
 	}
@@ -454,17 +454,17 @@ func (u *User) DeleteIdentity(ctx context.Context, identityID string) error {
 		return fmt.Errorf("invalid identity ID format: %w", err)
 	}
 
-	return u.db.WithContext(ctx).Where("id = ? AND user_id = ? AND domain_code = ?",
-		realIdentityID, u.ID, u.domainCode).Delete(&models.Identity{}).Error
+	return u.db.WithContext(ctx).Where("id = ? AND user_id = ? AND instance_id = ?",
+		realIdentityID, u.ID, u.instanceId).Delete(&models.Identity{}).Error
 }
 
 // Package level functions - user creation and query
 
-func CreateUser(ctx context.Context, db *gorm.DB, domainCode string, email, phone, password string, userData map[string]any) (*User, error) {
-	return CreateUserWithMetadata(ctx, db, domainCode, email, phone, password, userData, nil)
+func CreateUser(ctx context.Context, db *gorm.DB, instanceId string, email, phone, password string, userData map[string]any) (*User, error) {
+	return CreateUserWithMetadata(ctx, db, instanceId, email, phone, password, userData, nil)
 }
 
-func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, domainCode string, email, phone, password string, userMetadata, appMetadata map[string]any) (*User, error) {
+func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, instanceId string, email, phone, password string, userMetadata, appMetadata map[string]any) (*User, error) {
 	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
 
 	// Validate email format if provided
@@ -503,7 +503,7 @@ func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, domainCode string,
 	// Check for duplicate email
 	if email != "" {
 		var existingUser models.User
-		err := db.WithContext(ctx).Where("email = ? AND domain_code = ?", email, domainCode).First(&existingUser).Error
+		err := db.WithContext(ctx).Where("email = ? AND instance_id = ?", email, instanceId).First(&existingUser).Error
 		if err == nil {
 			return nil, consts.USER_ALREADY_EXISTS
 		}
@@ -515,7 +515,7 @@ func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, domainCode string,
 	// Check for duplicate phone
 	if phone != "" {
 		var existingUser models.User
-		err := db.WithContext(ctx).Where("phone = ? AND domain_code = ?", phone, domainCode).First(&existingUser).Error
+		err := db.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, instanceId).First(&existingUser).Error
 		if err == nil {
 			return nil, consts.USER_ALREADY_EXISTS
 		}
@@ -557,7 +557,7 @@ func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, domainCode string,
 	// Create user model
 	now := time.Now()
 	userModel := &models.User{
-		DomainCode:        domainCode,
+		InstanceId:        instanceId,
 		Email:             &email,
 		Phone:             &phone,
 		EncryptedPassword: hashedPassword,
@@ -582,74 +582,74 @@ func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, domainCode string,
 	}
 
 	// Create User object
-	return NewUserFromModel(userModel, passwordService, NewSessionService(db), db, domainCode)
+	return NewUserFromModel(userModel, passwordService, NewSessionService(db), db, instanceId)
 }
 
 // GetUserByID Get user by ID
-func GetUserByID(ctx context.Context, db *gorm.DB, domainCode string, id uint) (*User, error) {
+func GetUserByID(ctx context.Context, db *gorm.DB, instanceId string, id uint) (*User, error) {
 	var userModel models.User
-	err := db.WithContext(ctx).Where("id = ? AND domain_code = ?", id, domainCode).First(&userModel).Error
+	err := db.WithContext(ctx).Where("id = ? AND instance_id = ?", id, instanceId).First(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
 
 	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
-	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, domainCode)
+	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, instanceId)
 }
 
 // GetUserByHashID Get user by HashID
-func GetUserByHashID(ctx context.Context, db *gorm.DB, domainCode string, hashID string) (*User, error) {
+func GetUserByHashID(ctx context.Context, db *gorm.DB, instanceId string, hashID string) (*User, error) {
 	realUserID, err := GetUserIDFromHashID(hashID)
 	if err != nil {
 		return nil, err
 	}
-	return GetUserByID(ctx, db, domainCode, realUserID)
+	return GetUserByID(ctx, db, instanceId, realUserID)
 }
 
 // GetUserByEmail Get user by email
-func GetUserByEmail(ctx context.Context, db *gorm.DB, domainCode string, email string) (*User, error) {
+func GetUserByEmail(ctx context.Context, db *gorm.DB, instanceId string, email string) (*User, error) {
 	var userModel models.User
-	err := db.WithContext(ctx).Where("email = ? AND domain_code = ?", email, domainCode).First(&userModel).Error
+	err := db.WithContext(ctx).Where("email = ? AND instance_id = ?", email, instanceId).First(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
 
 	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
-	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, domainCode)
+	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, instanceId)
 }
 
 // GetUserByPhone Get user by phone
-func GetUserByPhone(ctx context.Context, db *gorm.DB, domainCode string, phone string) (*User, error) {
+func GetUserByPhone(ctx context.Context, db *gorm.DB, instanceId string, phone string) (*User, error) {
 	var userModel models.User
-	err := db.WithContext(ctx).Where("phone = ? AND domain_code = ?", phone, domainCode).First(&userModel).Error
+	err := db.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, instanceId).First(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
 
 	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
-	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, domainCode)
+	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, instanceId)
 }
 
 // GetUserByEmailOrPhone Get user by email or phone
-func GetUserByEmailOrPhone(ctx context.Context, db *gorm.DB, domainCode string, emailOrPhone string) (*User, error) {
+func GetUserByEmailOrPhone(ctx context.Context, db *gorm.DB, instanceId string, emailOrPhone string) (*User, error) {
 	var userModel models.User
-	err := db.WithContext(ctx).Where("(email = ? OR phone = ?) AND domain_code = ?",
-		emailOrPhone, emailOrPhone, domainCode).First(&userModel).Error
+	err := db.WithContext(ctx).Where("(email = ? OR phone = ?) AND instance_id = ?",
+		emailOrPhone, emailOrPhone, instanceId).First(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
 
 	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
-	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, domainCode)
+	return NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, instanceId)
 }
 
 // ListUsers Get user list
-func ListUsers(ctx context.Context, db *gorm.DB, domainCode string, offset, limit int, filters map[string]any) ([]*User, int64, error) {
+func ListUsers(ctx context.Context, db *gorm.DB, instanceId string, offset, limit int, filters map[string]any) ([]*User, int64, error) {
 	var userModels []models.User
 	var total int64
 
 	// Build query
-	query := db.WithContext(ctx).Model(&models.User{}).Where("domain_code = ? AND deleted_at IS NULL", domainCode)
+	query := db.WithContext(ctx).Model(&models.User{}).Where("instance_id = ? AND deleted_at IS NULL", instanceId)
 
 	// Apply filters
 	if email, ok := filters["email"]; ok {
@@ -699,7 +699,7 @@ func ListUsers(ctx context.Context, db *gorm.DB, domainCode string, offset, limi
 	users := make([]*User, len(userModels))
 	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
 	for i, userModel := range userModels {
-		user, err := NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, domainCode)
+		user, err := NewUserFromModel(&userModel, passwordService, NewSessionService(db), db, instanceId)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -710,24 +710,24 @@ func ListUsers(ctx context.Context, db *gorm.DB, domainCode string, offset, limi
 }
 
 // UserExists Check if user exists
-func UserExistsByEmail(ctx context.Context, db *gorm.DB, domainCode string, email string) (bool, error) {
+func UserExistsByEmail(ctx context.Context, db *gorm.DB, instanceId string, email string) (bool, error) {
 	var count int64
 	err := db.WithContext(ctx).Model(&models.User{}).
-		Where("email = ? AND domain_code = ? AND deleted_at IS NULL", email, domainCode).
+		Where("email = ? AND instance_id = ? AND deleted_at IS NULL", email, instanceId).
 		Count(&count).Error
 	return count > 0, err
 }
 
-func UserExistsByPhone(ctx context.Context, db *gorm.DB, domainCode string, phone string) (bool, error) {
+func UserExistsByPhone(ctx context.Context, db *gorm.DB, instanceId string, phone string) (bool, error) {
 	var count int64
 	err := db.WithContext(ctx).Model(&models.User{}).
-		Where("phone = ? AND domain_code = ? AND deleted_at IS NULL", phone, domainCode).
+		Where("phone = ? AND instance_id = ? AND deleted_at IS NULL", phone, instanceId).
 		Count(&count).Error
 	return count > 0, err
 }
 
 // NewUserFromModel Create User object from model
-func NewUserFromModel(userModel *models.User, passwordService *PasswordService, sessionService *SessionService, db *gorm.DB, domainCode string) (*User, error) {
+func NewUserFromModel(userModel *models.User, passwordService *PasswordService, sessionService *SessionService, db *gorm.DB, instanceId string) (*User, error) {
 	hashid, err := generateHashID(userModel.ID)
 	if err != nil {
 		return nil, err
@@ -739,7 +739,7 @@ func NewUserFromModel(userModel *models.User, passwordService *PasswordService, 
 		passwordService: passwordService,
 		sessionService:  sessionService,
 		db:              db,
-		domainCode:      domainCode,
+		instanceId:      instanceId,
 	}, nil
 }
 
@@ -813,7 +813,7 @@ func (u *User) GetAppMetadata() map[string]any {
 func (u *User) UpdateEmail(ctx context.Context, email string) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"email":      email,
 			"updated_at": now,
@@ -829,7 +829,7 @@ func (u *User) UpdateEmail(ctx context.Context, email string) error {
 func (u *User) UpdatePhone(ctx context.Context, phone string) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"phone":      phone,
 			"updated_at": now,
@@ -849,7 +849,7 @@ func (u *User) UpdatePassword(ctx context.Context, newPassword string) error {
 	}
 	now := time.Now()
 	err = u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"encrypted_password": hashedPassword,
 			"updated_at":         now,
@@ -869,7 +869,7 @@ func (u *User) UpdateMetadata(ctx context.Context, metadata map[string]any) erro
 	}
 	rawMetadata := json.RawMessage(metadataJSON)
 	err = u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"raw_user_meta_data": rawMetadata,
 			"updated_at":         time.Now(),
@@ -890,7 +890,7 @@ func (u *User) UpdateAppMetadata(ctx context.Context, metadata map[string]any) e
 	}
 	rawMetadata := json.RawMessage(metadataJSON)
 	err = u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"raw_app_meta_data": rawMetadata,
 			"updated_at":        time.Now(),
@@ -911,7 +911,7 @@ func (u *User) SetAppMetadata(ctx context.Context, metadata map[string]any) erro
 func (u *User) ConfirmEmail(ctx context.Context) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"email_confirmed_at": now,
 			"confirmed_at":       now,
@@ -929,7 +929,7 @@ func (u *User) ConfirmEmail(ctx context.Context) error {
 func (u *User) ConfirmPhone(ctx context.Context) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"phone_confirmed_at": now,
 			"confirmed_at":       now,
@@ -947,7 +947,7 @@ func (u *User) ConfirmPhone(ctx context.Context) error {
 func (u *User) SetBan(ctx context.Context, until time.Time) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"banned_until": until,
 			"updated_at":   now,
@@ -963,7 +963,7 @@ func (u *User) SetBan(ctx context.Context, until time.Time) error {
 func (u *User) RemoveBan(ctx context.Context) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Updates(map[string]any{
 			"banned_until": nil,
 			"updated_at":   now,
@@ -979,7 +979,7 @@ func (u *User) RemoveBan(ctx context.Context) error {
 func (u *User) UpdateLastSignIn(ctx context.Context) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Update("last_sign_in_at", now).Error
 	if err != nil {
 		return err
@@ -999,13 +999,13 @@ func (u *User) VerifyPassword(password string) (bool, error) {
 // Related data loading methods
 func (u *User) LoadIdentities(ctx context.Context) error {
 	err := u.db.WithContext(ctx).Preload("Identities").
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).First(u.User).Error
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).First(u.User).Error
 	return err
 }
 
 func (u *User) LoadMFAFactors(ctx context.Context) error {
 	err := u.db.WithContext(ctx).Preload("MFAFactors").
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).First(u.User).Error
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).First(u.User).Error
 	return err
 }
 
@@ -1020,7 +1020,7 @@ func (u *User) EnrollMFAFactor(ctx context.Context, factorType types.FactorType,
 		Status:       types.FactorStatusUnverified,
 		Secret:       &secret,
 		Phone:        &phone,
-		DomainCode:   u.domainCode,
+		InstanceId:   u.instanceId,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -1036,7 +1036,7 @@ func (u *User) EnrollMFAFactor(ctx context.Context, factorType types.FactorType,
 func (u *User) VerifyMFAFactor(ctx context.Context, factorID uint) error {
 	now := time.Now()
 	return u.db.WithContext(ctx).Model(&models.MFAFactor{}).
-		Where("id = ? AND user_id = ? AND domain_code = ?", factorID, u.ID, u.domainCode).
+		Where("id = ? AND user_id = ? AND instance_id = ?", factorID, u.ID, u.instanceId).
 		Updates(map[string]any{
 			"status":     types.FactorStatusVerified,
 			"updated_at": now,
@@ -1046,7 +1046,7 @@ func (u *User) VerifyMFAFactor(ctx context.Context, factorID uint) error {
 // ListMFAFactors List user's MFA factors
 func (u *User) ListMFAFactors(ctx context.Context) ([]models.MFAFactor, error) {
 	var factors []models.MFAFactor
-	err := u.db.WithContext(ctx).Where("user_id = ? AND domain_code = ?", u.ID, u.domainCode).
+	err := u.db.WithContext(ctx).Where("user_id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Find(&factors).Error
 	return factors, err
 }
@@ -1054,8 +1054,8 @@ func (u *User) ListMFAFactors(ctx context.Context) ([]models.MFAFactor, error) {
 // GetMFAFactor Get specified MFA factor
 func (u *User) GetMFAFactor(ctx context.Context, factorID uint) (*models.MFAFactor, error) {
 	var factor models.MFAFactor
-	err := u.db.WithContext(ctx).Where("id = ? AND user_id = ? AND domain_code = ?",
-		factorID, u.ID, u.domainCode).First(&factor).Error
+	err := u.db.WithContext(ctx).Where("id = ? AND user_id = ? AND instance_id = ?",
+		factorID, u.ID, u.instanceId).First(&factor).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1064,16 +1064,16 @@ func (u *User) GetMFAFactor(ctx context.Context, factorID uint) (*models.MFAFact
 
 // DeleteMFAFactor Delete MFA factor
 func (u *User) DeleteMFAFactor(ctx context.Context, factorID uint) error {
-	return u.db.WithContext(ctx).Where("id = ? AND user_id = ? AND domain_code = ?",
-		factorID, u.ID, u.domainCode).Delete(&models.MFAFactor{}).Error
+	return u.db.WithContext(ctx).Where("id = ? AND user_id = ? AND instance_id = ?",
+		factorID, u.ID, u.instanceId).Delete(&models.MFAFactor{}).Error
 }
 
 // CountVerifiedMFAFactors Count verified MFA factors
 func (u *User) CountVerifiedMFAFactors(ctx context.Context) (int64, error) {
 	var count int64
 	err := u.db.WithContext(ctx).Model(&models.MFAFactor{}).
-		Where("user_id = ? AND domain_code = ? AND status = ?",
-			u.ID, u.domainCode, types.FactorStatusVerified).
+		Where("user_id = ? AND instance_id = ? AND status = ?",
+			u.ID, u.instanceId, types.FactorStatusVerified).
 		Count(&count).Error
 	return count, err
 }
@@ -1089,7 +1089,7 @@ func (u *User) HasVerifiedMFAFactors(ctx context.Context) (bool, error) {
 
 func (u *User) LoadSessions(ctx context.Context) error {
 	err := u.db.WithContext(ctx).Preload("Sessions").
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).First(u.User).Error
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).First(u.User).Error
 	return err
 }
 
@@ -1097,7 +1097,7 @@ func (u *User) LoadSessions(ctx context.Context) error {
 func (u *User) Delete(ctx context.Context) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
-		Where("id = ? AND domain_code = ?", u.ID, u.domainCode).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
 		Update("deleted_at", now).Error
 	if err != nil {
 		return err

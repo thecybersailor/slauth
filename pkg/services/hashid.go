@@ -97,7 +97,7 @@ func parseHashID(hashid string) (uint, error) {
 	return getGlobalHashIDService().ParseHashID(hashid)
 }
 
-func NewUser(user *models.User, userService *UserService, passwordService *PasswordService, sessionService *SessionService, db *gorm.DB, domainCode string) (*User, error) {
+func NewUser(user *models.User, userService *UserService, passwordService *PasswordService, sessionService *SessionService, db *gorm.DB, instanceId string) (*User, error) {
 	hashid, err := generateHashID(user.ID)
 	if err != nil {
 		return nil, consts.UNEXPECTED_FAILURE
@@ -109,7 +109,7 @@ func NewUser(user *models.User, userService *UserService, passwordService *Passw
 		passwordService: passwordService,
 		sessionService:  sessionService,
 		db:              db,
-		domainCode:      domainCode,
+		instanceId:      instanceId,
 	}, nil
 }
 
@@ -122,7 +122,7 @@ func NewSession(session *models.Session) (*Session, error) {
 	slog.Info("NewSession: Creating session object",
 		"sessionID", session.ID,
 		"userID", session.UserID,
-		"domainCode", session.DomainCode,
+		"instanceId", session.InstanceId,
 		"createdAt", session.CreatedAt)
 
 	hashid, err := generateHashID(session.ID)

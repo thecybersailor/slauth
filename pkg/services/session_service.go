@@ -24,10 +24,10 @@ func (s *SessionService) Create(ctx context.Context, session *models.Session) er
 	return s.db.WithContext(ctx).Create(session).Error
 }
 
-// GetByID retrieves session by ID and domain code
-func (s *SessionService) GetByID(ctx context.Context, id uint, domainCode string) (*models.Session, error) {
+// GetByID retrieves session by ID and instance code
+func (s *SessionService) GetByID(ctx context.Context, id uint, instanceId string) (*models.Session, error) {
 	var session models.Session
-	err := s.db.WithContext(ctx).Where("id = ? AND domain_code = ?", id, domainCode).First(&session).Error
+	err := s.db.WithContext(ctx).Where("id = ? AND instance_id = ?", id, instanceId).First(&session).Error
 	if err != nil {
 		return nil, err
 	}
@@ -35,10 +35,10 @@ func (s *SessionService) GetByID(ctx context.Context, id uint, domainCode string
 }
 
 // GetByUserID retrieves active session by user ID
-func (s *SessionService) GetByUserID(ctx context.Context, userID uint, domainCode string) (*models.Session, error) {
+func (s *SessionService) GetByUserID(ctx context.Context, userID uint, instanceId string) (*models.Session, error) {
 	var session models.Session
-	err := s.db.WithContext(ctx).Where("user_id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
-		userID, domainCode, time.Now()).First(&session).Error
+	err := s.db.WithContext(ctx).Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
+		userID, instanceId, time.Now()).First(&session).Error
 	if err != nil {
 		return nil, err
 	}
@@ -46,10 +46,10 @@ func (s *SessionService) GetByUserID(ctx context.Context, userID uint, domainCod
 }
 
 // GetWithUser retrieves session with user information
-func (s *SessionService) GetWithUser(ctx context.Context, sessionID uint, domainCode string) (*models.Session, error) {
+func (s *SessionService) GetWithUser(ctx context.Context, sessionID uint, instanceId string) (*models.Session, error) {
 	var session models.Session
 	err := s.db.WithContext(ctx).Preload("User").
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).First(&session).Error
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).First(&session).Error
 	if err != nil {
 		return nil, err
 	}
@@ -63,10 +63,10 @@ func (s *SessionService) Update(ctx context.Context, session *models.Session) er
 }
 
 // UpdateAAL updates session's authentication assurance level
-func (s *SessionService) UpdateAAL(ctx context.Context, sessionID uint, domainCode string, aal types.AALLevel) error {
+func (s *SessionService) UpdateAAL(ctx context.Context, sessionID uint, instanceId string, aal types.AALLevel) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(map[string]any{
 			"aal":        aal,
 			"updated_at": now,
@@ -74,7 +74,7 @@ func (s *SessionService) UpdateAAL(ctx context.Context, sessionID uint, domainCo
 }
 
 // UpdateAALWithExpiry updates session's authentication assurance level with expiry time
-func (s *SessionService) UpdateAALWithExpiry(ctx context.Context, sessionID uint, domainCode string, aal types.AALLevel, expiresAt *time.Time) error {
+func (s *SessionService) UpdateAALWithExpiry(ctx context.Context, sessionID uint, instanceId string, aal types.AALLevel, expiresAt *time.Time) error {
 	now := time.Now()
 	updates := map[string]any{
 		"aal":        aal,
@@ -86,15 +86,15 @@ func (s *SessionService) UpdateAALWithExpiry(ctx context.Context, sessionID uint
 	}
 
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(updates).Error
 }
 
 // UpdateRefreshedAt updates session's last refresh timestamp
-func (s *SessionService) UpdateRefreshedAt(ctx context.Context, sessionID uint, domainCode string) error {
+func (s *SessionService) UpdateRefreshedAt(ctx context.Context, sessionID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(map[string]any{
 			"refreshed_at": now,
 			"updated_at":   now,
@@ -102,10 +102,10 @@ func (s *SessionService) UpdateRefreshedAt(ctx context.Context, sessionID uint, 
 }
 
 // SetExpiration sets session expiration time
-func (s *SessionService) SetExpiration(ctx context.Context, sessionID uint, domainCode string, notAfter time.Time) error {
+func (s *SessionService) SetExpiration(ctx context.Context, sessionID uint, instanceId string, notAfter time.Time) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(map[string]any{
 			"not_after":  notAfter,
 			"updated_at": now,
@@ -113,10 +113,10 @@ func (s *SessionService) SetExpiration(ctx context.Context, sessionID uint, doma
 }
 
 // Invalidate invalidates session by setting expiration to now
-func (s *SessionService) Invalidate(ctx context.Context, sessionID uint, domainCode string) error {
+func (s *SessionService) Invalidate(ctx context.Context, sessionID uint, instanceId string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(map[string]any{
 			"not_after":  now,
 			"updated_at": now,
@@ -124,34 +124,34 @@ func (s *SessionService) Invalidate(ctx context.Context, sessionID uint, domainC
 }
 
 // IsValid checks if session is valid (not expired)
-func (s *SessionService) IsValid(ctx context.Context, sessionID uint, domainCode string) (bool, error) {
+func (s *SessionService) IsValid(ctx context.Context, sessionID uint, instanceId string) (bool, error) {
 	var count int64
 	err := s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ? AND (not_after IS NULL OR not_after > ?)",
-			sessionID, domainCode, time.Now()).
+		Where("id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
+			sessionID, instanceId, time.Now()).
 		Count(&count).Error
 	return count > 0, err
 }
 
 // CleanupExpiredSessions removes expired sessions
-func (s *SessionService) CleanupExpiredSessions(ctx context.Context, domainCode string) error {
-	return s.db.WithContext(ctx).Where("domain_code = ? AND not_after < ?",
-		domainCode, time.Now()).Delete(&models.Session{}).Error
+func (s *SessionService) CleanupExpiredSessions(ctx context.Context, instanceId string) error {
+	return s.db.WithContext(ctx).Where("instance_id = ? AND not_after < ?",
+		instanceId, time.Now()).Delete(&models.Session{}).Error
 }
 
 // GetSessionsByDateRange retrieves sessions within date range
-func (s *SessionService) GetSessionsByDateRange(ctx context.Context, domainCode string, from, to time.Time) ([]models.Session, error) {
+func (s *SessionService) GetSessionsByDateRange(ctx context.Context, instanceId string, from, to time.Time) ([]models.Session, error) {
 	var sessions []models.Session
-	err := s.db.WithContext(ctx).Where("domain_code = ? AND created_at BETWEEN ? AND ?",
-		domainCode, from, to).Order("updated_at DESC").Find(&sessions).Error
+	err := s.db.WithContext(ctx).Where("instance_id = ? AND created_at BETWEEN ? AND ?",
+		instanceId, from, to).Order("updated_at DESC").Find(&sessions).Error
 	return sessions, err
 }
 
 // UpdateUserAgent updates session's user agent
-func (s *SessionService) UpdateUserAgent(ctx context.Context, sessionID uint, domainCode, userAgent string) error {
+func (s *SessionService) UpdateUserAgent(ctx context.Context, sessionID uint, instanceId, userAgent string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(map[string]any{
 			"user_agent": userAgent,
 			"updated_at": now,
@@ -159,10 +159,10 @@ func (s *SessionService) UpdateUserAgent(ctx context.Context, sessionID uint, do
 }
 
 // UpdateIP updates session's IP address
-func (s *SessionService) UpdateIP(ctx context.Context, sessionID uint, domainCode, ip string) error {
+func (s *SessionService) UpdateIP(ctx context.Context, sessionID uint, instanceId, ip string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("id = ? AND domain_code = ?", sessionID, domainCode).
+		Where("id = ? AND instance_id = ?", sessionID, instanceId).
 		Updates(map[string]any{
 			"ip":         ip,
 			"updated_at": now,

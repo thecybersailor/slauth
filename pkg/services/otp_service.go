@@ -200,7 +200,7 @@ func (o *OTPService) ValidateOTPFormat(otp string) bool {
 }
 
 // StoreOTP stores an OTP code for verification
-func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, domainCode string, db *gorm.DB) error {
+func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, instanceId string, db *gorm.DB) error {
 	// Hash the OTP code for security
 	codeHash := o.HashOTP(code)
 
@@ -208,13 +208,13 @@ func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, to
 
 	// Delete any existing OTP tokens for this email/phone and type (industry practice)
 	if email != "" {
-		err := otTokenService.DeleteByEmailAndType(ctx, email, tokenType, domainCode)
+		err := otTokenService.DeleteByEmailAndType(ctx, email, tokenType, instanceId)
 		if err != nil && err != gorm.ErrRecordNotFound {
 			return consts.UNEXPECTED_FAILURE
 		}
 	}
 	if phone != "" {
-		err := otTokenService.DeleteByPhoneAndType(ctx, phone, tokenType, domainCode)
+		err := otTokenService.DeleteByPhoneAndType(ctx, phone, tokenType, instanceId)
 		if err != nil && err != gorm.ErrRecordNotFound {
 			return consts.UNEXPECTED_FAILURE
 		}
@@ -225,7 +225,7 @@ func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, to
 	token := &models.OneTimeToken{
 		TokenHash:  codeHash,
 		TokenType:  tokenType,
-		DomainCode: domainCode,
+		InstanceId: instanceId,
 		ExpiresAt:  &expiresAt,
 		RelatesTo:  "otp_verification", // Default relates_to for OTP scenarios
 	}
@@ -243,7 +243,7 @@ func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, to
 }
 
 // VerifyOTP verifies an OTP code
-func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, domainCode string, db *gorm.DB) (bool, error) {
+func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, instanceId string, db *gorm.DB) (bool, error) {
 	// Validate OTP format first
 	if !o.ValidateOTPFormat(code) {
 		return false, consts.VALIDATION_FAILED
@@ -258,9 +258,9 @@ func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, t
 	var err error
 
 	if email != "" {
-		token, err = otTokenService.GetByEmailAndType(ctx, email, tokenType, domainCode)
+		token, err = otTokenService.GetByEmailAndType(ctx, email, tokenType, instanceId)
 	} else if phone != "" {
-		token, err = otTokenService.GetByPhoneAndType(ctx, phone, tokenType, domainCode)
+		token, err = otTokenService.GetByPhoneAndType(ctx, phone, tokenType, instanceId)
 	} else {
 		return false, consts.VALIDATION_FAILED
 	}
@@ -280,7 +280,7 @@ func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, t
 	}
 
 	// Delete the used token
-	err = otTokenService.DeleteByID(ctx, token.ID, domainCode)
+	err = otTokenService.DeleteByID(ctx, token.ID, instanceId)
 	if err != nil {
 		// Log error but don't fail verification
 		fmt.Printf("Warning: Failed to delete used OTP token: %v\n", err)

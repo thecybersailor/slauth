@@ -147,7 +147,7 @@ func (v *ValidatorService) ValidateRedirectURL(redirectURL string, allowedURLs [
 		return nil // Optional parameter
 	}
 
-	// Allow relative paths (same domain)
+	// Allow relative paths (same instance)
 	if strings.HasPrefix(redirectURL, "/") {
 		return nil
 	}
@@ -215,14 +215,14 @@ func (v *ValidatorService) matchURL(redirectURL, pattern string) bool {
 	return strings.HasPrefix(redirectParsed.Path, patternParsed.Path)
 }
 
-// ValidateDomainCode validates domain code format
-func (v *ValidatorService) ValidateDomainCode(domainCode string) error {
-	if domainCode == "" {
+// ValidateInstanceId validates instance code format
+func (v *ValidatorService) ValidateInstanceId(instanceId string) error {
+	if instanceId == "" {
 		return consts.VALIDATION_FAILED
 	}
 
 	// Check format: alphanumeric, underscore, hyphen
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, domainCode)
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, instanceId)
 	if err != nil {
 		return consts.VALIDATION_FAILED
 	}
@@ -231,7 +231,7 @@ func (v *ValidatorService) ValidateDomainCode(domainCode string) error {
 	}
 
 	// Check length
-	if len(domainCode) < 2 || len(domainCode) > 64 {
+	if len(instanceId) < 2 || len(instanceId) > 64 {
 		return consts.VALIDATION_FAILED
 	}
 

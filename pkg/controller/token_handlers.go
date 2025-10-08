@@ -46,7 +46,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 			c.Request.Context(),
 			refreshTokenRecord.UserID,
 			"token_refresh",
-			a.authService.GetDomainCode(),
+			a.authService.GetInstanceId(),
 			config.RatelimitConfig.TokenRefreshRateLimit,
 			config,
 		)
@@ -63,14 +63,14 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 	// Get user by real ID (since refresh token stores real ID)
 	// We need to get the user service from auth service to access the database
 	userService := a.authService.GetUserService()
-	user, err := userService.GetByID(c.Request.Context(), refreshTokenRecord.UserID, a.authService.GetDomainCode())
+	user, err := userService.GetByID(c.Request.Context(), refreshTokenRecord.UserID, a.authService.GetInstanceId())
 	if err != nil {
 		return consts.USER_NOT_FOUND
 	}
 
 	// Create user object with hashid
 	appSecret := a.authService.GetConfig().AppSecret
-	userObj, err := services.NewUser(user, a.authService.GetUserService(), services.NewPasswordService(nil, appSecret, 2), services.NewSessionService(a.authService.GetDB()), a.authService.GetDB(), a.authService.GetDomainCode())
+	userObj, err := services.NewUser(user, a.authService.GetUserService(), services.NewPasswordService(nil, appSecret, 2), services.NewSessionService(a.authService.GetDB()), a.authService.GetDB(), a.authService.GetInstanceId())
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -187,7 +187,7 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 	switch req.Scope {
 	case "local":
 		// Revoke current session only
-		err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetDomainCode(), sessionHashID)
+		err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetInstanceId(), sessionHashID)
 	case "others":
 		// For "others" scope, we need to revoke all sessions except current
 		// This requires getting all user sessions and revoking except current
@@ -202,7 +202,7 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 		}
 		for _, session := range sessions {
 			if session.HashID != sessionHashID {
-				err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetDomainCode(), session.HashID)
+				err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetInstanceId(), session.HashID)
 				if err != nil {
 					return consts.UNEXPECTED_FAILURE
 				}

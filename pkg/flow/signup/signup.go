@@ -116,7 +116,7 @@ func GenerateConfirmationURLFlow(signupCtx services.SignupContext) core.Flow[cor
 			TokenType:  types.OneTimeTokenTypeConfirmation,
 			TokenHash:  tokenHash,
 			RelatesTo:  signupCtx.Request().Email, // Associate with email address
-			DomainCode: signupCtx.Service().GetDomainCode(),
+			InstanceId: signupCtx.Service().GetInstanceId(),
 			CreatedAt:  time.Now(),
 			UpdatedAt:  time.Now(),
 		}
@@ -162,7 +162,7 @@ func SendConfirmationEmailFlow(signupCtx services.SignupContext) core.Flow[core.
 			EmailProvider: signupCtx.Service().GetEmailProvider(),
 			TemplateName:  "confirm-signup",
 			MessageType:   "email",
-			DomainCode:    signupCtx.Service().GetDomainCode(),
+			InstanceId:    signupCtx.Service().GetInstanceId(),
 		},
 		func(data core.SignupData) string {
 			return data.Email
@@ -181,7 +181,7 @@ func SendConfirmationSMSFlow(signupCtx services.SignupContext) core.Flow[core.Si
 			SMSProvider:  signupCtx.Service().GetSMSProvider(),
 			TemplateName: "reauthentication",
 			MessageType:  "sms",
-			DomainCode:   signupCtx.Service().GetDomainCode(),
+			InstanceId:   signupCtx.Service().GetInstanceId(),
 		},
 		func(data core.SignupData) string {
 			return data.Phone

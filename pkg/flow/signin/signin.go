@@ -175,7 +175,7 @@ func SendOTPFlow(signinCtx services.SigninContext) core.Flow[core.SigninData] {
 			SMSProvider:  signinCtx.Service().GetSMSProvider(),
 			TemplateName: "verification-code",
 			MessageType:  "sms",
-			DomainCode:   signinCtx.Service().GetDomainCode(),
+			InstanceId:   signinCtx.Service().GetInstanceId(),
 		},
 		func(data core.SigninData) string {
 			return data.EmailOrPhone

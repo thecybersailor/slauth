@@ -248,19 +248,19 @@ const smartNavigate = (url: string) => {
   if (router) {
     // Check if it's a complete URL
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      // Complete URL: check if same domain
-      const currentDomain = window.location.origin
+      // Complete URL: check if same instance
+      const currentInstance = window.location.origin
       const redirectUrl = new URL(url)
-      const isSameDomain = redirectUrl.origin === currentDomain
+      const isSameInstance = redirectUrl.origin === currentInstance
 
-      if (isSameDomain) {
-        // Same domain: use Vue Router navigation (only path part)
+      if (isSameInstance) {
+        // Same instance: use Vue Router navigation (only path part)
         const targetPath = redirectUrl.pathname + redirectUrl.search + redirectUrl.hash
-        console.log('[DEBUG] smartNavigate: same domain, using Vue Router', { targetPath })
+        console.log('[DEBUG] smartNavigate: same instance, using Vue Router', { targetPath })
         router.push(targetPath)
       } else {
-        // Different domain: use window.location
-        console.log('[DEBUG] smartNavigate: different domain, using window.location', { url })
+        // Different instance: use window.location
+        console.log('[DEBUG] smartNavigate: different instance, using window.location', { url })
         window.location.href = url
       }
     } else {

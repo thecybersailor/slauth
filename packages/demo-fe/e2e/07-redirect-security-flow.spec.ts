@@ -6,8 +6,8 @@ import { clearAuthState } from './helpers/auth.helper.js'
  * Redirect Security Flow Tests
  * 
  * Tests redirect parameter handling and validation across authentication flows:
- * 1. Valid same-domain redirects
- * 2. Valid whitelisted cross-domain redirects
+ * 1. Valid same-instance redirects
+ * 2. Valid whitelisted cross-instance redirects
  * 3. Invalid redirects (should fallback to SiteURL)
  * 4. Redirect parameter preservation across page transitions
  * 5. Multi-step flow redirect handling (OTP, email verification)
@@ -29,8 +29,8 @@ test.describe('Redirect Security Flow', () => {
     await clearAuthState(page)
   })
 
-  test.describe('Valid Redirect - Same Domain', () => {
-    test('should redirect to valid same-domain URL after signin', async ({ page, testContext }) => {
+  test.describe('Valid Redirect - Same Instance', () => {
+    test('should redirect to valid same-instance URL after signin', async ({ page, testContext }) => {
       // Use real user from TestContext
       const email = testContext.get<string>('auth.email')
       const password = testContext.get<string>('auth.password')
@@ -84,7 +84,7 @@ test.describe('Redirect Security Flow', () => {
       })
     })
 
-    test('should redirect to valid same-domain URL after signup', async ({ page }) => {
+    test('should redirect to valid same-instance URL after signup', async ({ page }) => {
       const testUser = generateTestUser()
       const redirectTo = '/test/welcome'
       
@@ -164,7 +164,7 @@ test.describe('Redirect Security Flow', () => {
     })
   })
 
-  test.describe('Valid Redirect - Whitelisted Cross-Domain', () => {
+  test.describe('Valid Redirect - Whitelisted Cross-Instance', () => {
     test('should redirect to whitelisted external URL', async ({ page, testContext }) => {
       const email = testContext.get<string>('auth.email')
       const password = testContext.get<string>('auth.password')
@@ -259,7 +259,7 @@ test.describe('Redirect Security Flow', () => {
           throw new Error('🚨 SECURITY VULNERABILITY: Malicious redirect was executed!')
         }
 
-        // If URL contains the malicious domain only in redirect parameter, that's acceptable
+        // If URL contains the malicious instance only in redirect parameter, that's acceptable
         // (it means the backend didn't process the redirect)
         if (finalUrl.includes('evil-phishing-site.com') && finalUrl.includes('redirect=')) {
           console.log('✅ Security validation passed: malicious redirect blocked (stayed in redirect parameter)')
@@ -267,10 +267,10 @@ test.describe('Redirect Security Flow', () => {
           console.log('✅ Security validation passed: malicious redirect completely blocked')
         }
 
-        // Should stay in same domain
+        // Should stay in same instance
         const frontendHost = new URL(testConfig.baseUrl).host
         expect(finalUrl).toContain(frontendHost)
-        console.log(`✅ Stayed in safe domain: ${frontendHost}`)
+        console.log(`✅ Stayed in safe instance: ${frontendHost}`)
       })
     })
 
@@ -574,12 +574,12 @@ test.describe('Redirect Security Flow', () => {
         const currentUrl = page.url()
         console.log('🔍 Current URL after signin:', currentUrl)
         
-        // Parse the URL to check the actual domain
+        // Parse the URL to check the actual instance
         const url = new URL(currentUrl)
         
-        // Should NOT be redirected to evil.com domain (check hostname, not query params)
+        // Should NOT be redirected to evil.com instance (check hostname, not query params)
         expect(url.hostname).not.toContain('evil.com')
-        console.log('✅ Not redirected to evil.com domain')
+        console.log('✅ Not redirected to evil.com instance')
         
         // If login was successful, should be redirected away from signin page
         if (!currentUrl.includes('/auth/signin')) {

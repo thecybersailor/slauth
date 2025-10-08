@@ -14,7 +14,7 @@ type AdminQueryTestSuite struct {
 
 func (suite *AdminQueryTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
 	suite.createTestUsers()
 }
@@ -129,7 +129,7 @@ func (suite *AdminQueryTestSuite) createOAuthUser() {
 		"provider":      "mock-oauth",
 		"provider_id":   "mock-user-123",
 		"identity_data": `{"uid":"mock-user-123","email":"mock-user@example.com","name":"Mock User"}`,
-		"domain_code":   suite.TestDomain,
+		"instance_id":   suite.TestInstance,
 	}
 
 	err = suite.DB.Table("identities").Create(identityData).Error

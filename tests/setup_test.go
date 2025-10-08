@@ -55,14 +55,14 @@ type TestSuite struct {
 	DB            *gorm.DB
 	Router        *gin.Engine
 	AuthService   services.AuthService
-	TestDomain    string
+	TestInstance  string
 	EmailProvider *MockEmailProvider
 	SMSProvider   *MockSMSProvider
 }
 
 func (suite *TestSuite) SetupSuite() {
 
-	suite.TestDomain = fmt.Sprintf("test-%d.com", time.Now().UnixNano())
+	suite.TestInstance = fmt.Sprintf("test-%d.com", time.Now().UnixNano())
 
 	suite.setupDatabase()
 	suite.setupAuthService()
@@ -136,7 +136,7 @@ func (suite *TestSuite) setupAuthService() {
 	suite.EmailProvider = NewMockEmailProvider()
 	suite.SMSProvider = NewMockSMSProvider()
 
-	suite.AuthService = registry.RegisterAuthService(suite.TestDomain, globalJWTSecret, globalAppSecret, suite.DB)
+	suite.AuthService = registry.RegisterAuthService(suite.TestInstance, globalJWTSecret, globalAppSecret, suite.DB)
 	suite.AuthService.SetEmailProvider(suite.EmailProvider).
 		SetSMSProvider(suite.SMSProvider).
 		AddMFAProvider(mfa.NewTOTPProvider()).

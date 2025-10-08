@@ -194,7 +194,7 @@ export const SignInWithSSOOptionsSchema = z.object({
 });
 
 export const SignInWithSSORequestSchema = z.object({
-  domain: z.string().optional(),
+  instance: z.string().optional(),
   options: SignInWithSSOOptionsSchema.optional(),
   providerId: z.string().optional(),
 });

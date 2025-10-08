@@ -10,7 +10,7 @@ type MFAAMRClaim struct {
 	CreatedAt            time.Time `json:"created_at" gorm:"not null"`
 	UpdatedAt            time.Time `json:"updated_at" gorm:"not null"`
 	AuthenticationMethod string    `json:"authentication_method" gorm:"type:varchar(255);not null"`
-	DomainCode           string    `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId           string    `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	Session *Session `json:"session,omitempty" gorm:"foreignKey:SessionID;references:ID"`

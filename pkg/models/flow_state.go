@@ -20,7 +20,7 @@ type FlowState struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 	AuthenticationMethod string     `json:"authentication_method" gorm:"type:varchar(255);not null"`
 	AuthCodeIssuedAt     *time.Time `json:"auth_code_issued_at"`
-	DomainCode           string     `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId           string     `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	SAMLRelayStates []SAMLRelayState `json:"saml_relay_states,omitempty" gorm:"foreignKey:FlowStateID"`

@@ -1892,7 +1892,7 @@
         "pkg_controller.SignInWithSSORequest": {
             "type": "object",
             "properties": {
-                "domain": {
+                "instance": {
                     "type": "string"
                 },
                 "options": {

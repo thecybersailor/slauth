@@ -18,16 +18,16 @@ import (
 type TestHelper struct {
 	DB            *gorm.DB
 	Router        *gin.Engine
-	TestDomain    string
+	TestInstance  string
 	EmailProvider *MockEmailProvider
 	SMSProvider   *MockSMSProvider
 }
 
-func NewTestHelper(db *gorm.DB, router *gin.Engine, domain string, emailProvider *MockEmailProvider, smsProvider *MockSMSProvider) *TestHelper {
+func NewTestHelper(db *gorm.DB, router *gin.Engine, instance string, emailProvider *MockEmailProvider, smsProvider *MockSMSProvider) *TestHelper {
 	return &TestHelper{
 		DB:            db,
 		Router:        router,
-		TestDomain:    domain,
+		TestInstance:  instance,
 		EmailProvider: emailProvider,
 		SMSProvider:   smsProvider,
 	}

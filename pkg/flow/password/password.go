@@ -102,7 +102,7 @@ func SendResetEmailFlow(passwordCtx services.PasswordContext) core.Flow[core.Pas
 			EmailProvider: passwordCtx.Service().GetEmailProvider(),
 			TemplateName:  "reset-password",
 			MessageType:   "email",
-			DomainCode:    passwordCtx.Service().GetDomainCode(),
+			InstanceId:    passwordCtx.Service().GetInstanceId(),
 		},
 		func(data core.PasswordResetData) string {
 			return data.Email
@@ -209,7 +209,7 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 			ctx.Context,
 			userModel.ID,
 			"password_update",
-			passwordCtx.Service().GetDomainCode(),
+			passwordCtx.Service().GetInstanceId(),
 			rateLimit,
 			config,
 		)
@@ -277,7 +277,7 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 			// Clear password update rate limit record for this user using RateLimitService
 			rateLimitService := passwordCtx.Service().(*services.AuthServiceImpl).GetRateLimitService()
 			if rateLimitService != nil {
-				rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetDomainCode(), config)
+				rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetInstanceId(), config)
 			}
 		}
 

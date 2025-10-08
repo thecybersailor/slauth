@@ -14,7 +14,7 @@ type SignupAndUserQueriesTestSuite struct {
 
 func (suite *SignupAndUserQueriesTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
 	// Set default config: email confirmation enabled
 	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
@@ -32,7 +32,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignup() {
 	email := "test@example.com"
 
 	var countBefore int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&countBefore).Error
+	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&countBefore).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), countBefore, "User should not exist before signup")
 
@@ -51,19 +51,19 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignup() {
 	suite.Nil(responseData["session"], "Session should be nil for unconfirmed user")
 
 	var countAfter int64
-	err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&countAfter).Error
+	err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&countAfter).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(1), countAfter, "User should exist after signup")
 
 	var user struct {
 		Email      string
-		DomainCode string
+		InstanceId string
 		CreatedAt  string
 	}
-	err = suite.DB.Raw("SELECT email, domain_code, created_at FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&user).Error
+	err = suite.DB.Raw("SELECT email, instance_id, created_at FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&user).Error
 	suite.Require().NoError(err)
 	suite.Equal(email, user.Email, "User email should match")
-	suite.Equal(suite.TestDomain, user.DomainCode, "User domain should match")
+	suite.Equal(suite.TestInstance, user.InstanceId, "User instance should match")
 	suite.NotEmpty(user.CreatedAt, "User created_at should not be empty")
 }
 
@@ -410,12 +410,12 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignupWithoutEmailConfirmation()
 	var user struct {
 		Email            string
 		EmailConfirmedAt *time.Time
-		DomainCode       string
+		InstanceId       string
 	}
-	err := suite.DB.Raw("SELECT email, email_confirmed_at, domain_code FROM users WHERE email = ? AND domain_code = ?", email, suite.TestDomain).Scan(&user).Error
+	err := suite.DB.Raw("SELECT email, email_confirmed_at, instance_id FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&user).Error
 	suite.Require().NoError(err)
 	suite.Equal(email, user.Email, "User email should match")
-	suite.Equal(suite.TestDomain, user.DomainCode, "User domain should match")
+	suite.Equal(suite.TestInstance, user.InstanceId, "User instance should match")
 
 	// When confirm_email is disabled, email_confirmed_at remains NULL
 	// The user can login immediately without confirmation, but the confirmation status is not automatically set

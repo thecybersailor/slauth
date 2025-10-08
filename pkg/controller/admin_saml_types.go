@@ -97,36 +97,36 @@ type UpdateSAMLConfigRequest struct {
 	AttributeMapping json.RawMessage `json:"attribute_mapping,omitempty"`
 }
 
-// ===== SSO Domain Management Types =====
+// ===== SSO Instance Management Types =====
 
-// CreateSSODomainRequest represents the request to create SSO domain
-type CreateSSODomainRequest struct {
+// CreateSSOInstanceRequest represents the request to create SSO instance
+type CreateSSOInstanceRequest struct {
 	ProviderID string `json:"provider_id" binding:"required"`
-	Domain     string `json:"domain" binding:"required"`
+	Instance   string `json:"instance" binding:"required"`
 }
 
-// SSODomainResponse represents SSO domain in API responses
-type SSODomainResponse struct {
+// SSOInstanceResponse represents SSO instance in API responses
+type SSOInstanceResponse struct {
 	ID         string `json:"id"`
 	ProviderID string `json:"provider_id"`
-	Domain     string `json:"domain"`
+	Instance   string `json:"instance"`
 	CreatedAt  string `json:"created_at"`
 	UpdatedAt  string `json:"updated_at"`
 }
 
-// ListSSODomainsRequest represents the request to list SSO domains
-type ListSSODomainsRequest struct {
+// ListSSOInstancesRequest represents the request to list SSO instances
+type ListSSOInstancesRequest struct {
 	ProviderID string `form:"provider_id"`
 	Page       int    `form:"page"`
 	PageSize   int    `form:"page_size"`
 }
 
-// ListSSODomainsResponse represents the response for listing SSO domains
-type ListSSODomainsResponse struct {
-	Domains  []*SSODomainResponse `json:"domains,omitempty"`
-	Total    int64                `json:"total"`
-	Page     int                  `json:"page"`
-	PageSize int                  `json:"page_size"`
+// ListSSOInstancesResponse represents the response for listing SSO instances
+type ListSSOInstancesResponse struct {
+	Instances []*SSOInstanceResponse `json:"instances,omitempty"`
+	Total     int64                  `json:"total"`
+	Page      int                    `json:"page"`
+	PageSize  int                    `json:"page_size"`
 }
 
 // ===== Certificate Management Types =====

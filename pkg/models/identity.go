@@ -18,7 +18,7 @@ type Identity struct {
 	CreatedAt    time.Time       `json:"created_at"`
 	UpdatedAt    time.Time       `json:"updated_at"`
 	Email        *string         `json:"email" gorm:"type:varchar(255)"`
-	DomainCode   string          `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId   string          `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`

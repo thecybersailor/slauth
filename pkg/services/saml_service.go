@@ -23,26 +23,26 @@ func NewCertService(certPath, keyPath string) *CertService {
 // SAMLService handles SAML SSO operations
 type SAMLService struct {
 	db         *gorm.DB
-	domainCode string
+	instanceId string
 }
 
 // NewSAMLService creates a new SAML service
-func NewSAMLService(db *gorm.DB, domainCode string) *SAMLService {
+func NewSAMLService(db *gorm.DB, instanceId string) *SAMLService {
 	return &SAMLService{
 		db:         db,
-		domainCode: domainCode,
+		instanceId: instanceId,
 	}
 }
 
-// FindSSOProviderByDomain finds SSO provider by domain
-func (s *SAMLService) FindSSOProviderByDomain(ctx context.Context, domain string) (*SSOProvider, error) {
+// FindSSOProviderByInstance finds SSO provider by instance
+func (s *SAMLService) FindSSOProviderByInstance(ctx context.Context, instance string) (*SSOProvider, error) {
 	var ssoProvider models.SSOProvider
 
-	// Find SSO provider by domain
+	// Find SSO provider by instance
 	err := s.db.WithContext(ctx).
-		Joins("JOIN sso_domains ON sso_domains.sso_provider_id = sso_providers.id").
-		Where("sso_domains.domain = ? AND sso_providers.domain_code = ? AND sso_providers.enabled = ?",
-			domain, s.domainCode, true).
+		Joins("JOIN sso_instances ON sso_instances.sso_provider_id = sso_providers.id").
+		Where("sso_instances.instance = ? AND sso_providers.instance_id = ? AND sso_providers.enabled = ?",
+			instance, s.instanceId, true).
 		First(&ssoProvider).Error
 
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *SAMLService) FindSSOProviderByID(ctx context.Context, providerHashID st
 
 	var ssoProvider models.SSOProvider
 	err = s.db.WithContext(ctx).
-		Where("id = ? AND domain_code = ? AND enabled = ?", providerID, s.domainCode, true).
+		Where("id = ? AND instance_id = ? AND enabled = ?", providerID, s.instanceId, true).
 		First(&ssoProvider).Error
 
 	if err != nil {
@@ -83,7 +83,7 @@ func (s *SAMLService) GetSAMLProvider(ctx context.Context, ssoProvider *SSOProvi
 	var samlProvider models.SAMLProvider
 
 	err := s.db.WithContext(ctx).
-		Where("sso_provider_id = ? AND domain_code = ?", ssoProvider.ID, s.domainCode).
+		Where("sso_provider_id = ? AND instance_id = ?", ssoProvider.ID, s.instanceId).
 		First(&samlProvider).Error
 
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *SAMLService) CreateSAMLProvider(ctx context.Context, samlConfig *SAMLPr
 		MetadataURL:      samlConfig.MetadataURL,
 		NameIDFormat:     nameIDFormat,
 		AttributeMapping: attributeMapping,
-		DomainCode:       samlConfig.DomainCode,
+		InstanceId:       samlConfig.InstanceId,
 		SPEntityID:       fmt.Sprintf("https://auth.example.com/saml/metadata/%s", samlConfig.HashID),
 		ACSURL:           fmt.Sprintf("https://auth.example.com/sso/callback/%s", samlConfig.HashID),
 		Certificate:      certInfo.Certificate,
@@ -152,7 +152,7 @@ func (s *SAMLService) CreateRelayState(ctx context.Context, ssoProviderID uint, 
 		RequestID:     requestID,
 		ForEmail:      options.ForEmail,
 		RedirectTo:    options.RedirectTo,
-		DomainCode:    s.domainCode,
+		InstanceId:    s.instanceId,
 	}
 
 	if err := s.db.WithContext(ctx).Create(relayState).Error; err != nil {
@@ -167,7 +167,7 @@ func (s *SAMLService) GetRelayState(ctx context.Context, requestID string) (*mod
 	var relayState models.SAMLRelayState
 
 	err := s.db.WithContext(ctx).
-		Where("request_id = ? AND domain_code = ?", requestID, s.domainCode).
+		Where("request_id = ? AND instance_id = ?", requestID, s.instanceId).
 		First(&relayState).Error
 
 	if err != nil {
@@ -183,7 +183,7 @@ func (s *SAMLService) GetRelayState(ctx context.Context, requestID string) (*mod
 // DeleteRelayState deletes SAML relay state
 func (s *SAMLService) DeleteRelayState(ctx context.Context, requestID string) error {
 	err := s.db.WithContext(ctx).
-		Where("request_id = ? AND domain_code = ?", requestID, s.domainCode).
+		Where("request_id = ? AND instance_id = ?", requestID, s.instanceId).
 		Delete(&models.SAMLRelayState{}).Error
 
 	if err != nil {
@@ -199,21 +199,21 @@ type SAMLRelayStateOptions struct {
 	RedirectTo *string
 }
 
-// ListSSOProviders lists all SSO providers for the domain
+// ListSSOProviders lists all SSO providers for the instance
 func (s *SAMLService) ListSSOProviders(ctx context.Context, page, pageSize int) ([]*SSOProvider, int64, error) {
 	var providers []models.SSOProvider
 	var total int64
 
 	// Get total count
 	if err := s.db.WithContext(ctx).Model(&models.SSOProvider{}).
-		Where("domain_code = ?", s.domainCode).Count(&total).Error; err != nil {
+		Where("instance_id = ?", s.instanceId).Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to count SSO providers: %w", err)
 	}
 
 	// Get paginated results
 	offset := (page - 1) * pageSize
 	if err := s.db.WithContext(ctx).
-		Where("domain_code = ?", s.domainCode).
+		Where("instance_id = ?", s.instanceId).
 		Offset(offset).Limit(pageSize).
 		Find(&providers).Error; err != nil {
 		return nil, 0, fmt.Errorf("failed to list SSO providers: %w", err)
@@ -237,7 +237,7 @@ func (s *SAMLService) CreateSSOProvider(ctx context.Context, name string, enable
 	provider := &models.SSOProvider{
 		Name:       name,
 		Enabled:    enabled,
-		DomainCode: s.domainCode,
+		InstanceId: s.instanceId,
 	}
 
 	if err := s.db.WithContext(ctx).Create(provider).Error; err != nil {
@@ -255,11 +255,11 @@ func (s *SAMLService) UpdateSSOProvider(ctx context.Context, providerHashID stri
 		return nil, fmt.Errorf("invalid provider ID: %w", err)
 	}
 
-	// Add domain code filter to updates
-	updates["domain_code"] = s.domainCode
+	// Add instance code filter to updates
+	updates["instance_id"] = s.instanceId
 
 	if err := s.db.WithContext(ctx).Model(&models.SSOProvider{}).
-		Where("id = ? AND domain_code = ?", providerID, s.domainCode).
+		Where("id = ? AND instance_id = ?", providerID, s.instanceId).
 		Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update SSO provider: %w", err)
 	}
@@ -282,7 +282,7 @@ func (s *SAMLService) DeleteSSOProvider(ctx context.Context, providerHashID stri
 	}
 
 	if err := s.db.WithContext(ctx).
-		Where("id = ? AND domain_code = ?", providerID, s.domainCode).
+		Where("id = ? AND instance_id = ?", providerID, s.instanceId).
 		Delete(&models.SSOProvider{}).Error; err != nil {
 		return fmt.Errorf("failed to delete SSO provider: %w", err)
 	}

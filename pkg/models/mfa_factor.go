@@ -20,7 +20,7 @@ type MFAFactor struct {
 	LastChallengedAt   *time.Time         `json:"last_challenged_at" gorm:"uniqueIndex"`
 	WebAuthnCredential *json.RawMessage   `json:"web_authn_credential"`
 	WebAuthnAAGUID     *uint              `json:"web_authn_aaguid"`
-	DomainCode         string             `json:"domain_code" gorm:"type:varchar(255)"`
+	InstanceId         string             `json:"instance_id" gorm:"type:varchar(255)"`
 
 	// Relationships
 	User          *User          `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`

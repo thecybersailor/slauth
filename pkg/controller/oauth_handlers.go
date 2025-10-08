@@ -156,7 +156,7 @@ func (a *AuthController) createOAuthFlowState(c *pin.Context, provider types.Ide
 		RedirectURI:          opts.RedirectURI,
 		RedirectTo:           redirectTo,
 		AuthenticationMethod: "oauth",
-		DomainCode:           a.authService.GetDomainCode(),
+		InstanceId:           a.authService.GetInstanceId(),
 		CreatedAt:            time.Now(),
 		UpdatedAt:            time.Now(),
 	}
@@ -433,20 +433,20 @@ func (a *AuthController) SignInWithSSO(c *pin.Context) error {
 		return consts.BAD_JSON
 	}
 
-	// Validate domain or provider ID
-	if req.Domain == "" && req.ProviderId == "" {
+	// Validate instance or provider ID
+	if req.Instance == "" && req.ProviderId == "" {
 		return consts.VALIDATION_FAILED
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(a.authService.GetDB(), a.authService.GetDomainCode())
+	samlService := services.NewSAMLService(a.authService.GetDB(), a.authService.GetInstanceId())
 
 	// Find SSO provider
 	var ssoProvider *services.SSOProvider
 	var err error
 
-	if req.Domain != "" {
-		ssoProvider, err = samlService.FindSSOProviderByDomain(c.Request.Context(), req.Domain)
+	if req.Instance != "" {
+		ssoProvider, err = samlService.FindSSOProviderByInstance(c.Request.Context(), req.Instance)
 	} else {
 		ssoProvider, err = samlService.FindSSOProviderByID(c.Request.Context(), req.ProviderId)
 	}
@@ -537,7 +537,7 @@ func (a *AuthController) HandleSSOCallback(c *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(a.authService.GetDB(), a.authService.GetDomainCode())
+	samlService := services.NewSAMLService(a.authService.GetDB(), a.authService.GetInstanceId())
 
 	// Get relay state information
 	relayStateObj, err := samlService.GetRelayState(c.Request.Context(), relayState)
@@ -718,7 +718,7 @@ func (a *AuthController) UnlinkIdentity(c *pin.Context) error {
 	}
 
 	// Remove the identity from database
-	if err := a.authService.GetDB().WithContext(c.Request.Context()).Where("id = ? AND domain_code = ?", identityID, a.authService.GetDomainCode()).Delete(&models.Identity{}).Error; err != nil {
+	if err := a.authService.GetDB().WithContext(c.Request.Context()).Where("id = ? AND instance_id = ?", identityID, a.authService.GetInstanceId()).Delete(&models.Identity{}).Error; err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
 

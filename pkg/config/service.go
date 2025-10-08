@@ -15,7 +15,7 @@ type AuthServiceConfig struct {
 	AuthServiceBaseUrl string `json:"auth_service_base_url"`
 
 	// Redirect URLs
-	// URLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.domain.com
+	// URLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.instance.com
 	RedirectURLs []string `json:"redirect_urls"`
 
 	// If this is disabled, new users will not be able to sign up to your application

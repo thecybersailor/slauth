@@ -22,7 +22,7 @@ type SAMLProvider struct {
 	nameIDFormat     string
 	attributeMapping map[string]string
 	serviceProvider  *samlsp.Middleware
-	domainCode       string
+	instanceId       string
 }
 
 // SAMLProviderConfig represents SAML provider configuration
@@ -32,7 +32,7 @@ type SAMLProviderConfig struct {
 	MetadataURL      *string           `json:"metadata_url"`
 	NameIDFormat     string            `json:"name_id_format"`
 	AttributeMapping map[string]string `json:"attribute_mapping"`
-	DomainCode       string            `json:"domain_code"`
+	InstanceId       string            `json:"instance_id"`
 
 	// Service Provider configuration
 	SPEntityID  string            `json:"sp_entity_id"`
@@ -86,7 +86,7 @@ func NewSAMLProvider(config *SAMLProviderConfig) (types.IdentityProvider, error)
 		nameIDFormat:     nameIDFormat,
 		attributeMapping: attrMapping,
 		serviceProvider:  sp,
-		domainCode:       config.DomainCode,
+		instanceId:       config.InstanceId,
 	}, nil
 }
 

@@ -61,7 +61,7 @@ func (c *AdminController) QueryUsers(ctx *pin.Context) error {
 	}
 
 	// Build query from filters using QueryBuilder
-	qb := NewQueryBuilder(c.authService.GetDB(), c.authService.GetDomainCode())
+	qb := NewQueryBuilder(c.authService.GetDB(), c.authService.GetInstanceId())
 	qb.applyFilters(req.Filters)
 	query := qb.Build()
 
@@ -283,7 +283,7 @@ func (c *AdminController) CreateUser(ctx *pin.Context) error {
 	user, err := services.CreateUserWithMetadata(
 		ctx.Request.Context(),
 		c.authService.GetDB(),
-		c.authService.GetDomainCode(),
+		c.authService.GetInstanceId(),
 		req.Email,
 		req.Phone,
 		req.Password,
@@ -383,7 +383,7 @@ func (c *AdminController) SetUserEmailConfirmed(ctx *pin.Context) error {
 	} else {
 		// For unconfirming, we need to directly update the database
 		err = user.GetDB().WithContext(ctx.Request.Context()).Model(&models.User{}).
-			Where("id = ? AND domain_code = ?", user.ID, user.GetDomainCode()).
+			Where("id = ? AND instance_id = ?", user.ID, user.GetInstanceId()).
 			Updates(map[string]any{
 				"email_confirmed_at": nil,
 				"updated_at":         time.Now(),
@@ -434,7 +434,7 @@ func (c *AdminController) SetUserPhoneConfirmed(ctx *pin.Context) error {
 	} else {
 		// For unconfirming, we need to directly update the database
 		err = user.GetDB().WithContext(ctx.Request.Context()).Model(&models.User{}).
-			Where("id = ? AND domain_code = ?", user.ID, user.GetDomainCode()).
+			Where("id = ? AND instance_id = ?", user.ID, user.GetInstanceId()).
 			Updates(map[string]any{
 				"phone_confirmed_at": nil,
 				"updated_at":         time.Now(),
@@ -521,7 +521,7 @@ func (c *AdminController) RevokeUserSession(ctx *pin.Context) error {
 		return consts.VALIDATION_FAILED
 	}
 
-	err := c.authService.GetAdminSessionService().RevokeUserSession(ctx.Request.Context(), c.authService.GetDomainCode(), sessionID)
+	err := c.authService.GetAdminSessionService().RevokeUserSession(ctx.Request.Context(), c.authService.GetInstanceId(), sessionID)
 	if err != nil {
 		return err
 	}
@@ -582,7 +582,7 @@ func (c *AdminController) ListAllSessions(ctx *pin.Context) error {
 		req.PageSize = 100
 	}
 
-	sessions, total, err := c.authService.GetAdminSessionService().ListAllSessions(ctx.Request.Context(), c.authService.GetDomainCode(), req.Page, req.PageSize, nil)
+	sessions, total, err := c.authService.GetAdminSessionService().ListAllSessions(ctx.Request.Context(), c.authService.GetInstanceId(), req.Page, req.PageSize, nil)
 	if err != nil {
 		return err
 	}
@@ -672,7 +672,7 @@ func (c *AdminController) DeleteUserIdentity(ctx *pin.Context) error {
 // @Success 200 {object} StatsResponse "User count retrieved successfully"
 // @Router /admin/stats/users [get]
 func (c *AdminController) GetUserCount(ctx *pin.Context) error {
-	count, err := c.authService.GetAdminSystemService().GetUserCount(ctx.Request.Context(), c.authService.GetDomainCode())
+	count, err := c.authService.GetAdminSystemService().GetUserCount(ctx.Request.Context(), c.authService.GetInstanceId())
 	if err != nil {
 		return err
 	}
@@ -690,7 +690,7 @@ func (c *AdminController) GetUserCount(ctx *pin.Context) error {
 // @Success 200 {object} SessionStatsResponse "Session count retrieved successfully"
 // @Router /admin/stats/sessions [get]
 func (c *AdminController) GetActiveSessionCount(ctx *pin.Context) error {
-	activeCount, err := c.authService.GetAdminSystemService().GetActiveSessionCount(ctx.Request.Context(), c.authService.GetDomainCode())
+	activeCount, err := c.authService.GetAdminSystemService().GetActiveSessionCount(ctx.Request.Context(), c.authService.GetInstanceId())
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -725,7 +725,7 @@ func (c *AdminController) GetRecentSignups(ctx *pin.Context) error {
 		req.Days = 365
 	}
 
-	users, err := c.authService.GetAdminSystemService().GetRecentSignups(ctx.Request.Context(), c.authService.GetDomainCode(), req.Days)
+	users, err := c.authService.GetAdminSystemService().GetRecentSignups(ctx.Request.Context(), c.authService.GetInstanceId(), req.Days)
 	if err != nil {
 		return err
 	}
@@ -762,7 +762,7 @@ func (c *AdminController) GetRecentSignins(ctx *pin.Context) error {
 		req.Limit = 100
 	}
 
-	signins, err := c.authService.GetAdminSystemService().GetRecentSignins(ctx.Request.Context(), c.authService.GetDomainCode(), 7)
+	signins, err := c.authService.GetAdminSystemService().GetRecentSignins(ctx.Request.Context(), c.authService.GetInstanceId(), 7)
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -939,7 +939,7 @@ func (c *AdminController) CreateSAMLProvider(ctx *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetDomainCode())
+	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetInstanceId())
 
 	// Create SSO provider
 	ssoProvider, err := samlService.CreateSSOProvider(ctx.Request.Context(), req.Name, req.Enabled)
@@ -984,7 +984,7 @@ func (c *AdminController) ListSAMLProviders(ctx *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetDomainCode())
+	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetInstanceId())
 
 	// Get providers
 	providers, total, err := samlService.ListSSOProviders(ctx.Request.Context(), req.Page, req.PageSize)
@@ -1028,7 +1028,7 @@ func (c *AdminController) GetSAMLProvider(ctx *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetDomainCode())
+	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetInstanceId())
 
 	// Find provider
 	provider, err := samlService.FindSSOProviderByID(ctx.Request.Context(), providerID)
@@ -1081,7 +1081,7 @@ func (c *AdminController) UpdateSAMLProvider(ctx *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetDomainCode())
+	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetInstanceId())
 
 	// Build updates map
 	updates := make(map[string]interface{})
@@ -1123,7 +1123,7 @@ func (c *AdminController) DeleteSAMLProvider(ctx *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetDomainCode())
+	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetInstanceId())
 
 	// Delete provider
 	if err := samlService.DeleteSSOProvider(ctx.Request.Context(), providerID); err != nil {
@@ -1149,7 +1149,7 @@ func (c *AdminController) TestSAMLProvider(ctx *pin.Context) error {
 	}
 
 	// Create SAML service
-	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetDomainCode())
+	samlService := services.NewSAMLService(c.authService.GetDB(), c.authService.GetInstanceId())
 
 	// Find provider
 	provider, err := samlService.FindSSOProviderByID(ctx.Request.Context(), providerID)
@@ -1204,14 +1204,14 @@ func (c *AdminController) TestSAMLProvider(ctx *pin.Context) error {
 type QueryBuilder struct {
 	query      *gorm.DB
 	hasJoin    map[string]bool
-	domainCode string
+	instanceId string
 }
 
-func NewQueryBuilder(db *gorm.DB, domainCode string) *QueryBuilder {
+func NewQueryBuilder(db *gorm.DB, instanceId string) *QueryBuilder {
 	return &QueryBuilder{
-		query:      db.Model(&models.User{}).Where("users.domain_code = ?", domainCode),
+		query:      db.Model(&models.User{}).Where("users.instance_id = ?", instanceId),
 		hasJoin:    make(map[string]bool),
-		domainCode: domainCode,
+		instanceId: instanceId,
 	}
 }
 
@@ -1444,7 +1444,7 @@ func convertModelUserToAdminResponse(user *models.User) *AdminUserResponse {
 
 // GetInstanceConfig handles GET /admin/config
 // @Summary Get Instance Config
-// @Description Get configuration for the current domain instance
+// @Description Get configuration for the current instance instance
 // @Tags Admin
 // @Produce json
 // @Security AdminAuth
@@ -1452,17 +1452,17 @@ func convertModelUserToAdminResponse(user *models.User) *AdminUserResponse {
 // @Router /admin/config [get]
 func (c *AdminController) GetInstanceConfig(ctx *pin.Context) error {
 	cfg := c.authService.GetConfig()
-	domainCode := c.authService.GetDomainCode()
+	instanceId := c.authService.GetInstanceId()
 
 	return ctx.Render(map[string]interface{}{
-		"domain_code": domainCode,
+		"instance_id": instanceId,
 		"config":      cfg,
 	})
 }
 
 // UpdateInstanceConfig handles PUT /admin/config
 // @Summary Update Instance Config
-// @Description Update configuration for the current domain instance
+// @Description Update configuration for the current instance instance
 // @Tags Admin
 // @Accept json
 // @Produce json

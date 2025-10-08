@@ -3,7 +3,7 @@ package types
 import "context"
 
 type MessageTemplateResolver interface {
-	GetTemplate(domainCode, messageType, templateName string) ([]byte, bool)
+	GetTemplate(instanceId, messageType, templateName string) ([]byte, bool)
 }
 
 type MessageTemplate interface {

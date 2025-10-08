@@ -18,7 +18,7 @@ func (suite *SystemSettingTestSuite) SetupSuite() {
 	suite.helper = NewTestHelper(
 		suite.DB,
 		suite.Router,
-		suite.TestDomain,
+		suite.TestInstance,
 		suite.EmailProvider,
 		suite.SMSProvider,
 	)
@@ -33,7 +33,7 @@ func (suite *SystemSettingTestSuite) Test_01_GetInstanceConfig() {
 	response := suite.helper.MakeGETRequest(suite.T(), "/admin/config")
 
 	suite.helper.MatchObject(suite.T(), response, S{
-		"domain_code": suite.TestDomain,
+		"instance_id": suite.TestInstance,
 		"config":      S{},
 	}, "Should return instance config")
 
@@ -46,7 +46,7 @@ func (suite *SystemSettingTestSuite) Test_01_GetInstanceConfig() {
 	suite.Equal(10.0, configData["maximum_mfa_factors"], "Default maximum_mfa_factors should be 10")
 
 	var instance models.AuthInstance
-	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
+	err := suite.DB.Where("instance_id = ?", suite.TestInstance).First(&instance).Error
 	suite.NoError(err, "Instance should be created in database")
 }
 
@@ -88,7 +88,7 @@ func (suite *SystemSettingTestSuite) Test_02_UpdateInstanceConfig_BasicSettings(
 	}, "Should update config successfully")
 
 	var instance models.AuthInstance
-	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
+	err := suite.DB.Where("instance_id = ?", suite.TestInstance).First(&instance).Error
 	suite.NoError(err)
 
 	suite.Equal(false, *instance.ConfigData.AllowNewUsers, "allow_new_users should be updated to false")
@@ -135,7 +135,7 @@ func (suite *SystemSettingTestSuite) Test_03_UpdateInstanceConfig_RegenerateSecr
 
 
 	var instance models.AuthInstance
-	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
+	err := suite.DB.Where("instance_id = ?", suite.TestInstance).First(&instance).Error
 	suite.NoError(err)
 	suite.Equal(newSecret, instance.Secret, "Secret should be updated")
 	suite.NotEqual(oldSecret, instance.Secret, "Secret should be different from old one")
@@ -165,7 +165,7 @@ func (suite *SystemSettingTestSuite) Test_04_UpdateInstanceConfig_SessionSetting
 	}, "Should update secret successfully")
 
 	var instance models.AuthInstance
-	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
+	err := suite.DB.Where("instance_id = ?", suite.TestInstance).First(&instance).Error
 	suite.NoError(err)
 
 	suite.Equal(int64(1800), instance.ConfigData.SessionConfig.AccessTokenTTL)
@@ -193,7 +193,7 @@ func (suite *SystemSettingTestSuite) Test_05_UpdateInstanceConfig_URLSettings() 
 	}, "Should update secret successfully")
 
 	var instance models.AuthInstance
-	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
+	err := suite.DB.Where("instance_id = ?", suite.TestInstance).First(&instance).Error
 	suite.NoError(err)
 
 	suite.Equal("https://example.com", instance.ConfigData.SiteURL)
@@ -248,7 +248,7 @@ func (suite *SystemSettingTestSuite) Test_07_ConfigPersistence() {
 	}, nil)
 
 	var instance models.AuthInstance
-	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
+	err := suite.DB.Where("instance_id = ?", suite.TestInstance).First(&instance).Error
 	suite.NoError(err)
 
 	suite.Equal("http://persistence-test.com", instance.ConfigData.SiteURL)

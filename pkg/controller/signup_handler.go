@@ -69,7 +69,7 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 			c.Request.Context(),
 			userKey,
 			"signup_signin",
-			a.authService.GetDomainCode(),
+			a.authService.GetInstanceId(),
 			config.RatelimitConfig.SignUpSignInRateLimit,
 			config,
 		)
@@ -328,7 +328,7 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 			c.Request.Context(),
 			userKey,
 			"token_verification",
-			a.authService.GetDomainCode(),
+			a.authService.GetInstanceId(),
 			config.RatelimitConfig.TokenVerificationRateLimit,
 			config,
 		)
@@ -368,7 +368,7 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 		if err == nil {
 
 			if sessionID, ok := claims["session_id"].(uint); ok {
-				domainCode := a.authService.GetDomainCode()
+				instanceId := a.authService.GetInstanceId()
 				sessionService := services.NewSessionService(a.authService.GetDB())
 
 				config := a.authService.GetConfig()
@@ -387,7 +387,7 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 					"expiresAtUnix", expiresAt.Unix(),
 				)
 
-				err = sessionService.UpdateAALWithExpiry(c.Request.Context(), sessionID, domainCode, types.AALLevel2, &expiresAt)
+				err = sessionService.UpdateAALWithExpiry(c.Request.Context(), sessionID, instanceId, types.AALLevel2, &expiresAt)
 				if err != nil {
 					slog.Warn("Failed to upgrade AAL level", "sessionID", sessionID, "error", err)
 				} else {

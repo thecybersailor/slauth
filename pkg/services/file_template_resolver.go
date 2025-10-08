@@ -15,7 +15,7 @@ func NewFileTemplateResolver(basePath string) *FileTemplateResolver {
 	}
 }
 
-func (f *FileTemplateResolver) GetTemplate(domainCode, messageType, templateName string) ([]byte, bool) {
+func (f *FileTemplateResolver) GetTemplate(instanceId, messageType, templateName string) ([]byte, bool) {
 
 	templatePath := filepath.Join(f.basePath, messageType, templateName+".tmpl")
 

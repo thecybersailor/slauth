@@ -16,7 +16,7 @@ type OTPVerificationTestSuite struct {
 
 func (suite *OTPVerificationTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
 	suite.AuthService.OTPUse(func(ctx services.OTPContext, next func() error) error {
 		err := next()

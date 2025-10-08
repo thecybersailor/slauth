@@ -24,7 +24,7 @@
                         "AdminAuth": []
                     }
                 ],
-                "description": "Get configuration for the current domain instance",
+                "description": "Get configuration for the current instance instance",
                 "produces": [
                     "application/json"
                 ],
@@ -47,7 +47,7 @@
                         "AdminAuth": []
                     }
                 ],
-                "description": "Update configuration for the current domain instance",
+                "description": "Update configuration for the current instance instance",
                 "consumes": [
                     "application/json"
                 ],
@@ -1046,7 +1046,7 @@
                     ]
                 },
                 "redirect_urls": {
-                    "description": "Redirect URLs\nURLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.domain.com",
+                    "description": "Redirect URLs\nURLs that auth providers are permitted to redirect to post authentication. Wildcards are allowed, for example, https://*.instance.com",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1455,7 +1455,7 @@
                 "config": {
                     "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig"
                 },
-                "domain_code": {
+                "instance_id": {
                     "type": "string"
                 }
             }

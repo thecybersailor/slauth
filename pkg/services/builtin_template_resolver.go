@@ -10,7 +10,7 @@ func NewBuiltinTemplateResolver() *BuiltinTemplateResolver {
 	return &BuiltinTemplateResolver{}
 }
 
-func (b *BuiltinTemplateResolver) GetTemplate(domainCode, messageType, templateName string) ([]byte, bool) {
+func (b *BuiltinTemplateResolver) GetTemplate(instanceId, messageType, templateName string) ([]byte, bool) {
 
 	if templates, exists := consts.BuildinTemplates[messageType]; exists {
 

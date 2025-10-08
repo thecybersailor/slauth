@@ -11,22 +11,22 @@ import (
 
 var authServices = make(map[string]services.AuthService)
 
-func RegisterAuthService(domainCode, globalJWTSecret, globalAppSecret string, db *gorm.DB) services.AuthService {
-	if _, exists := authServices[domainCode]; exists {
-		panic(fmt.Sprintf("AuthService for domain '%s' already registered", domainCode))
+func RegisterAuthService(instanceId, globalJWTSecret, globalAppSecret string, db *gorm.DB) services.AuthService {
+	if _, exists := authServices[instanceId]; exists {
+		panic(fmt.Sprintf("AuthService for instance '%s' already registered", instanceId))
 	}
-	authService := services.NewAuthServiceImpl(db, domainCode, globalJWTSecret, globalAppSecret)
+	authService := services.NewAuthServiceImpl(db, instanceId, globalJWTSecret, globalAppSecret)
 
 	authService.SetEmailProvider(adapters.NewMailerAdapter(mailer.SMTPSender))
 
-	authServices[domainCode] = authService
+	authServices[instanceId] = authService
 	return authService
 }
 
-func GetAuthService(domainCode string) services.AuthService {
-	service, exists := authServices[domainCode]
+func GetAuthService(instanceId string) services.AuthService {
+	service, exists := authServices[instanceId]
 	if !exists {
-		panic(fmt.Sprintf("AuthService for domain '%s' not found", domainCode))
+		panic(fmt.Sprintf("AuthService for instance '%s' not found", instanceId))
 	}
 	return service
 }

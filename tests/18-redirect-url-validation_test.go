@@ -17,7 +17,7 @@ type RedirectURLValidationTestSuite struct {
 
 func (suite *RedirectURLValidationTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
-	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
+	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 }
 
 func TestRedirectURLValidation(t *testing.T) {
@@ -65,21 +65,21 @@ func (suite *RedirectURLValidationTestSuite) TestWildcardRedirectURLMatching() {
 
 	// Configure wildcard redirect URLs
 	allowedURLs := []string{
-		"https://*.example.com",        // Subdomain wildcard
+		"https://*.example.com",        // Subinstance wildcard
 		"https://app-*.production.com", // Middle wildcard
 	}
 
-	// Test Case 1: Valid subdomain
-	t.Log("Test Case 1: Valid subdomain match")
+	// Test Case 1: Valid subinstance
+	t.Log("Test Case 1: Valid subinstance match")
 	err := validatorService.ValidateRedirectURL("https://app.example.com/dashboard", allowedURLs)
-	suite.NoError(err, "Subdomain wildcard should match")
-	t.Log("✅ Subdomain wildcard matched correctly")
+	suite.NoError(err, "Subinstance wildcard should match")
+	t.Log("✅ Subinstance wildcard matched correctly")
 
-	// Test Case 2: Another valid subdomain
-	t.Log("Test Case 2: Another valid subdomain")
+	// Test Case 2: Another valid subinstance
+	t.Log("Test Case 2: Another valid subinstance")
 	err = validatorService.ValidateRedirectURL("https://admin.example.com/panel", allowedURLs)
-	suite.NoError(err, "Another subdomain should match")
-	t.Log("✅ Another subdomain matched correctly")
+	suite.NoError(err, "Another subinstance should match")
+	t.Log("✅ Another subinstance matched correctly")
 
 	// Test Case 3: Valid middle wildcard
 	t.Log("Test Case 3: Middle wildcard match")
@@ -87,17 +87,17 @@ func (suite *RedirectURLValidationTestSuite) TestWildcardRedirectURLMatching() {
 	suite.NoError(err, "Middle wildcard should match")
 	t.Log("✅ Middle wildcard matched correctly")
 
-	// Test Case 4: Invalid domain (should not match)
-	t.Log("Test Case 4: Invalid domain should not match wildcard")
+	// Test Case 4: Invalid instance (should not match)
+	t.Log("Test Case 4: Invalid instance should not match wildcard")
 	err = validatorService.ValidateRedirectURL("https://app.evil-example.com/phishing", allowedURLs)
-	suite.Error(err, "Should not match different domain")
-	t.Log("✅ Invalid domain rejected correctly")
+	suite.Error(err, "Should not match different instance")
+	t.Log("✅ Invalid instance rejected correctly")
 
-	// Test Case 5: Exact domain without subdomain (should not match *.example.com)
-	t.Log("Test Case 5: Root domain without subdomain")
+	// Test Case 5: Exact instance without subinstance (should not match *.example.com)
+	t.Log("Test Case 5: Root instance without subinstance")
 	err = validatorService.ValidateRedirectURL("https://example.com/page", allowedURLs)
-	suite.Error(err, "Root domain should not match subdomain wildcard")
-	t.Log("✅ Root domain handled correctly")
+	suite.Error(err, "Root instance should not match subinstance wildcard")
+	t.Log("✅ Root instance handled correctly")
 }
 
 // TestDangerousProtocolRedirects tests rejection of dangerous URL protocols
@@ -253,7 +253,7 @@ func (suite *RedirectURLValidationTestSuite) TestCaseSensitiveURLMatching() {
 
 	validatorService := services.NewValidatorService()
 	allowedURLs := []string{
-		"https://APP.example.com", // Uppercase subdomain
+		"https://APP.example.com", // Uppercase subinstance
 	}
 
 	// Test case variations
@@ -263,7 +263,7 @@ func (suite *RedirectURLValidationTestSuite) TestCaseSensitiveURLMatching() {
 		description string
 	}{
 		{"https://APP.example.com/page", true, "Exact case match"},
-		{"https://app.example.com/page", false, "Lowercase subdomain"},
+		{"https://app.example.com/page", false, "Lowercase subinstance"},
 		{"https://App.example.com/page", false, "Mixed case"},
 	}
 
@@ -274,7 +274,7 @@ func (suite *RedirectURLValidationTestSuite) TestCaseSensitiveURLMatching() {
 		if tc.shouldMatch {
 			suite.NoError(err, "Should match: %s", tc.description)
 		} else {
-			// Note: URL matching is typically case-insensitive for domains
+			// Note: URL matching is typically case-insensitive for instances
 			// This test documents the actual behavior
 			t.Logf("Result for %s: %v", tc.description, err == nil)
 		}

@@ -53,7 +53,7 @@ type AuthService interface {
 	GetOTPService() *OTPService
 	GetDB() *gorm.DB
 
-	GetDomainCode() string
+	GetInstanceId() string
 	GetConfig() *config.AuthServiceConfig
 	GetUserService() *UserService
 	SaveConfig(cfg *config.AuthServiceConfig) error
@@ -62,7 +62,7 @@ type AuthService interface {
 	GetAdminIdentityService() *AdminIdentityService
 	GetAdminSystemService() *AdminSystemService
 
-	GetMessageTemplate(domainCode, messageType, templateName string) (types.MessageTemplate, bool)
+	GetMessageTemplate(instanceId, messageType, templateName string) (types.MessageTemplate, bool)
 
 	SignupUse(middleware func(ctx SignupContext, next func() error) error) AuthService
 	SigninUse(middleware func(ctx SigninContext, next func() error) error) AuthService

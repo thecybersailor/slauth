@@ -44,7 +44,7 @@ type SignInWithIdTokenOptions struct {
 // SignInWithSSORequest represents SSO login request
 type SignInWithSSORequest struct {
 	ProviderId string                `json:"providerId,omitempty"`
-	Domain     string                `json:"domain,omitempty"`
+	Instance   string                `json:"instance,omitempty"`
 	Options    *SignInWithSSOOptions `json:"options,omitempty"`
 }
 

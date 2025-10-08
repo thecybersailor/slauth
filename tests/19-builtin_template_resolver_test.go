@@ -10,7 +10,7 @@ func TestBuiltinTemplateResolver(t *testing.T) {
 	resolver := services.NewBuiltinTemplateResolver()
 
 	tests := []struct {
-		domainCode   string
+		instanceId   string
 		messageType  string
 		templateName string
 		shouldExist  bool
@@ -31,21 +31,21 @@ func TestBuiltinTemplateResolver(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.messageType+"/"+tt.templateName, func(t *testing.T) {
-			templateBytes, found := resolver.GetTemplate(tt.domainCode, tt.messageType, tt.templateName)
+			templateBytes, found := resolver.GetTemplate(tt.instanceId, tt.messageType, tt.templateName)
 
 			if found != tt.shouldExist {
 				t.Errorf("GetTemplate(%s, %s, %s) = %v, want %v",
-					tt.domainCode, tt.messageType, tt.templateName, found, tt.shouldExist)
+					tt.instanceId, tt.messageType, tt.templateName, found, tt.shouldExist)
 			}
 
 			if tt.shouldExist && len(templateBytes) == 0 {
 				t.Errorf("GetTemplate(%s, %s, %s) returned empty template",
-					tt.domainCode, tt.messageType, tt.templateName)
+					tt.instanceId, tt.messageType, tt.templateName)
 			}
 
 			if !tt.shouldExist && templateBytes != nil {
 				t.Errorf("GetTemplate(%s, %s, %s) returned non-nil template when should not exist",
-					tt.domainCode, tt.messageType, tt.templateName)
+					tt.instanceId, tt.messageType, tt.templateName)
 			}
 		})
 	}
