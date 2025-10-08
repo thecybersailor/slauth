@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
 	"github.com/thecybersailor/slauth/pkg/services"
 	"github.com/thecybersailor/slauth/pkg/types"
@@ -80,6 +81,37 @@ func AuthenticateUserFlow(signinCtx services.SigninContext) core.Flow[core.Signi
 
 		slog.Info("Flow: AuthenticateUser - User authenticated", "userID", user.ID)
 
+		return next()
+	}
+}
+
+// CheckEmailConfirmationFlow Check if email confirmation is required and if user's email is confirmed
+func CheckEmailConfirmationFlow(signinCtx services.SigninContext) core.Flow[core.SigninData] {
+	return func(ctx *core.Context[core.SigninData], next func() error) error {
+		slog.Info("Flow: CheckEmailConfirmation - Before")
+
+		// Get configuration
+		config := signinCtx.Service().GetConfig()
+
+		// Only check if email confirmation is enabled
+		if config.ConfirmEmail == nil || !*config.ConfirmEmail {
+			slog.Info("Flow: CheckEmailConfirmation - Email confirmation not required, skipping")
+			return next()
+		}
+
+		// Get user from context
+		user := signinCtx.Response().User
+		if user == nil {
+			return fmt.Errorf("user not found in signin context")
+		}
+
+		// Check if user's email is confirmed
+		if !user.IsEmailConfirmed() {
+			slog.Warn("Flow: CheckEmailConfirmation - Email not confirmed", "userID", user.ID, "email", user.GetEmail())
+			return consts.EMAIL_NOT_CONFIRMED
+		}
+
+		slog.Info("Flow: CheckEmailConfirmation - Email confirmed", "userID", user.ID)
 		return next()
 	}
 }
@@ -161,6 +193,7 @@ func CreatePasswordSigninChain(request *http.Request, signinCtx services.SigninC
 	return core.NewChain[core.SigninData](
 		core.LoggingFlow[core.SigninData](),
 		AuthenticateUserFlow(signinCtx),
+		CheckEmailConfirmationFlow(signinCtx), // Check email confirmation before creating session
 		CreateSessionFlow(signinCtx),
 	)
 }

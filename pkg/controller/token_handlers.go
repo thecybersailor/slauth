@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"log/slog"
+
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/services"
@@ -35,6 +37,29 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		return err
 	}
 
+	// Check token refresh rate limit
+	config := a.authService.GetConfig()
+	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
+	if ok {
+		rateLimitService := authServiceImpl.GetRateLimitService()
+		allowed, err := rateLimitService.CheckAndRecordRequest(
+			c.Request.Context(),
+			refreshTokenRecord.UserID,
+			"token_refresh",
+			a.authService.GetDomainCode(),
+			config.RatelimitConfig.TokenRefreshRateLimit,
+			config,
+		)
+		if err != nil {
+			slog.Error("RefreshToken: Rate limit check failed", "error", err)
+			return err
+		}
+		if !allowed {
+			slog.Warn("RefreshToken: Rate limit exceeded", "userID", refreshTokenRecord.UserID)
+			return consts.OVER_REQUEST_RATE_LIMIT
+		}
+	}
+
 	// Get user by real ID (since refresh token stores real ID)
 	// We need to get the user service from auth service to access the database
 	userService := a.authService.GetUserService()
@@ -56,7 +81,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		c.GetHeader("User-Agent"), c.ClientIP(),
 	)
 	if err != nil {
-		return consts.UNEXPECTED_FAILURE
+		return err // Return original error instead of wrapping
 	}
 
 	// Revoke old refresh token (token rotation)

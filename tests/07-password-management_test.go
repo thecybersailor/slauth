@@ -682,7 +682,15 @@ func (suite *PasswordManagementTestSuite) TestPasswordUpdateRateLimit() {
 	}
 
 	loginResponseAAL1 := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBodyAAL1)
-	suite.Equal(200, loginResponseAAL1.ResponseRecorder.Code, "AAL1 login should succeed")
+
+	// Debug: Print login response
+	if loginResponseAAL1.Response.Error != nil {
+		suite.T().Logf("DEBUG: AAL1 login failed with error: %+v", loginResponseAAL1.Response.Error)
+		suite.T().Logf("DEBUG: Trying to login with password: Password4!")
+	}
+
+	// AAL1 login should succeed
+	suite.Nil(loginResponseAAL1.Response.Error, "AAL1 login should succeed without error")
 
 	responseDataAAL1, ok := loginResponseAAL1.Response.Data.(map[string]any)
 	suite.True(ok, "AAL1 login response data should be a map")

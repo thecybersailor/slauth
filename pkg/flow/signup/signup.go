@@ -242,7 +242,7 @@ func CreateSignupChain(request *http.Request, signupCtx services.SignupContext) 
 
 	// Only add confirmation flows if email confirmation is enabled
 	config := signupCtx.Service().GetConfig()
-	if config.ConfirmEmail {
+	if config.ConfirmEmail != nil && *config.ConfirmEmail {
 		chain.Use(GenerateConfirmationURLFlow(signupCtx))
 		chain.Use(SendConfirmationEmailFlow(signupCtx))
 		// SendConfirmationSMSFlow(signupCtx), // Enable if SMS sending is needed

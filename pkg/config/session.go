@@ -5,32 +5,32 @@ import "time"
 type SessionConfig struct {
 	// Detect and revoke potentially compromised refresh tokens
 	// Prevent replay attacks from potentially compromised refresh tokens.
-	RevokeCompromisedRefreshTokens bool
+	RevokeCompromisedRefreshTokens bool `json:"revoke_compromised_refresh_tokens"`
 
 	// Refresh token reuse interval
 	// Time interval where the same refresh token can be used multiple times
 	// to request for an access token. Recommendation: 10 seconds.
-	RefreshTokenReuseInterval time.Duration
+	RefreshTokenReuseInterval time.Duration `json:"refresh_token_reuse_interval"`
 
 	// Enforce single session per user
 	// If enabled, all but a user's most recently active session will be terminated.
-	EnforceSingleSessionPerUser bool
+	EnforceSingleSessionPerUser bool `json:"enforce_single_session_per_user"`
 
 	// Time-box user sessions
 	// The amount of time before a user is forced to sign in again. Use 0 for never.
-	TimeBoxUserSessions time.Duration
+	TimeBoxUserSessions time.Duration `json:"time_box_user_sessions"`
 
 	// Inactivity timeout
 	// The amount of time a user needs to be inactive to be forced to sign in again. Use 0 for never.
-	InactivityTimeout time.Duration
+	InactivityTimeout time.Duration `json:"inactivity_timeout"`
 
 	// Access token TTL
 	// The time-to-live (TTL) for access tokens. Recommendation: 1 hour.
-	AccessTokenTTL time.Duration
+	AccessTokenTTL time.Duration `json:"access_token_ttl"`
 
 	// Refresh token TTL
 	// The time-to-live (TTL) for refresh tokens. Recommendation: 1 week.
-	RefreshTokenTTL time.Duration
+	RefreshTokenTTL time.Duration `json:"refresh_token_ttl"`
 }
 
 // GetDefaultSessionConfig returns the default session configuration

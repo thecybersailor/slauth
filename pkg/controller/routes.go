@@ -97,16 +97,15 @@ func handleTokenEndpoint(c *pin.Context, authService services.AuthService) error
 
 	switch grantType {
 	case "password":
-		return authController.SignInWithPassword(c) // FLOW: Password login - requires authentication, session creation, MFA check
+		return authController.SignInWithPassword(c)
 	case "refresh_token":
-		return authController.RefreshToken(c) // SIMPLE: Refresh token - simple token validation and generation
+		return authController.RefreshToken(c)
 	case "pkce":
-		return authController.ExchangeCodeForSession(c) // FLOW: PKCE code exchange - requires code validation, session creation
+		return authController.ExchangeCodeForSession(c)
 	case "id_token":
-		return authController.SignInWithIdToken(c) // FLOW: ID Token login - requires token validation, user creation/association
+		return authController.SignInWithIdToken(c)
 	default:
-		// Default to password grant for backward compatibility
-		return authController.SignInWithPassword(c) // FLOW: Default password login
+		return authController.SignInWithPassword(c)
 	}
 }
 

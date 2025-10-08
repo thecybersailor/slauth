@@ -23,14 +23,13 @@ func NewRateLimitService(appSecret string) *RateLimitService {
 	}
 }
 
-func (s *RateLimitService) generateKey(userID uint, action, domainCode string) string {
-
+func (s *RateLimitService) generateKey(userID uint, action, domainCode string, configUpdatedAt int64) string {
 	appSecretHash := fmt.Sprintf("%x", md5.Sum([]byte(s.appSecret)))[:8]
-	return fmt.Sprintf("rate_limit:%s:%s:%d:%s", appSecretHash, domainCode, userID, action)
+	return fmt.Sprintf("rate_limit:%s:%s:%d:%d:%s", appSecretHash, domainCode, configUpdatedAt, userID, action)
 }
 
-func (s *RateLimitService) CheckRateLimit(ctx context.Context, userID uint, action, domainCode string, rateLimit config.RateLimit) (bool, error) {
-	key := s.generateKey(userID, action, domainCode)
+func (s *RateLimitService) CheckRateLimit(ctx context.Context, userID uint, action, domainCode string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
+	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
 
 	now := time.Now()
 	windowStart := now.Add(-rateLimit.WindowDuration)
@@ -58,8 +57,8 @@ func (s *RateLimitService) CheckRateLimit(ctx context.Context, userID uint, acti
 	return allowed, nil
 }
 
-func (s *RateLimitService) RecordRequest(ctx context.Context, userID uint, action, domainCode string) error {
-	key := s.generateKey(userID, action, domainCode)
+func (s *RateLimitService) RecordRequest(ctx context.Context, userID uint, action, domainCode string, cfg *config.AuthServiceConfig) error {
+	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
 	now := time.Now()
 
 	err := redis.RedisClient.ZAdd(ctx, key, redisv9.Z{
@@ -105,8 +104,8 @@ func (s *RateLimitService) CleanupOldRecords(ctx context.Context, maxAge time.Du
 	return nil
 }
 
-func (s *RateLimitService) GetRequestCount(ctx context.Context, userID uint, action, domainCode string, windowDuration time.Duration) (int64, error) {
-	key := s.generateKey(userID, action, domainCode)
+func (s *RateLimitService) GetRequestCount(ctx context.Context, userID uint, action, domainCode string, windowDuration time.Duration, cfg *config.AuthServiceConfig) (int64, error) {
+	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
 	now := time.Now()
 	windowStart := now.Add(-windowDuration)
 
@@ -121,8 +120,9 @@ func (s *RateLimitService) GetRequestCount(ctx context.Context, userID uint, act
 	return count, nil
 }
 
-func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userID uint, action, domainCode string, rateLimit config.RateLimit) (bool, error) {
-	key := s.generateKey(userID, action, domainCode)
+func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userID uint, action, domainCode string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
+	configUpdatedAt := cfg.UpdatedAt().Unix()
+	key := s.generateKey(userID, action, domainCode, configUpdatedAt)
 	now := time.Now()
 	windowStart := now.Add(-rateLimit.WindowDuration)
 
@@ -174,5 +174,18 @@ func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userID uin
 
 func (s *RateLimitService) EnsureTableExists(ctx context.Context) error {
 
+	return nil
+}
+
+func (s *RateLimitService) ClearUserActionRateLimit(ctx context.Context, userID uint, action, domainCode string, cfg *config.AuthServiceConfig) error {
+	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
+
+	err := redis.RedisClient.Del(ctx, key).Err()
+	if err != nil {
+		slog.Error("RateLimit: Failed to clear user action rate limit", "error", err, "userID", userID, "action", action)
+		return err
+	}
+
+	slog.Info("RateLimit: Cleared user action rate limit", "userID", userID, "action", action)
 	return nil
 }

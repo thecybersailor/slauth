@@ -5,7 +5,7 @@ go 1.24.4
 require (
 	github.com/flaboy/aira-core v1.0.1
 	github.com/flaboy/envconf v1.0.3
-	github.com/flaboy/pin v0.9.8
+	github.com/flaboy/pin v0.9.9
 	github.com/gin-gonic/gin v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/thecybersailor/slauth v0.0.0

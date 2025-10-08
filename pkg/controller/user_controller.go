@@ -219,7 +219,7 @@ func (u *UserController) Resend(c *pin.Context) error {
 		err := chain.Execute(otpCtx)
 		if err != nil {
 			slog.Error("Failed to resend email verification", "email", req.Email, "error", err)
-			return consts.UNEXPECTED_FAILURE
+			return err
 		}
 
 		messageID = otpCtx.Response().MessageID
@@ -240,7 +240,7 @@ func (u *UserController) Resend(c *pin.Context) error {
 		err := chain.Execute(otpCtx)
 		if err != nil {
 			slog.Error("Failed to resend SMS verification", "phone", req.Phone, "error", err)
-			return consts.UNEXPECTED_FAILURE
+			return err
 		}
 
 		messageID = otpCtx.Response().MessageID

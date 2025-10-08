@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"time"
 
+	"github.com/flaboy/pin"
 	"github.com/gin-gonic/gin"
 	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -44,6 +46,7 @@ type AuthServiceImpl struct {
 	sessionService      *SessionService
 	refreshTokenService *RefreshTokenService
 	otTokenService      *OneTimeTokenService
+	rateLimitService    *RateLimitService
 
 	// Admin service layers
 	adminSessionService  *AdminSessionService
@@ -70,10 +73,18 @@ func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecre
 	// Load config for the first time
 	cfg := configLoader.GetConfig()
 
+	// Create service instance first (without jwtService)
+	s := &AuthServiceImpl{
+		db:           db,
+		configLoader: configLoader,
+		domainCode:   domainCode,
+	}
+
+	// Now create jwtService with closure that references configLoader
 	jwtService := NewJWTService(
 		cfg.JWTSecret,
-		cfg.SessionConfig.AccessTokenTTL,
-		cfg.SessionConfig.RefreshTokenTTL,
+		func() time.Duration { return configLoader.GetConfig().SessionConfig.AccessTokenTTL },
+		func() time.Duration { return configLoader.GetConfig().SessionConfig.RefreshTokenTTL },
 		cfg.AuthServiceBaseUrl,
 	)
 
@@ -85,37 +96,41 @@ func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecre
 	sessionService := NewSessionService(db)
 	passwordService := NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore)
 
-	return &AuthServiceImpl{
-		db:              db,
-		configLoader:    configLoader,
-		jwtService:      jwtService,
-		passwordService: passwordService,
-		otpService:      NewOTPService(cfg.AuthServiceBaseUrl),
-		validator:       NewValidatorService(),
-		domainCode:      domainCode,
+	// Set all fields
+	s.jwtService = jwtService
+	s.passwordService = passwordService
+	s.otpService = NewOTPService(cfg.AuthServiceBaseUrl)
+	s.validator = NewValidatorService()
+	s.userService = userService
+	s.sessionService = sessionService
+	s.refreshTokenService = NewRefreshTokenService(db)
+	s.otTokenService = NewOneTimeTokenService(db)
+	s.rateLimitService = NewRateLimitService(cfg.AppSecret)
 
-		// Initialize service layers
-		userService:         userService,
-		sessionService:      sessionService,
-		refreshTokenService: NewRefreshTokenService(db),
-		otTokenService:      NewOneTimeTokenService(db),
+	// Initialize admin service layers
+	s.adminSessionService = NewAdminSessionService(db, sessionService)
+	s.adminIdentityService = NewAdminIdentityService(db)
+	s.adminSystemService = NewAdminSystemService(db, userService, NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore), domainCode)
 
-		// Initialize admin service layers
-		adminSessionService:  NewAdminSessionService(db, sessionService),
-		adminIdentityService: NewAdminIdentityService(db),
-		adminSystemService:   NewAdminSystemService(db, userService, NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore), domainCode),
-
-		// Initialize middleware slices
-		signupMiddlewares:   make([]func(ctx SignupContext, next func() error) error, 0),
-		signinMiddlewares:   make([]func(ctx SigninContext, next func() error) error, 0),
-		passwordMiddlewares: make([]func(ctx PasswordContext, next func() error) error, 0),
-		otpMiddlewares:      make([]func(ctx OTPContext, next func() error) error, 0),
-
-		// Initialize builtin template resolver as fallback
-		messageTemplateResolvers: []types.MessageTemplateResolver{
-			NewBuiltinTemplateResolver(),
+	// Initialize middleware slices
+	s.signupMiddlewares = make([]func(ctx SignupContext, next func() error) error, 0)
+	s.signinMiddlewares = make([]func(ctx SigninContext, next func() error) error, 0)
+	s.passwordMiddlewares = make([]func(ctx PasswordContext, next func() error) error, 0)
+	s.otpMiddlewares = []func(ctx OTPContext, next func() error) error{
+		func(ctx OTPContext, next func() error) error {
+			return checkEmailRateLimitWrapper(ctx, next)
+		},
+		func(ctx OTPContext, next func() error) error {
+			return checkSMSRateLimitWrapper(ctx, next)
 		},
 	}
+
+	// Initialize builtin template resolver as fallback
+	s.messageTemplateResolvers = []types.MessageTemplateResolver{
+		NewBuiltinTemplateResolver(),
+	}
+
+	return s
 }
 
 // AuthenticateUser authenticates user with email/phone and password
@@ -205,6 +220,17 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 
 // CreateSession creates a new session for user
 func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error) {
+	// Check if single session per user is enforced
+	config := s.GetConfig()
+	if config.SessionConfig.EnforceSingleSessionPerUser {
+		// Terminate all existing sessions for this user
+		s.db.Where("user_id = ? AND domain_code = ?", user.ID, s.domainCode).Delete(&models.Session{})
+		// Revoke all existing refresh tokens for this user
+		s.db.Model(&models.RefreshToken{}).
+			Where("user_id = ? AND domain_code = ?", user.ID, s.domainCode).
+			Update("revoked", true)
+	}
+
 	// Create session record
 	now := time.Now()
 	session := &models.Session{
@@ -216,6 +242,12 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 		RefreshedAt: &now,
 		UserAgent:   &userAgent,
 		IP:          &ip,
+	}
+
+	// Set session expiration if time-box is configured
+	if config.SessionConfig.TimeBoxUserSessions > 0 {
+		notAfter := now.Add(config.SessionConfig.TimeBoxUserSessions)
+		session.NotAfter = &notAfter
 	}
 
 	if err := s.db.Create(session).Error; err != nil {
@@ -293,7 +325,15 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 	// Get existing session
 	var session models.Session
 	if err := s.db.First(&session, sessionID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, "", "", 0, consts.SESSION_NOT_FOUND
+		}
 		return nil, "", "", 0, err
+	}
+
+	// Check if session has expired (time-box)
+	if session.NotAfter != nil && session.NotAfter.Before(time.Now()) {
+		return nil, "", "", 0, consts.SESSION_EXPIRED
 	}
 
 	// Update session refresh time and metadata
@@ -450,9 +490,23 @@ func (s *AuthServiceImpl) ValidateJWT(token string) (map[string]any, error) {
 		return nil, consts.SESSION_NOT_FOUND
 	}
 
-	// Check if session is revoked (not_after is set)
-	if session.NotAfter != nil {
+	// Check if session has expired (time-box)
+	if session.NotAfter != nil && session.NotAfter.Before(time.Now()) {
 		return nil, consts.SESSION_EXPIRED
+	}
+
+	// Check for inactivity timeout
+	config := s.GetConfig()
+	if config.SessionConfig.InactivityTimeout > 0 && session.RefreshedAt != nil {
+		inactiveTime := time.Since(*session.RefreshedAt)
+		slog.Info("ValidateJWT: Checking inactivity timeout",
+			"refreshedAt", session.RefreshedAt,
+			"inactiveTime", inactiveTime,
+			"timeout", config.SessionConfig.InactivityTimeout)
+		if inactiveTime > config.SessionConfig.InactivityTimeout {
+			slog.Info("ValidateJWT: Session expired due to inactivity")
+			return nil, consts.SESSION_EXPIRED
+		}
 	}
 
 	// AAL timeout check is now automatically handled by Session model's AfterFind hook
@@ -581,6 +635,16 @@ func (s *AuthServiceImpl) GetOneTimeTokenService() *OneTimeTokenService {
 	return s.otTokenService
 }
 
+// GetRateLimitService returns the rate limit service
+func (s *AuthServiceImpl) GetRateLimitService() *RateLimitService {
+	return s.rateLimitService
+}
+
+// GetConfigLoader returns the config loader
+func (s *AuthServiceImpl) GetConfigLoader() *ConfigLoader {
+	return s.configLoader
+}
+
 // GetUserService returns the user service
 func (s *AuthServiceImpl) GetUserService() *UserService {
 	return s.userService
@@ -653,6 +717,8 @@ func (s *AuthServiceImpl) domainMiddleware() gin.HandlerFunc {
 // RequestValidator returns JWT validation middleware
 func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		pinCtx := pin.Context{Context: c}
+
 		// Set domain context
 		authCtx := &AuthContext{
 			DomainCode:  s.domainCode,
@@ -663,7 +729,7 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		// Extract JWT token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(401, gin.H{"error": "Missing authorization token"})
+			pinCtx.RenderError(consts.NO_AUTHORIZATION)
 			c.Abort()
 			return
 		}
@@ -674,7 +740,7 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		}
 
 		if token == "" {
-			c.JSON(401, gin.H{"error": "Invalid authorization format"})
+			pinCtx.RenderError(consts.BAD_JWT)
 			c.Abort()
 			return
 		}
@@ -682,7 +748,8 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		// Validate JWT
 		claims, err := s.ValidateJWT(token)
 		if err != nil {
-			c.JSON(401, gin.H{"error": "Invalid token"})
+			// Return the actual error from ValidateJWT (e.g., SESSION_EXPIRED, SESSION_NOT_FOUND)
+			pinCtx.RenderError(err)
 			c.Abort()
 			return
 		}
@@ -693,14 +760,14 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		// Load user information
 		userID, ok := claims["user_id"].(string)
 		if !ok {
-			c.JSON(401, gin.H{"error": "Invalid user ID in token"})
+			pinCtx.RenderError(consts.BAD_JWT)
 			c.Abort()
 			return
 		}
 
 		user, err := s.GetUserService().GetByHashID(c.Request.Context(), userID)
 		if err != nil {
-			c.JSON(401, gin.H{"error": "User not found"})
+			pinCtx.RenderError(consts.USER_NOT_FOUND)
 			c.Abort()
 			return
 		}
@@ -802,4 +869,86 @@ func (s *AuthServiceImpl) GetMFAProvider(name string) (types.MFAProvider, bool) 
 		return nil, false
 	}
 	return s.mfaProviders[name], true
+}
+
+func checkEmailRateLimitWrapper(ctx OTPContext, next func() error) error {
+	req := ctx.Request()
+	if req.Email == "" {
+		return next()
+	}
+
+	authService := ctx.Service()
+	authServiceImpl, ok := authService.(*AuthServiceImpl)
+	if !ok {
+		return next()
+	}
+
+	config := authServiceImpl.GetConfigLoader().GetConfig()
+	rateLimitService := authServiceImpl.GetRateLimitService()
+
+	var userID uint = 0
+	user, err := authServiceImpl.GetUserService().GetByEmail(ctx, req.Email)
+	if err == nil && user != nil {
+		userID = user.ID
+	}
+
+	allowed, err := rateLimitService.CheckAndRecordRequest(
+		ctx,
+		userID,
+		"email_send",
+		authService.GetDomainCode(),
+		config.RatelimitConfig.EmailRateLimit,
+		config,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if !allowed {
+		return consts.OVER_EMAIL_SEND_RATE_LIMIT
+	}
+
+	return next()
+}
+
+func checkSMSRateLimitWrapper(ctx OTPContext, next func() error) error {
+	req := ctx.Request()
+	if req.Phone == "" {
+		return next()
+	}
+
+	authService := ctx.Service()
+	authServiceImpl, ok := authService.(*AuthServiceImpl)
+	if !ok {
+		return next()
+	}
+
+	config := authServiceImpl.GetConfigLoader().GetConfig()
+	rateLimitService := authServiceImpl.GetRateLimitService()
+
+	var userID uint = 0
+	user, err := GetUserByPhone(ctx, authServiceImpl.GetDB(), authService.GetDomainCode(), req.Phone)
+	if err == nil && user != nil {
+		userID = user.ID
+	}
+
+	allowed, err := rateLimitService.CheckAndRecordRequest(
+		ctx,
+		userID,
+		"sms_send",
+		authService.GetDomainCode(),
+		config.RatelimitConfig.SMSRateLimit,
+		config,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if !allowed {
+		return consts.OVER_SMS_SEND_RATE_LIMIT
+	}
+
+	return next()
 }

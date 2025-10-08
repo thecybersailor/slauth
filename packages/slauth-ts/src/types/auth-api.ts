@@ -45,6 +45,8 @@ export interface SignUpOptions {
   captchaToken?: string;
   /** sms, whatsapp */
   channel?: string;
+  /** Additional data like is_anonymous */
+  data?: Record<string, any>;
   emailRedirectTo?: string;
   redirect_to?: string;
 }

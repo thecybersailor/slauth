@@ -47,6 +47,52 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 		return consts.UNEXPECTED_FAILURE
 	}
 
+	// Check if this is an anonymous sign-up
+	isAnonymous := false
+	if req.Options != nil && req.Options.Data != nil {
+		if val, ok := req.Options.Data["is_anonymous"].(bool); ok && val {
+			isAnonymous = true
+		}
+	}
+
+	// Check sign-up/sign-in rate limit first
+	config := a.authService.GetConfig()
+	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
+	if ok {
+		rateLimitService := authServiceImpl.GetRateLimitService()
+		allowed, err := rateLimitService.CheckAndRecordRequest(
+			c.Request.Context(),
+			0, // No user ID yet for signup
+			"signup_signin",
+			a.authService.GetDomainCode(),
+			config.RatelimitConfig.SignUpSignInRateLimit,
+			config,
+		)
+		if err != nil {
+			slog.Error("SignUp: Rate limit check failed", "error", err)
+			return err
+		}
+		if !allowed {
+			slog.Warn("SignUp: Rate limit exceeded")
+			return consts.OVER_REQUEST_RATE_LIMIT
+		}
+	}
+
+	// Check configuration based on signup type
+	if isAnonymous {
+		// Check if anonymous sign-ins are allowed
+		if config.AnonymousSignIns == nil || !*config.AnonymousSignIns {
+			slog.Warn("SignUp: Anonymous sign-ins are disabled")
+			return consts.ANONYMOUS_PROVIDER_DISABLED
+		}
+	} else {
+		// Check if new user registration is allowed
+		if config.AllowNewUsers == nil || !*config.AllowNewUsers {
+			slog.Warn("SignUp: New user registration is disabled")
+			return consts.SIGNUPS_DISABLED
+		}
+	}
+
 	signupCtx := signup.NewSignupContext(c.Request.Context(), a.authService, c.Request, req)
 
 	chain := signup.CreateSignupChain(c.Request, signupCtx)
@@ -108,9 +154,12 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 
 	// If email confirmation is disabled, create session automatically
 	var sessionData *Session
-	config := a.authService.GetConfig()
 
-	if !config.ConfirmEmail && signupCtx.Response().User != nil {
+	slog.Info("SignUp: Checking email confirmation config",
+		"confirm_email_ptr", config.ConfirmEmail,
+		"confirm_email_val", config.ConfirmEmail != nil && *config.ConfirmEmail)
+
+	if (config.ConfirmEmail == nil || !*config.ConfirmEmail) && signupCtx.Response().User != nil {
 		user := signupCtx.Response().User
 		slog.Info("SignUp: Email confirmation disabled, creating session", "userID", user.User.ID)
 
@@ -162,24 +211,33 @@ func (a *AuthController) SendVerificationCode(c *pin.Context) error {
 
 	slog.Info("SendVerificationCode request received", "email", req.Email)
 
-	if req.Email == "" {
+	if req.Email == "" && req.Phone == "" {
 		return consts.VALIDATION_FAILED
 	}
 
-	if !isValidEmail(req.Email) {
+	if req.Email != "" && !isValidEmail(req.Email) {
 		return consts.VALIDATION_FAILED
 	}
 
-	otpCtx := otp.NewOTPContext(c.Request.Context(), a.authService, c.Request, req)
+	if req.Phone != "" && !isValidPhone(req.Phone) {
+		return consts.VALIDATION_FAILED
+	}
+
+	otpReq := &types.SendOTPRequest{
+		Email: req.Email,
+		Phone: req.Phone,
+	}
+
+	otpCtx := otp.NewOTPContext(c.Request.Context(), a.authService, c.Request, otpReq)
 
 	chain := otp.CreateOTPChain(otpCtx)
 	err := chain.Execute(otpCtx)
 	if err != nil {
-		slog.Error("Failed to send verification code", "error", err, "email", req.Email)
-		return consts.UNEXPECTED_FAILURE
+		slog.Error("Failed to send verification code", "error", err, "email", req.Email, "phone", req.Phone)
+		return err
 	}
 
-	slog.Info("Verification code sent successfully", "email", req.Email)
+	slog.Info("Verification code sent successfully", "email", req.Email, "phone", req.Phone)
 
 	resp := &SendOTPResponse{
 		MessageID: otpCtx.Response().MessageID,
@@ -249,6 +307,42 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 	}
 
 	slog.Info("VerifyEmailCode request received", "email", req.Email, "token", req.Token)
+
+	// Check token verification rate limit
+	config := a.authService.GetConfig()
+	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
+	if ok {
+		rateLimitService := authServiceImpl.GetRateLimitService()
+		var userID uint = 0
+		if req.Email != "" {
+			user, err := authServiceImpl.GetUserService().GetByEmail(c.Request.Context(), req.Email)
+			if err == nil && user != nil {
+				userID = user.ID
+			}
+		} else if req.Phone != "" {
+			user, err := services.GetUserByPhone(c.Request.Context(), authServiceImpl.GetDB(), a.authService.GetDomainCode(), req.Phone)
+			if err == nil && user != nil {
+				userID = user.ID
+			}
+		}
+
+		allowed, err := rateLimitService.CheckAndRecordRequest(
+			c.Request.Context(),
+			userID,
+			"token_verification",
+			a.authService.GetDomainCode(),
+			config.RatelimitConfig.TokenVerificationRateLimit,
+			config,
+		)
+		if err != nil {
+			slog.Error("VerifyEmailCode: Rate limit check failed", "error", err)
+			return err
+		}
+		if !allowed {
+			slog.Warn("VerifyEmailCode: Rate limit exceeded", "email", req.Email, "phone", req.Phone)
+			return consts.OVER_REQUEST_RATE_LIMIT
+		}
+	}
 
 	if len(req.Token) != 6 {
 		slog.Warn("Invalid verification code length", "email", req.Email, "token_length", len(req.Token))

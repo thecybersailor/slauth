@@ -2,12 +2,10 @@ package password
 
 import (
 	"context"
-	"crypto/md5"
 	"fmt"
 	"log/slog"
 	"net/http"
 
-	"github.com/flaboy/aira-core/pkg/redis"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
 	"github.com/thecybersailor/slauth/pkg/services"
@@ -213,6 +211,7 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 			"password_update",
 			passwordCtx.Service().GetDomainCode(),
 			rateLimit,
+			config,
 		)
 		if err != nil {
 			slog.Error("Flow: UpdatePassword - Rate limit check failed", "error", err)
@@ -275,11 +274,11 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 		// This allows users to update password immediately after AAL upgrade
 		if types.AALLevel(currentAAL) == types.AALLevel2 {
 			slog.Info("Flow: UpdatePassword - AAL2 detected, resetting rate limit", "userID", ctx.Data.UserID)
-			// Clear password update rate limit record for this user
-			// Use same key generation logic as RateLimitService
-			appSecretHash := fmt.Sprintf("%x", md5.Sum([]byte(appSecret)))[:8]
-			key := fmt.Sprintf("rate_limit:%s:%s:%d:%s", appSecretHash, passwordCtx.Service().GetDomainCode(), userModel.ID, "password_update")
-			redis.RedisClient.Del(ctx.Context, key)
+			// Clear password update rate limit record for this user using RateLimitService
+			rateLimitService := passwordCtx.Service().(*services.AuthServiceImpl).GetRateLimitService()
+			if rateLimitService != nil {
+				rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetDomainCode(), config)
+			}
 		}
 
 		// 3. Update password (using previously fetched user object)

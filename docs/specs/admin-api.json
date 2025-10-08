@@ -1195,7 +1195,7 @@
         "github_com_thecybersailor_slauth_pkg_config.SessionConfig": {
             "type": "object",
             "properties": {
-                "accessTokenTTL": {
+                "access_token_ttl": {
                     "description": "Access token TTL\nThe time-to-live (TTL) for access tokens. Recommendation: 1 hour.",
                     "allOf": [
                         {
@@ -1203,11 +1203,11 @@
                         }
                     ]
                 },
-                "enforceSingleSessionPerUser": {
+                "enforce_single_session_per_user": {
                     "description": "Enforce single session per user\nIf enabled, all but a user's most recently active session will be terminated.",
                     "type": "boolean"
                 },
-                "inactivityTimeout": {
+                "inactivity_timeout": {
                     "description": "Inactivity timeout\nThe amount of time a user needs to be inactive to be forced to sign in again. Use 0 for never.",
                     "allOf": [
                         {
@@ -1215,7 +1215,7 @@
                         }
                     ]
                 },
-                "refreshTokenReuseInterval": {
+                "refresh_token_reuse_interval": {
                     "description": "Refresh token reuse interval\nTime interval where the same refresh token can be used multiple times\nto request for an access token. Recommendation: 10 seconds.",
                     "allOf": [
                         {
@@ -1223,7 +1223,7 @@
                         }
                     ]
                 },
-                "refreshTokenTTL": {
+                "refresh_token_ttl": {
                     "description": "Refresh token TTL\nThe time-to-live (TTL) for refresh tokens. Recommendation: 1 week.",
                     "allOf": [
                         {
@@ -1231,11 +1231,11 @@
                         }
                     ]
                 },
-                "revokeCompromisedRefreshTokens": {
+                "revoke_compromised_refresh_tokens": {
                     "description": "Detect and revoke potentially compromised refresh tokens\nPrevent replay attacks from potentially compromised refresh tokens.",
                     "type": "boolean"
                 },
-                "timeBoxUserSessions": {
+                "time_box_user_sessions": {
                     "description": "Time-box user sessions\nThe amount of time before a user is forced to sign in again. Use 0 for never.",
                     "allOf": [
                         {

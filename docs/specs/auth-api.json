@@ -1360,6 +1360,11 @@
                     "description": "sms, whatsapp",
                     "type": "string"
                 },
+                "data": {
+                    "description": "Additional data like is_anonymous",
+                    "type": "object",
+                    "additionalProperties": {}
+                },
                 "emailRedirectTo": {
                     "type": "string"
                 },

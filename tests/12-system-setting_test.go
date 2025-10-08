@@ -91,10 +91,10 @@ func (suite *SystemSettingTestSuite) Test_02_UpdateInstanceConfig_BasicSettings(
 	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
 	suite.NoError(err)
 
-	suite.Equal(false, instance.Config["allow_new_users"], "allow_new_users should be updated to false")
-	suite.Equal(true, instance.Config["confirm_email"], "confirm_email should be updated to true")
-	suite.Equal(true, instance.Config["enable_captcha"], "enable_captcha should be updated to true")
-	suite.Equal(float64(5), instance.Config["maximum_mfa_factors"], "maximum_mfa_factors should be updated to 5")
+	suite.Equal(false, *instance.ConfigData.AllowNewUsers, "allow_new_users should be updated to false")
+	suite.Equal(true, *instance.ConfigData.ConfirmEmail, "confirm_email should be updated to true")
+	suite.Equal(true, *instance.ConfigData.EnableCaptcha, "enable_captcha should be updated to true")
+	suite.Equal(5, instance.ConfigData.MaximumMfaFactors, "maximum_mfa_factors should be updated to 5")
 
 	time.Sleep(100 * time.Millisecond)
 	getAfterUpdate := suite.helper.MakeGETRequest(suite.T(), "/admin/config")
@@ -102,6 +102,15 @@ func (suite *SystemSettingTestSuite) Test_02_UpdateInstanceConfig_BasicSettings(
 
 	suite.Equal(false, updatedConfigData["allow_new_users"], "Retrieved config should reflect updates")
 	suite.Equal(true, updatedConfigData["confirm_email"], "Retrieved config should reflect updates")
+
+	// Restore default config
+	restoreResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"allow_new_users": true,
+			"confirm_email":   false,
+		},
+	}, nil)
+	suite.Equal(200, restoreResponse.ResponseRecorder.Code, "Should restore default config")
 }
 
 /*
@@ -159,9 +168,8 @@ func (suite *SystemSettingTestSuite) Test_04_UpdateInstanceConfig_SessionSetting
 	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
 	suite.NoError(err)
 
-	sessionConfig := instance.Config["session_config"].(map[string]interface{})
-	suite.Equal(float64(1800000000000), sessionConfig["AccessTokenTTL"])
-	suite.Equal(float64(604800000000000), sessionConfig["RefreshTokenTTL"])
+	suite.Equal(30*time.Minute, instance.ConfigData.SessionConfig.AccessTokenTTL)
+	suite.Equal(7*24*time.Hour, instance.ConfigData.SessionConfig.RefreshTokenTTL)
 }
 
 func (suite *SystemSettingTestSuite) Test_05_UpdateInstanceConfig_URLSettings() {
@@ -188,12 +196,11 @@ func (suite *SystemSettingTestSuite) Test_05_UpdateInstanceConfig_URLSettings() 
 	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
 	suite.NoError(err)
 
-	suite.Equal("https://example.com", instance.Config["site_url"])
-	suite.Equal("https://example.com/api/auth", instance.Config["auth_service_base_url"])
+	suite.Equal("https://example.com", instance.ConfigData.SiteURL)
+	suite.Equal("https://example.com/api/auth", instance.ConfigData.AuthServiceBaseUrl)
 
-	redirectUrls := instance.Config["redirect_urls"].([]interface{})
-	suite.Equal(3, len(redirectUrls))
-	suite.Equal("https://example.com", redirectUrls[0])
+	suite.Equal(3, len(instance.ConfigData.RedirectURLs))
+	suite.Equal("https://example.com", instance.ConfigData.RedirectURLs[0])
 }
 
 func (suite *SystemSettingTestSuite) Test_06_ConfigCaching() {
@@ -244,10 +251,10 @@ func (suite *SystemSettingTestSuite) Test_07_ConfigPersistence() {
 	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
 	suite.NoError(err)
 
-	suite.Equal("http://persistence-test.com", instance.Config["site_url"])
-	suite.Equal(false, instance.Config["allow_new_users"])
-	suite.Equal(true, instance.Config["confirm_email"])
-	suite.Equal(true, instance.Config["anonymous_sign_ins"])
-	suite.Equal(true, instance.Config["enable_captcha"])
-	suite.Equal(float64(8), instance.Config["maximum_mfa_factors"])
+	suite.Equal("http://persistence-test.com", instance.ConfigData.SiteURL)
+	suite.Equal(false, *instance.ConfigData.AllowNewUsers)
+	suite.Equal(true, *instance.ConfigData.ConfirmEmail)
+	suite.Equal(true, *instance.ConfigData.AnonymousSignIns)
+	suite.Equal(true, *instance.ConfigData.EnableCaptcha)
+	suite.Equal(8, instance.ConfigData.MaximumMfaFactors)
 }

@@ -15,7 +15,7 @@ var (
 	BAD_JSON = usererrors.New("auth.bad_json", "Invalid request format. Please check your input and try again.")
 
 	// JWT sent in the Authorization header is not valid.
-	BAD_JWT = usererrors.New("auth.bad_jwt", "Invalid authentication token. Please sign in again.")
+	BAD_JWT = usererrors.New("auth.bad_jwt", "Invalid token").SetHttpStatus(401)
 
 	// OAuth callback from provider to Auth does not have all the required attributes (state). Indicates an issue with the OAuth provider or client library implementation.
 	BAD_OAUTH_CALLBACK = usererrors.New("auth.bad_oauth_callback", "OAuth sign-in failed. Please try signing in again.")
@@ -46,6 +46,9 @@ var (
 
 	// Signups are disabled for email and password.
 	EMAIL_PROVIDER_DISABLED = usererrors.New("auth.email_provider_disabled", "Email sign-up is disabled. Please use another sign-in method.")
+
+	// New user signups are disabled for this project.
+	SIGNUPS_DISABLED = usererrors.New("auth.signups_disabled", "New user registration is disabled. Please contact support.")
 
 	// PKCE flow state to which the API request relates has expired. Ask the user to sign in again.
 	FLOW_STATE_EXPIRED = usererrors.New("auth.flow_state_expired", "Sign-in session expired. Please start the sign-in process again.")
@@ -124,10 +127,10 @@ var (
 	MFA_WEB_AUTHN_VERIFY_NOT_ENABLED = usererrors.New("auth.mfa_web_authn_verify_not_enabled", "WebAuthn verification disabled. Please use another method.")
 
 	// This HTTP request requires an Authorization header, which is not provided.
-	NO_AUTHORIZATION = usererrors.New("auth.no_authorization", "Authentication required. Please sign in.")
+	NO_AUTHORIZATION = usererrors.New("auth.no_authorization", "Missing authorization token").SetHttpStatus(401)
 
 	// User accessing the API is not admin, i.e. the JWT does not contain a role claim that identifies them as an admin of the Auth server.
-	NOT_ADMIN = usererrors.New("auth.not_admin", "Admin access required. Please sign in with an admin account.")
+	NOT_ADMIN = usererrors.New("auth.not_admin", "Admin access required. Please sign in with an admin account.").SetHttpStatus(401)
 
 	// Using an OAuth provider which is disabled on the Auth server.
 	OAUTH_PROVIDER_NOT_SUPPORTED = usererrors.New("auth.oauth_provider_not_supported", "This sign-in method is disabled. Please use another method.")
@@ -169,10 +172,10 @@ var (
 	REAUTHENTICATION_NOT_VALID = usererrors.New("auth.reauthentication_not_valid", "Invalid verification code. Please try again.")
 
 	// Refresh token has been revoked and falls outside the refresh token reuse interval. See the documentation on sessions for further information.
-	REFRESH_TOKEN_ALREADY_USED = usererrors.New("auth.refresh_token_already_used", "Session expired. Please sign in again.")
+	REFRESH_TOKEN_ALREADY_USED = usererrors.New("auth.refresh_token_already_used", "Session expired. Please sign in again.").SetHttpStatus(401)
 
 	// Session containing the refresh token not found.
-	REFRESH_TOKEN_NOT_FOUND = usererrors.New("auth.refresh_token_not_found", "Session not found. Please sign in again.")
+	REFRESH_TOKEN_NOT_FOUND = usererrors.New("auth.refresh_token_not_found", "Session not found. Please sign in again.").SetHttpStatus(401)
 
 	// Processing the request took too long. Retry the request.
 	REQUEST_TIMEOUT = usererrors.New("auth.request_timeout", "Request timed out. Please try again.")
@@ -208,10 +211,10 @@ var (
 	SAML_RELAY_STATE_NOT_FOUND = usererrors.New("auth.saml_relay_state_not_found", "SSO session lost. Please try signing in again.")
 
 	// Session to which the API request relates has expired. This can occur if an inactivity timeout is configured, or the session entry has exceeded the configured timebox value. See the documentation on sessions for more information.
-	SESSION_EXPIRED = usererrors.New("auth.session_expired", "Session expired. Please sign in again.")
+	SESSION_EXPIRED = usererrors.New("auth.session_expired", "Session expired. Please sign in again.").SetHttpStatus(401)
 
 	// Session to which the API request relates no longer exists. This can occur if the user has signed out, or the session entry in the database was deleted in some other way.
-	SESSION_NOT_FOUND = usererrors.New("auth.session_not_found", "Session not found. Please sign in again.")
+	SESSION_NOT_FOUND = usererrors.New("auth.session_not_found", "Session not found. Please sign in again.").SetHttpStatus(401)
 
 	// Sign ups (new account creation) are disabled on the server.
 	SIGNUP_DISABLED = usererrors.New("auth.signup_disabled", "Sign-up is currently disabled. Please contact support.")

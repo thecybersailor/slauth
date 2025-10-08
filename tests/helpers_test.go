@@ -205,15 +205,29 @@ func (h *TestHelper) HasError(t *testing.T, rsp *PinResponse, errorField string,
 	assert.Contains(t, rsp.Response.Error.Key, errorField, msg+": Error should contain: %s", errorField)
 }
 
+func (h *TestHelper) IsError(t *testing.T, rsp *PinResponse, err error) {
+	// Check that response has an error
+	assert.NotNil(t, rsp.Response.Error, "Response should have an error")
+
+	// Extract expected error code
+	var expectedCode string
+	if ue, ok := err.(interface{ Code() string }); ok {
+		expectedCode = ue.Code()
+	} else {
+		expectedCode = err.Error()
+	}
+
+	// Compare error code
+	assert.Equal(t, expectedCode, rsp.Response.Error.Key, "Error code should match")
+}
+
 func (h *TestHelper) MatchObject(t *testing.T, rsp *PinResponse, target S, msg string) {
 	assert.NotNil(t, rsp.Response.Data, msg+": Response should have data")
 
-	
 	var responseData map[string]any
 	responseBytes, _ := json.Marshal(rsp.Response.Data)
 	json.Unmarshal(responseBytes, &responseData)
 
-	
 	matchObjectRecursive(t, responseData, target, "", msg)
 }
 

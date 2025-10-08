@@ -22,13 +22,13 @@ export const GithubComThecybersailorSlauthPkgConfigAALPolicySchema = z.object({
 
 export const GithubComThecybersailorSlauthPkgConfigSessionConfigSchema =
   z.object({
-    accessTokenTTL: TimeDurationSchema.optional(),
-    enforceSingleSessionPerUser: z.boolean().optional(),
-    inactivityTimeout: TimeDurationSchema.optional(),
-    refreshTokenReuseInterval: TimeDurationSchema.optional(),
-    refreshTokenTTL: TimeDurationSchema.optional(),
-    revokeCompromisedRefreshTokens: z.boolean().optional(),
-    timeBoxUserSessions: TimeDurationSchema.optional(),
+    access_token_ttl: TimeDurationSchema.optional(),
+    enforce_single_session_per_user: z.boolean().optional(),
+    inactivity_timeout: TimeDurationSchema.optional(),
+    refresh_token_reuse_interval: TimeDurationSchema.optional(),
+    refresh_token_ttl: TimeDurationSchema.optional(),
+    revoke_compromised_refresh_tokens: z.boolean().optional(),
+    time_box_user_sessions: TimeDurationSchema.optional(),
   });
 
 export const GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfigSchema =

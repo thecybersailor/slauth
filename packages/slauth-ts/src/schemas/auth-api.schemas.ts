@@ -28,6 +28,7 @@ export const SignInWithPasswordOptionsSchema = z.object({
 export const SignUpOptionsSchema = z.object({
   captchaToken: z.string().optional(),
   channel: z.string().optional(),
+  data: z.record(z.string(), z.any()).optional(),
   emailRedirectTo: z.string().optional(),
   redirect_to: z.string().optional(),
 });

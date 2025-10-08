@@ -16,10 +16,11 @@ type SignUpRequest struct {
 }
 
 type SignUpOptions struct {
-	EmailRedirectTo string `json:"emailRedirectTo,omitempty"`
-	CaptchaToken    string `json:"captchaToken,omitempty"`
-	Channel         string `json:"channel,omitempty"` // sms, whatsapp
-	RedirectTo      string `json:"redirect_to,omitempty"`
+	EmailRedirectTo string         `json:"emailRedirectTo,omitempty"`
+	CaptchaToken    string         `json:"captchaToken,omitempty"`
+	Channel         string         `json:"channel,omitempty"` // sms, whatsapp
+	RedirectTo      string         `json:"redirect_to,omitempty"`
+	Data            map[string]any `json:"data,omitempty"` // Additional data like is_anonymous
 }
 
 // SignInWithPasswordRequest represents the password login request

@@ -29,19 +29,19 @@ type JWTClaims struct {
 
 // JWTService handles JWT token operations
 type JWTService struct {
-	secretKey       []byte
-	accessTokenTTL  time.Duration
-	refreshTokenTTL time.Duration
-	issuer          string
+	secretKey          []byte
+	getAccessTokenTTL  func() time.Duration
+	getRefreshTokenTTL func() time.Duration
+	issuer             string
 }
 
 // NewJWTService creates a new JWT service
-func NewJWTService(secretKey string, accessTokenTTL, refreshTokenTTL time.Duration, issuer string) *JWTService {
+func NewJWTService(secretKey string, getAccessTokenTTL, getRefreshTokenTTL func() time.Duration, issuer string) *JWTService {
 	return &JWTService{
-		secretKey:       []byte(secretKey),
-		accessTokenTTL:  accessTokenTTL,
-		refreshTokenTTL: refreshTokenTTL,
-		issuer:          issuer,
+		secretKey:          []byte(secretKey),
+		getAccessTokenTTL:  getAccessTokenTTL,
+		getRefreshTokenTTL: getRefreshTokenTTL,
+		issuer:             issuer,
 	}
 }
 
@@ -56,7 +56,7 @@ func (j *JWTService) GenerateAccessToken(userID string, domainCode, email, phone
 			Audience:  []string{domainCode},
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(j.accessTokenTTL)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(j.getAccessTokenTTL())),
 		},
 		UserID:     userID,
 		DomainCode: domainCode,
@@ -77,7 +77,7 @@ func (j *JWTService) GenerateAccessToken(userID string, domainCode, email, phone
 // GenerateAccessTokenWithExpiry generates a new access token and returns both token and expiry time
 func (j *JWTService) GenerateAccessTokenWithExpiry(userID string, domainCode, email, phone, role string, aal types.AALLevel, amr []string, sessionID uint, userMeta, appMeta map[string]any) (string, int64, error) {
 	now := time.Now()
-	expiresAt := now.Add(j.accessTokenTTL)
+	expiresAt := now.Add(j.getAccessTokenTTL())
 	claims := &JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        uuid.New().String(),
@@ -120,18 +120,18 @@ func (j *JWTService) GenerateRefreshToken() (string, error) {
 
 // ValidateAccessToken validates and parses an access token
 func (j *JWTService) ValidateAccessToken(tokenString string) (*JWTClaims, error) {
-	slog.Info("JWT: Starting token parsing", "tokenLength", len(tokenString), "accessTokenTTL", j.accessTokenTTL)
+	slog.Info("JWT: Starting token parsing", "tokenLength", len(tokenString), "accessTokenTTL", j.getAccessTokenTTL())
 
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, consts.BAD_JWT
 		}
 		return j.secretKey, nil
-	}, jwt.WithLeeway(5*time.Minute))
+	})
 
 	if err != nil {
 		slog.Warn("JWT: Token parsing failed", "error", err.Error())
-		return nil, err
+		return nil, consts.BAD_JWT
 	}
 
 	if claims, ok := token.Claims.(*JWTClaims); ok && token.Valid {
@@ -165,7 +165,7 @@ func (j *JWTService) RefreshAccessToken(claims *JWTClaims) (string, error) {
 	now := time.Now()
 	claims.IssuedAt = jwt.NewNumericDate(now)
 	claims.NotBefore = jwt.NewNumericDate(now)
-	claims.ExpiresAt = jwt.NewNumericDate(now.Add(j.accessTokenTTL))
+	claims.ExpiresAt = jwt.NewNumericDate(now.Add(j.getAccessTokenTTL()))
 	claims.ID = uuid.New().String() // New JTI
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

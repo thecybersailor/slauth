@@ -1,10 +1,10 @@
 package tests
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/consts"
 )
 
 type SigninQueriesTestSuite struct {
@@ -16,7 +16,6 @@ func (suite *SigninQueriesTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
 }
-
 
 func (suite *SigninQueriesTestSuite) TestGetUserInfo() {
 	email := "get-user-info@example.com"
@@ -65,32 +64,15 @@ func (suite *SigninQueriesTestSuite) TestGetUserInfo() {
 }
 
 func (suite *SigninQueriesTestSuite) TestGetUserInfoWithoutToken() {
-	
 	userResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/user")
-	suite.Equal(401, userResponse.ResponseRecorder.Code, "Should return 401 status code for missing token")
-
-	
-	var errorResponse map[string]interface{}
-	err := json.Unmarshal(userResponse.ResponseRecorder.Body.Bytes(), &errorResponse)
-	suite.Nil(err, "Should be able to parse error response as JSON")
-	suite.Contains(errorResponse, "error", "Should have error field")
-	suite.Equal("Missing authorization token", errorResponse["error"], "Should return missing authorization error")
+	suite.helper.IsError(suite.T(), userResponse, consts.NO_AUTHORIZATION)
 }
 
 func (suite *SigninQueriesTestSuite) TestGetUserInfoWithInvalidToken() {
-	
 	invalidToken := "invalid.jwt.token"
 	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", invalidToken)
-	suite.Equal(401, userResponse.ResponseRecorder.Code, "Should return 401 status code for invalid token")
-
-	
-	var errorResponse map[string]interface{}
-	err := json.Unmarshal(userResponse.ResponseRecorder.Body.Bytes(), &errorResponse)
-	suite.Nil(err, "Should be able to parse error response as JSON")
-	suite.Contains(errorResponse, "error", "Should have error field")
-	suite.Equal("Invalid token", errorResponse["error"], "Should return invalid token error")
+	suite.helper.IsError(suite.T(), userResponse, consts.BAD_JWT)
 }
-
 
 func (suite *SigninQueriesTestSuite) TestListAllSessions() {
 	email := "list-sessions@example.com"
@@ -128,17 +110,14 @@ func (suite *SigninQueriesTestSuite) TestListAllSessions() {
 	suite.NotNil(sessionsResponse.Response.Data, "Sessions response should have data")
 	sessionsData := sessionsResponse.Response.Data.(map[string]any)
 
-	
 	suite.Contains(sessionsData, "sessions", "Should have sessions array")
 	suite.Contains(sessionsData, "total", "Should have total count")
 	suite.Contains(sessionsData, "page", "Should have page number")
 	suite.Contains(sessionsData, "page_size", "Should have page size")
 
-	
 	sessions := sessionsData["sessions"].([]any)
 	suite.GreaterOrEqual(len(sessions), 1, "Should have at least one session")
 
-	
 	if len(sessions) > 0 {
 		session := sessions[0].(map[string]any)
 		suite.Contains(session, "id", "Session should have ID")
@@ -149,7 +128,6 @@ func (suite *SigninQueriesTestSuite) TestListAllSessions() {
 
 	suite.T().Log("✅ List all sessions test completed successfully")
 }
-
 
 func (suite *SigninQueriesTestSuite) TestGetActiveSessionStats() {
 	email := "session-stats@example.com"
@@ -187,24 +165,20 @@ func (suite *SigninQueriesTestSuite) TestGetActiveSessionStats() {
 	suite.NotNil(statsResponse.Response.Data, "Stats response should have data")
 	statsData := statsResponse.Response.Data.(map[string]any)
 
-	
 	suite.Contains(statsData, "total_sessions", "Should have total_sessions")
 	suite.Contains(statsData, "active_sessions", "Should have active_sessions")
 	suite.Contains(statsData, "expired_sessions", "Should have expired_sessions")
 
-	
 	totalSessions := statsData["total_sessions"]
 	activeSessions := statsData["active_sessions"]
 	expiredSessions := statsData["expired_sessions"]
 
-	
 	suite.GreaterOrEqual(totalSessions, float64(1), "Should have at least one total session")
 	suite.GreaterOrEqual(activeSessions, float64(1), "Should have at least one active session")
 	suite.GreaterOrEqual(expiredSessions, float64(0), "Expired sessions should be non-negative")
 
 	suite.T().Log("✅ Get active session stats test completed successfully")
 }
-
 
 func (suite *SigninQueriesTestSuite) TestGetRecentSignins() {
 	email := "recent-signins-test@example.com"
@@ -242,21 +216,17 @@ func (suite *SigninQueriesTestSuite) TestGetRecentSignins() {
 	suite.NotNil(signinsResponse.Response.Data, "Signins response should have data")
 	signinsData := signinsResponse.Response.Data.(map[string]any)
 
-	
 	suite.Contains(signinsData, "recent_signins", "Should have recent_signins array")
 
-	
 	recentSignins := signinsData["recent_signins"].([]any)
 	suite.GreaterOrEqual(len(recentSignins), 1, "Should have at least one recent signin")
 
-	
 	if len(recentSignins) > 0 {
 		signin := recentSignins[0].(map[string]any)
 		suite.Contains(signin, "user_id", "Signin should have user_id")
 		suite.Contains(signin, "email", "Signin should have email")
 		suite.Contains(signin, "signin_at", "Signin should have signin_at")
 
-		
 		signinEmail := signin["email"].(string)
 		suite.NotEmpty(signinEmail, "Signin should have email")
 		suite.Contains(signinEmail, "@", "Signin email should be valid")
@@ -264,7 +234,6 @@ func (suite *SigninQueriesTestSuite) TestGetRecentSignins() {
 
 	suite.T().Log("✅ Get recent signins test completed successfully")
 }
-
 
 func (suite *SigninQueriesTestSuite) TestListUserSessions() {
 	email := "list-user-sessions@example.com"
@@ -315,17 +284,14 @@ func (suite *SigninQueriesTestSuite) TestListUserSessions() {
 	suite.NotNil(userSessionsResponse.Response.Data, "User sessions response should have data")
 	sessionsData := userSessionsResponse.Response.Data.(map[string]any)
 
-	
 	suite.Contains(sessionsData, "sessions", "Should have sessions array")
 	suite.Contains(sessionsData, "total", "Should have total count")
 	suite.Contains(sessionsData, "page", "Should have page number")
 	suite.Contains(sessionsData, "page_size", "Should have page size")
 
-	
 	sessions := sessionsData["sessions"].([]any)
 	suite.GreaterOrEqual(len(sessions), 1, "Should have at least one session")
 
-	
 	if len(sessions) > 0 {
 		session := sessions[0].(map[string]any)
 		suite.Contains(session, "id", "Session should have ID")
@@ -333,13 +299,11 @@ func (suite *SigninQueriesTestSuite) TestListUserSessions() {
 		suite.Contains(session, "created_at", "Session should have created_at")
 		suite.Contains(session, "updated_at", "Session should have updated_at")
 
-		
 		suite.Equal(userHashID, session["user_id"], "Session user_id should match")
 	}
 
 	suite.T().Log("✅ List user sessions test completed successfully")
 }
-
 
 func (suite *SigninQueriesTestSuite) TestGetUserSessions() {
 	email := "user-sessions@example.com"
@@ -377,17 +341,14 @@ func (suite *SigninQueriesTestSuite) TestGetUserSessions() {
 	suite.NotNil(sessionsResponse.Response.Data, "Sessions response should have data")
 	sessionsData := sessionsResponse.Response.Data.(map[string]any)
 
-	
 	suite.Contains(sessionsData, "sessions", "Should have sessions array")
 	suite.Contains(sessionsData, "total", "Should have total count")
 	suite.Contains(sessionsData, "page", "Should have page number")
 	suite.Contains(sessionsData, "page_size", "Should have page size")
 
-	
 	sessions := sessionsData["sessions"].([]any)
 	suite.GreaterOrEqual(len(sessions), 1, "Should have at least one session")
 
-	
 	if len(sessions) > 0 {
 		session := sessions[0].(map[string]any)
 		suite.Contains(session, "id", "Session should have ID")

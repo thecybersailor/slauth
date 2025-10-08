@@ -20,7 +20,8 @@ func (suite *EmailPhoneManagementTestSuite) SetupSuite() {
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestDomain, suite.EmailProvider, suite.SMSProvider)
 
 	cfg := suite.AuthService.GetConfig()
-	cfg.ConfirmEmail = true
+	trueVal := true
+	cfg.ConfirmEmail = &trueVal
 	err := suite.AuthService.SaveConfig(cfg)
 	suite.Require().NoError(err, "Failed to enable email confirmation")
 

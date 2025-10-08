@@ -1,7 +1,7 @@
 package services
 
 import (
-	"encoding/json"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -66,13 +66,25 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 		return config.NewDefaultAuthServiceConfig()
 	}
 
-	cfg := config.NewDefaultAuthServiceConfig()
-	configBytes, err := json.Marshal(instance.Config)
-	if err != nil {
+	// AfterFind hook automatically unmarshals Config to ConfigData
+	cfg := instance.ConfigData
+	if cfg == nil {
 		return config.NewDefaultAuthServiceConfig()
 	}
-	if err := json.Unmarshal(configBytes, cfg); err != nil {
-		return config.NewDefaultAuthServiceConfig()
+
+	// Set UpdatedAt from database to config
+	cfg.SetUpdatedAt(instance.UpdatedAt)
+
+	// Restore default values for zero-value duration fields
+	defaultCfg := config.NewDefaultAuthServiceConfig()
+	if cfg.SessionConfig.AccessTokenTTL == 0 {
+		cfg.SessionConfig.AccessTokenTTL = defaultCfg.SessionConfig.AccessTokenTTL
+	}
+	if cfg.SessionConfig.RefreshTokenTTL == 0 {
+		cfg.SessionConfig.RefreshTokenTTL = defaultCfg.SessionConfig.RefreshTokenTTL
+	}
+	if cfg.SessionConfig.RefreshTokenReuseInterval == 0 {
+		cfg.SessionConfig.RefreshTokenReuseInterval = defaultCfg.SessionConfig.RefreshTokenReuseInterval
 	}
 
 	cfg.JWTSecret = l.globalJWTSecret
@@ -84,31 +96,20 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 func (l *ConfigLoader) createDefaultInstance() *config.AuthServiceConfig {
 	cfg := config.NewDefaultAuthServiceConfig()
 
-	configBytes, err := json.Marshal(cfg)
-	if err != nil {
-		cfg.JWTSecret = l.globalJWTSecret
-		cfg.AppSecret = l.globalAppSecret
-		return cfg
-	}
-	var configMap models.JSONMap
-	if err := json.Unmarshal(configBytes, &configMap); err != nil {
-		cfg.JWTSecret = l.globalJWTSecret
-		cfg.AppSecret = l.globalAppSecret
-		return cfg
-	}
-
 	instance := models.AuthInstance{
 		DomainCode: l.domainCode,
-		Config:     configMap,
+		ConfigData: cfg, // BeforeSave hook will marshal this
 	}
 
 	result := l.db.Create(&instance)
 	if result.Error != nil {
-
 		cfg.JWTSecret = l.globalJWTSecret
 		cfg.AppSecret = l.globalAppSecret
 		return cfg
 	}
+
+	// Set UpdatedAt from created instance
+	cfg.SetUpdatedAt(instance.UpdatedAt)
 
 	cfg.JWTSecret = l.globalJWTSecret
 	cfg.AppSecret = l.globalAppSecret
@@ -129,26 +130,17 @@ func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
 	// Merge new config with current config (partial update)
 	mergedConfig := l.mergeConfigs(currentConfig, cfg)
 
-	configBytes, err := json.Marshal(mergedConfig)
-	if err != nil {
-		return err
-	}
-	var configMap models.JSONMap
-	if err := json.Unmarshal(configBytes, &configMap); err != nil {
-		return err
-	}
-
 	var instance models.AuthInstance
-	err = l.db.Where("domain_code = ?", l.domainCode).First(&instance).Error
+	err := l.db.Where("domain_code = ?", l.domainCode).First(&instance).Error
 
 	if err == gorm.ErrRecordNotFound {
 		instance = models.AuthInstance{
 			DomainCode: l.domainCode,
-			Config:     configMap,
+			ConfigData: mergedConfig, // BeforeSave hook will marshal this
 		}
 		err = l.db.Create(&instance).Error
 	} else {
-		instance.Config = configMap
+		instance.ConfigData = mergedConfig // BeforeSave hook will marshal this
 		err = l.db.Save(&instance).Error
 	}
 
@@ -166,13 +158,38 @@ func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *con
 	// Copy current config as base
 	*merged = *current
 
+	slog.Info("mergeConfigs: Start",
+		"current_allow_new_users", current.AllowNewUsers,
+		"current_allow_new_users_val", current.AllowNewUsers != nil && *current.AllowNewUsers,
+		"current_confirm_email", current.ConfirmEmail,
+		"current_confirm_email_val", current.ConfirmEmail != nil && *current.ConfirmEmail,
+		"new_allow_new_users", new.AllowNewUsers,
+		"new_confirm_email", new.ConfirmEmail,
+		"new_confirm_email_val", new.ConfirmEmail != nil && *new.ConfirmEmail)
+
 	// Override with new values
-	// For boolean fields, always update since false is a valid value
-	merged.AllowNewUsers = new.AllowNewUsers
-	merged.ManualLinking = new.ManualLinking
-	merged.AnonymousSignIns = new.AnonymousSignIns
-	merged.ConfirmEmail = new.ConfirmEmail
-	merged.EnableCaptcha = new.EnableCaptcha
+	// For boolean pointer fields, only update if not nil
+	if new.AllowNewUsers != nil {
+		merged.AllowNewUsers = new.AllowNewUsers
+	}
+	if new.ManualLinking != nil {
+		merged.ManualLinking = new.ManualLinking
+	}
+	if new.AnonymousSignIns != nil {
+		merged.AnonymousSignIns = new.AnonymousSignIns
+	}
+	if new.ConfirmEmail != nil {
+		merged.ConfirmEmail = new.ConfirmEmail
+	}
+	if new.EnableCaptcha != nil {
+		merged.EnableCaptcha = new.EnableCaptcha
+	}
+
+	slog.Info("mergeConfigs: Result",
+		"merged_allow_new_users", merged.AllowNewUsers,
+		"merged_allow_new_users_val", merged.AllowNewUsers != nil && *merged.AllowNewUsers,
+		"merged_confirm_email", merged.ConfirmEmail,
+		"merged_confirm_email_val", merged.ConfirmEmail != nil && *merged.ConfirmEmail)
 
 	// For string fields, only update if not empty
 	if new.SiteURL != "" {

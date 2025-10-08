@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -61,7 +62,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 	err := chain.Execute(ctx)
 	if err != nil {
 		slog.Error("SignIn flow chain failed", "error", err)
-		return consts.INVALID_CREDENTIALS
+		return err // Return original error instead of wrapping
 	}
 
 	// Authentication and session creation are handled in flow, no additional check needed
@@ -98,7 +99,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 			ID:           ctx.Data.SessionID,
 			AccessToken:  ctx.Data.AccessToken,
 			RefreshToken: ctx.Data.RefreshToken,
-			ExpiresIn:    3600,
+			ExpiresIn:    int(ctx.Data.ExpiresIn - time.Now().Unix()),
 			TokenType:    "Bearer",
 			User:         userData, // Use the same user data
 		}
@@ -110,7 +111,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 			ID:           ctx.Data.SessionID,
 			AccessToken:  ctx.Data.AccessToken,
 			RefreshToken: ctx.Data.RefreshToken,
-			ExpiresIn:    3600,
+			ExpiresIn:    int(ctx.Data.ExpiresIn - time.Now().Unix()),
 			TokenType:    "Bearer",
 			User:         userData, // Use the same user data
 		}

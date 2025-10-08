@@ -19,16 +19,16 @@ type AuthServiceConfig struct {
 	RedirectURLs []string `json:"redirect_urls"`
 
 	// If this is disabled, new users will not be able to sign up to your application
-	AllowNewUsers bool `json:"allow_new_users"`
+	AllowNewUsers *bool `json:"allow_new_users"`
 
 	// Enable manual linking APIs for your project
-	ManualLinking bool `json:"manual_linking"`
+	ManualLinking *bool `json:"manual_linking"`
 
 	// Enable anonymous sign-ins for your project
-	AnonymousSignIns bool `json:"anonymous_sign_ins"`
+	AnonymousSignIns *bool `json:"anonymous_sign_ins"`
 
 	// Users will need to confirm their email address before signing in for the first time
-	ConfirmEmail bool `json:"confirm_email"`
+	ConfirmEmail *bool `json:"confirm_email"`
 
 	MFAUpdateRequiredAAL types.AALLevel `json:"mfa_update_required_aal"`
 
@@ -40,7 +40,7 @@ type AuthServiceConfig struct {
 
 	// Enable Captcha protection
 	// Protect authentication endpoints from bots and abuse.
-	EnableCaptcha bool `json:"enable_captcha"`
+	EnableCaptcha *bool `json:"enable_captcha"`
 
 	// Maximum time allowed for an Auth request to last
 	// Number of seconds to wait for an Auth request to complete before canceling it.
@@ -62,18 +62,24 @@ type AuthServiceConfig struct {
 	// Used as salt for hashid generation, password hashing, and Redis key prefixing
 	// Should be unique per application instance for security and test isolation
 	AppSecret string `json:"-"`
+
+	// Internal field to track when config was last updated
+	// Used for rate limit key generation to invalidate old rate limit records
+	updatedAt time.Time
 }
 
 func NewDefaultAuthServiceConfig() *AuthServiceConfig {
+	trueVal := true
+	falseVal := false
 	return &AuthServiceConfig{
 		RedirectURLs:                       []string{},
-		AllowNewUsers:                      true,
-		ManualLinking:                      false,
-		AnonymousSignIns:                   false,
-		ConfirmEmail:                       false,
+		AllowNewUsers:                      &trueVal,
+		ManualLinking:                      &falseVal,
+		AnonymousSignIns:                   &falseVal,
+		ConfirmEmail:                       &falseVal,
 		MaximumMfaFactors:                  10,
 		MaximumMfaFactorValidationAttempts: 5,
-		EnableCaptcha:                      false,
+		EnableCaptcha:                      &falseVal,
 		MaxTimeAllowedForAuthRequest:       10 * time.Second,
 		SessionConfig:                      GetDefaultSessionConfig(),
 		RatelimitConfig:                    GetDefaultRatelimitConfig(),
@@ -85,4 +91,12 @@ func NewDefaultAuthServiceConfig() *AuthServiceConfig {
 
 func NewAuthServiceConfig() *AuthServiceConfig {
 	return NewDefaultAuthServiceConfig()
+}
+
+func (c *AuthServiceConfig) SetUpdatedAt(t time.Time) {
+	c.updatedAt = t
+}
+
+func (c *AuthServiceConfig) UpdatedAt() time.Time {
+	return c.updatedAt
 }
