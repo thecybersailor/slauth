@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.10
 	github.com/flaboy/aira-core v1.0.1
 	github.com/flaboy/envconf v1.0.3
-	github.com/flaboy/pin v0.9.8
+	github.com/flaboy/pin v0.9.9
 	github.com/gin-gonic/gin v1.9.1
 	github.com/thecybersailor/slauth v0.8.1
 	gorm.io/driver/postgres v1.6.0
