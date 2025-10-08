@@ -277,7 +277,7 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 			// Clear password update rate limit record for this user using RateLimitService
 			rateLimitService := passwordCtx.Service().(*services.AuthServiceImpl).GetRateLimitService()
 			if rateLimitService != nil {
-				rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetInstanceId(), config)
+				_ = rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetInstanceId(), config)
 			}
 		}
 

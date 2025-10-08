@@ -166,7 +166,7 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 
 	if (config.ConfirmEmail == nil || !*config.ConfirmEmail) && signupCtx.Response().User != nil {
 		user := signupCtx.Response().User
-		slog.Info("SignUp: Email confirmation disabled, creating session", "userID", user.User.ID)
+		slog.Info("SignUp: Email confirmation disabled, creating session", "userID", user.ID)
 
 		// Create session using authService (same as OAuth/SignIn)
 		session, accessToken, refreshToken, expiresAt, err := a.authService.CreateSession(

@@ -734,7 +734,7 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		// Extract JWT token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			pinCtx.RenderError(consts.NO_AUTHORIZATION)
+			_ = pinCtx.RenderError(consts.NO_AUTHORIZATION)
 			c.Abort()
 			return
 		}
@@ -745,7 +745,7 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		}
 
 		if token == "" {
-			pinCtx.RenderError(consts.BAD_JWT)
+			_ = pinCtx.RenderError(consts.BAD_JWT)
 			c.Abort()
 			return
 		}
@@ -754,7 +754,7 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		claims, err := s.ValidateJWT(token)
 		if err != nil {
 			// Return the actual error from ValidateJWT (e.g., SESSION_EXPIRED, SESSION_NOT_FOUND)
-			pinCtx.RenderError(err)
+			_ = pinCtx.RenderError(err)
 			c.Abort()
 			return
 		}
@@ -765,14 +765,14 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		// Load user information
 		userID, ok := claims["user_id"].(string)
 		if !ok {
-			pinCtx.RenderError(consts.BAD_JWT)
+			_ = pinCtx.RenderError(consts.BAD_JWT)
 			c.Abort()
 			return
 		}
 
 		user, err := s.GetUserService().GetByHashID(c.Request.Context(), userID)
 		if err != nil {
-			pinCtx.RenderError(consts.USER_NOT_FOUND)
+			_ = pinCtx.RenderError(consts.USER_NOT_FOUND)
 			c.Abort()
 			return
 		}
