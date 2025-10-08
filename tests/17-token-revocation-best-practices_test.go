@@ -94,7 +94,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLogoutRevokesAllDevicesR
 		"refresh_token": deviceARefreshToken,
 	}
 	deviceARefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", deviceARefreshRequest)
-	suite.Equal(200, deviceARefreshResponse.ResponseRecorder.Code, "Refresh request returns 200 with error in body")
+	suite.Equal(401, deviceARefreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), deviceARefreshResponse, "refresh_token_not_found", "Device A refresh token should be revoked")
 
 	// Step 7: CRITICAL TEST - Verify Device B's refresh token is ALSO revoked
@@ -104,7 +104,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLogoutRevokesAllDevicesR
 		"refresh_token": deviceBRefreshToken,
 	}
 	deviceBRefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", deviceBRefreshRequest)
-	suite.Equal(200, deviceBRefreshResponse.ResponseRecorder.Code, "Refresh request returns 200 with error in body")
+	suite.Equal(401, deviceBRefreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), deviceBRefreshResponse, "refresh_token_not_found", "Device B refresh token should ALSO be revoked (global logout)")
 
 	suite.T().Log("✅ Industry Best Practice: /logout revokes ALL devices' refresh tokens")
@@ -178,7 +178,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestSessionRevokeInvalidates
 	// THIS MUST FAIL - refresh token should be invalid after session revoke
 	// Pin Response: All refresh token errors return 200 with error in body
 	// Note: RevokeUserSession explicitly revokes refresh tokens, so error is refresh_token_not_found
-	suite.Equal(200, secondRefreshResponse.ResponseRecorder.Code,
+	suite.Equal(401, secondRefreshResponse.ResponseRecorder.Code,
 		"Refresh request returns 200 (Pin Response format)")
 	suite.helper.HasError(suite.T(), secondRefreshResponse, "refresh_token_not_found",
 		"SECURITY: Refresh token MUST be rejected after session revoke")
@@ -342,7 +342,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLocalVsGlobalLogout() {
 		"refresh_token": device1RefreshToken,
 	}
 	device1RefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", device1RefreshRequest)
-	suite.Equal(200, device1RefreshResponse.ResponseRecorder.Code, "Refresh request returns 200 (Pin Response format)")
+	suite.Equal(401, device1RefreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), device1RefreshResponse, "refresh_token_not_found", "Device 1 refresh token should be revoked")
 
 	// Step 5: Device 2's refresh token should still work (local logout)
@@ -351,7 +351,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLocalVsGlobalLogout() {
 		"refresh_token": device2RefreshToken,
 	}
 	device2RefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", device2RefreshRequest)
-	suite.Equal(200, device2RefreshResponse.ResponseRecorder.Code, "Device 2 refresh should return 200")
+	suite.Nil(device2RefreshResponse.Response.Error, "Device 2 refresh should succeed")
 	suite.Nil(device2RefreshResponse.Response.Error, "Device 2 refresh token should still work after Device 1 local logout")
 
 	suite.T().Log("✅ Best Practice: scope=local only revokes current device, other devices remain active")
@@ -405,7 +405,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 		"refresh_token": oldRefreshToken,
 	}
 	reuseResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", reuseOldTokenRequest)
-	suite.Equal(200, reuseResponse.ResponseRecorder.Code,
+	suite.Equal(401, reuseResponse.ResponseRecorder.Code,
 		"Refresh request returns 200 (Pin Response format)")
 	suite.helper.HasError(suite.T(), reuseResponse, "refresh_token_not_found",
 		"SECURITY: Old refresh token MUST be rejected after rotation")

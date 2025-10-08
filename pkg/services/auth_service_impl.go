@@ -83,8 +83,12 @@ func NewAuthServiceImpl(db *gorm.DB, domainCode, globalJWTSecret, globalAppSecre
 	// Now create jwtService with closure that references configLoader
 	jwtService := NewJWTService(
 		cfg.JWTSecret,
-		func() time.Duration { return configLoader.GetConfig().SessionConfig.AccessTokenTTL },
-		func() time.Duration { return configLoader.GetConfig().SessionConfig.RefreshTokenTTL },
+		func() time.Duration {
+			return time.Duration(configLoader.GetConfig().SessionConfig.AccessTokenTTL) * time.Second
+		},
+		func() time.Duration {
+			return time.Duration(configLoader.GetConfig().SessionConfig.RefreshTokenTTL) * time.Second
+		},
 		cfg.AuthServiceBaseUrl,
 	)
 
@@ -246,7 +250,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 
 	// Set session expiration if time-box is configured
 	if config.SessionConfig.TimeBoxUserSessions > 0 {
-		notAfter := now.Add(config.SessionConfig.TimeBoxUserSessions)
+		notAfter := now.Add(time.Duration(config.SessionConfig.TimeBoxUserSessions) * time.Second)
 		session.NotAfter = &notAfter
 	}
 
@@ -499,11 +503,12 @@ func (s *AuthServiceImpl) ValidateJWT(token string) (map[string]any, error) {
 	config := s.GetConfig()
 	if config.SessionConfig.InactivityTimeout > 0 && session.RefreshedAt != nil {
 		inactiveTime := time.Since(*session.RefreshedAt)
+		timeout := time.Duration(config.SessionConfig.InactivityTimeout) * time.Second
 		slog.Info("ValidateJWT: Checking inactivity timeout",
 			"refreshedAt", session.RefreshedAt,
 			"inactiveTime", inactiveTime,
-			"timeout", config.SessionConfig.InactivityTimeout)
-		if inactiveTime > config.SessionConfig.InactivityTimeout {
+			"timeout", timeout)
+		if inactiveTime > timeout {
 			slog.Info("ValidateJWT: Session expired due to inactivity")
 			return nil, consts.SESSION_EXPIRED
 		}
@@ -886,15 +891,10 @@ func checkEmailRateLimitWrapper(ctx OTPContext, next func() error) error {
 	config := authServiceImpl.GetConfigLoader().GetConfig()
 	rateLimitService := authServiceImpl.GetRateLimitService()
 
-	var userID uint = 0
-	user, err := authServiceImpl.GetUserService().GetByEmail(ctx, req.Email)
-	if err == nil && user != nil {
-		userID = user.ID
-	}
-
+	// Use email as userKey for email rate limit
 	allowed, err := rateLimitService.CheckAndRecordRequest(
 		ctx,
-		userID,
+		req.Email,
 		"email_send",
 		authService.GetDomainCode(),
 		config.RatelimitConfig.EmailRateLimit,
@@ -927,15 +927,10 @@ func checkSMSRateLimitWrapper(ctx OTPContext, next func() error) error {
 	config := authServiceImpl.GetConfigLoader().GetConfig()
 	rateLimitService := authServiceImpl.GetRateLimitService()
 
-	var userID uint = 0
-	user, err := GetUserByPhone(ctx, authServiceImpl.GetDB(), authService.GetDomainCode(), req.Phone)
-	if err == nil && user != nil {
-		userID = user.ID
-	}
-
+	// Use phone as userKey for SMS rate limit
 	allowed, err := rateLimitService.CheckAndRecordRequest(
 		ctx,
-		userID,
+		req.Phone,
 		"sms_send",
 		authService.GetDomainCode(),
 		config.RatelimitConfig.SMSRateLimit,

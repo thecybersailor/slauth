@@ -2,7 +2,6 @@ package controller
 
 import (
 	"log/slog"
-	"time"
 
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -99,7 +98,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 			ID:           ctx.Data.SessionID,
 			AccessToken:  ctx.Data.AccessToken,
 			RefreshToken: ctx.Data.RefreshToken,
-			ExpiresIn:    int(ctx.Data.ExpiresIn - time.Now().Unix()),
+			ExpiresIn:    int(ctx.Data.ExpiresIn), // ExpiresIn is already relative time in seconds
 			TokenType:    "Bearer",
 			User:         userData, // Use the same user data
 		}
@@ -111,7 +110,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 			ID:           ctx.Data.SessionID,
 			AccessToken:  ctx.Data.AccessToken,
 			RefreshToken: ctx.Data.RefreshToken,
-			ExpiresIn:    int(ctx.Data.ExpiresIn - time.Now().Unix()),
+			ExpiresIn:    int(ctx.Data.ExpiresIn), // ExpiresIn is already relative time in seconds
 			TokenType:    "Bearer",
 			User:         userData, // Use the same user data
 		}

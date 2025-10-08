@@ -152,8 +152,8 @@ func (suite *SystemSettingTestSuite) Test_04_UpdateInstanceConfig_SessionSetting
 	currentConfig := getResponse.Data.(map[string]interface{})["config"].(map[string]interface{})
 
 	currentConfig["session_config"] = map[string]interface{}{
-		"AccessTokenTTL":  1800000000000,
-		"RefreshTokenTTL": 604800000000000,
+		"access_token_ttl":  1800,   // 30 minutes in seconds
+		"refresh_token_ttl": 604800, // 7 days in seconds
 	}
 
 	updateResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
@@ -168,8 +168,8 @@ func (suite *SystemSettingTestSuite) Test_04_UpdateInstanceConfig_SessionSetting
 	err := suite.DB.Where("domain_code = ?", suite.TestDomain).First(&instance).Error
 	suite.NoError(err)
 
-	suite.Equal(30*time.Minute, instance.ConfigData.SessionConfig.AccessTokenTTL)
-	suite.Equal(7*24*time.Hour, instance.ConfigData.SessionConfig.RefreshTokenTTL)
+	suite.Equal(int64(1800), instance.ConfigData.SessionConfig.AccessTokenTTL)
+	suite.Equal(int64(604800), instance.ConfigData.SessionConfig.RefreshTokenTTL)
 }
 
 func (suite *SystemSettingTestSuite) Test_05_UpdateInstanceConfig_URLSettings() {

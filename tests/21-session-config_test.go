@@ -37,7 +37,7 @@ func (suite *SessionConfigTestSuite) TestEnforceSingleSessionPerUser() {
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+	suite.Nil(signupResponse.Response.Error, "Signup should succeed")
 
 	// Enable single session per user
 	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
@@ -47,14 +47,14 @@ func (suite *SessionConfigTestSuite) TestEnforceSingleSessionPerUser() {
 			},
 		},
 	}, nil)
-	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(configResponse.Response.Error, "Config update should succeed")
 
 	// User signs in on device A
 	deviceASigninResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", S{
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, deviceASigninResponse.ResponseRecorder.Code, "Device A signin should succeed")
+	suite.Nil(deviceASigninResponse.Response.Error, "Device A signin should succeed")
 
 	deviceAData := deviceASigninResponse.Response.Data.(map[string]interface{})
 	deviceASession := deviceAData["session"].(map[string]interface{})
@@ -66,7 +66,7 @@ func (suite *SessionConfigTestSuite) TestEnforceSingleSessionPerUser() {
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, deviceBSigninResponse.ResponseRecorder.Code, "Device B signin should succeed")
+	suite.Nil(deviceBSigninResponse.Response.Error, "Device B signin should succeed")
 
 	deviceBData := deviceBSigninResponse.Response.Data.(map[string]interface{})
 	deviceBSession := deviceBData["session"].(map[string]interface{})
@@ -82,7 +82,7 @@ func (suite *SessionConfigTestSuite) TestEnforceSingleSessionPerUser() {
 
 	// Verify device B session is still active
 	deviceBUserResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", deviceBAccessToken)
-	suite.Equal(200, deviceBUserResponse.ResponseRecorder.Code, "Device B session should be active")
+	suite.Nil(deviceBUserResponse.Response.Error, "Device B session should be active")
 
 	// Disable single session enforcement
 	disableResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
@@ -92,14 +92,14 @@ func (suite *SessionConfigTestSuite) TestEnforceSingleSessionPerUser() {
 			},
 		},
 	}, nil)
-	suite.Equal(200, disableResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(disableResponse.Response.Error, "Config update should succeed")
 
 	// Verify multiple sessions can coexist
 	multiSession1Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", S{
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, multiSession1Response.ResponseRecorder.Code, "First session should succeed")
+	suite.Nil(multiSession1Response.Response.Error, "First session should succeed")
 
 	multiSession1Data := multiSession1Response.Response.Data.(map[string]interface{})
 	multiSession1Session := multiSession1Data["session"].(map[string]interface{})
@@ -109,7 +109,7 @@ func (suite *SessionConfigTestSuite) TestEnforceSingleSessionPerUser() {
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, multiSession2Response.ResponseRecorder.Code, "Second session should succeed")
+	suite.Nil(multiSession2Response.Response.Error, "Second session should succeed")
 
 	// Verify both sessions are active
 	refreshResponse1 := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", S{
@@ -138,24 +138,24 @@ func (suite *SessionConfigTestSuite) TestTimeBoxUserSessions() {
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+	suite.Nil(signupResponse.Response.Error, "Signup should succeed")
 
 	// Set short time-box (2 seconds for testing)
 	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
 		"config": S{
 			"session_config": S{
-				"time_box_user_sessions": 2000000000, // 2 seconds in nanoseconds
+				"time_box_user_sessions": 2, // 2 seconds
 			},
 		},
 	}, nil)
-	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(configResponse.Response.Error, "Config update should succeed")
 
 	// User signs in
 	signinResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", S{
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signinResponse.ResponseRecorder.Code, "Signin should succeed")
+	suite.Nil(signinResponse.Response.Error, "Signin should succeed")
 
 	signinData := signinResponse.Response.Data.(map[string]interface{})
 	sessionData := signinData["session"].(map[string]interface{})
@@ -180,7 +180,7 @@ func (suite *SessionConfigTestSuite) TestTimeBoxUserSessions() {
 			},
 		},
 	}, nil)
-	suite.Equal(200, resetResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(resetResponse.Response.Error, "Config update should succeed")
 }
 
 // Test case: Inactivity timeout configuration
@@ -203,24 +203,24 @@ func (suite *SessionConfigTestSuite) TestInactivityTimeout() {
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+	suite.Nil(signupResponse.Response.Error, "Signup should succeed")
 
 	// Set short inactivity timeout (2 seconds for testing)
 	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
 		"config": S{
 			"session_config": S{
-				"inactivity_timeout": 2000000000, // 2 seconds in nanoseconds
+				"inactivity_timeout": 2, // 2 seconds
 			},
 		},
 	}, nil)
-	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(configResponse.Response.Error, "Config update should succeed")
 
 	// User signs in
 	signinResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", S{
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signinResponse.ResponseRecorder.Code, "Signin should succeed")
+	suite.Nil(signinResponse.Response.Error, "Signin should succeed")
 
 	signinData := signinResponse.Response.Data.(map[string]interface{})
 	sessionData := signinData["session"].(map[string]interface{})
@@ -243,7 +243,7 @@ func (suite *SessionConfigTestSuite) TestInactivityTimeout() {
 			},
 		},
 	}, nil)
-	suite.Equal(200, resetResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(resetResponse.Response.Error, "Config update should succeed")
 }
 
 // Test case: Access token TTL configuration
@@ -266,24 +266,24 @@ func (suite *SessionConfigTestSuite) TestAccessTokenTTL() {
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+	suite.Nil(signupResponse.Response.Error, "Signup should succeed")
 
 	// Set very short access token TTL (2 seconds)
 	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
 		"config": S{
 			"session_config": S{
-				"access_token_ttl": 2000000000, // 2 seconds in nanoseconds
+				"access_token_ttl": 2, // 2 seconds
 			},
 		},
 	}, nil)
-	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(configResponse.Response.Error, "Config update should succeed")
 
 	// User signs in
 	signinResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", S{
 		"email":    email,
 		"password": password,
 	})
-	suite.Equal(200, signinResponse.ResponseRecorder.Code, "Signin should succeed")
+	suite.Nil(signinResponse.Response.Error, "Signin should succeed")
 
 	signinData := signinResponse.Response.Data.(map[string]interface{})
 	sessionData := signinData["session"].(map[string]interface{})
@@ -303,11 +303,11 @@ func (suite *SessionConfigTestSuite) TestAccessTokenTTL() {
 	resetResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
 		"config": S{
 			"session_config": S{
-				"access_token_ttl": 3600000000000, // 1 hour in nanoseconds
+				"access_token_ttl": 3600, // 1 hour in seconds
 			},
 		},
 	}, nil)
-	suite.Equal(200, resetResponse.ResponseRecorder.Code, "Config update should succeed")
+	suite.Nil(resetResponse.Response.Error, "Config update should succeed")
 }
 
 func TestSessionConfigSuite(t *testing.T) {

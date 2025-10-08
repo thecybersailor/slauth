@@ -108,23 +108,26 @@ func (suite *RatelimitConfigTestSuite) TestSignUpSignInRateLimit() {
 	}, nil)
 	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
 
+	// Use same email to test rate limit (rate limit check happens before duplicate email check)
+	testEmail := baseEmail + "@example.com"
+
 	// First signup should succeed
 	signup1Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
-		"email":    baseEmail + "1@example.com",
+		"email":    testEmail,
 		"password": password,
 	})
-	suite.Equal(200, signup1Response.ResponseRecorder.Code, "First signup should succeed")
+	suite.Nil(signup1Response.Response.Error, "First signup should succeed")
 
-	// Second signup should succeed
+	// Second attempt with same email - will fail with user_already_exists, but rate limit is recorded
 	signup2Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
-		"email":    baseEmail + "2@example.com",
+		"email":    testEmail,
 		"password": password,
 	})
-	suite.Equal(200, signup2Response.ResponseRecorder.Code, "Second signup should succeed")
+	suite.NotNil(signup2Response.Response.Error, "Second signup should fail (user exists)")
 
-	// Third signup should be rate limited
+	// Third attempt with same email - should be rate limited (3rd request exceeds limit of 2)
 	signup3Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
-		"email":    baseEmail + "3@example.com",
+		"email":    testEmail,
 		"password": password,
 	})
 

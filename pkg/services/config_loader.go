@@ -1,7 +1,6 @@
 package services
 
 import (
-	"log/slog"
 	"sync"
 	"time"
 
@@ -75,18 +74,6 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 	// Set UpdatedAt from database to config
 	cfg.SetUpdatedAt(instance.UpdatedAt)
 
-	// Restore default values for zero-value duration fields
-	defaultCfg := config.NewDefaultAuthServiceConfig()
-	if cfg.SessionConfig.AccessTokenTTL == 0 {
-		cfg.SessionConfig.AccessTokenTTL = defaultCfg.SessionConfig.AccessTokenTTL
-	}
-	if cfg.SessionConfig.RefreshTokenTTL == 0 {
-		cfg.SessionConfig.RefreshTokenTTL = defaultCfg.SessionConfig.RefreshTokenTTL
-	}
-	if cfg.SessionConfig.RefreshTokenReuseInterval == 0 {
-		cfg.SessionConfig.RefreshTokenReuseInterval = defaultCfg.SessionConfig.RefreshTokenReuseInterval
-	}
-
 	cfg.JWTSecret = l.globalJWTSecret
 	cfg.AppSecret = l.globalAppSecret
 
@@ -158,15 +145,6 @@ func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *con
 	// Copy current config as base
 	*merged = *current
 
-	slog.Info("mergeConfigs: Start",
-		"current_allow_new_users", current.AllowNewUsers,
-		"current_allow_new_users_val", current.AllowNewUsers != nil && *current.AllowNewUsers,
-		"current_confirm_email", current.ConfirmEmail,
-		"current_confirm_email_val", current.ConfirmEmail != nil && *current.ConfirmEmail,
-		"new_allow_new_users", new.AllowNewUsers,
-		"new_confirm_email", new.ConfirmEmail,
-		"new_confirm_email_val", new.ConfirmEmail != nil && *new.ConfirmEmail)
-
 	// Override with new values
 	// For boolean pointer fields, only update if not nil
 	if new.AllowNewUsers != nil {
@@ -184,12 +162,6 @@ func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *con
 	if new.EnableCaptcha != nil {
 		merged.EnableCaptcha = new.EnableCaptcha
 	}
-
-	slog.Info("mergeConfigs: Result",
-		"merged_allow_new_users", merged.AllowNewUsers,
-		"merged_allow_new_users_val", merged.AllowNewUsers != nil && *merged.AllowNewUsers,
-		"merged_confirm_email", merged.ConfirmEmail,
-		"merged_confirm_email_val", merged.ConfirmEmail != nil && *merged.ConfirmEmail)
 
 	// For string fields, only update if not empty
 	if new.SiteURL != "" {
@@ -215,9 +187,33 @@ func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *con
 	if new.MaxTimeAllowedForAuthRequest > 0 {
 		merged.MaxTimeAllowedForAuthRequest = new.MaxTimeAllowedForAuthRequest
 	}
+
+	// Merge SessionConfig fields instead of replacing the whole object
 	if new.SessionConfig != nil {
-		merged.SessionConfig = new.SessionConfig
+		if merged.SessionConfig == nil {
+			merged.SessionConfig = config.GetDefaultSessionConfig()
+		}
+		// Only update non-zero values
+		if new.SessionConfig.RefreshTokenReuseInterval != 0 {
+			merged.SessionConfig.RefreshTokenReuseInterval = new.SessionConfig.RefreshTokenReuseInterval
+		}
+		if new.SessionConfig.TimeBoxUserSessions != 0 {
+			merged.SessionConfig.TimeBoxUserSessions = new.SessionConfig.TimeBoxUserSessions
+		}
+		if new.SessionConfig.InactivityTimeout != 0 {
+			merged.SessionConfig.InactivityTimeout = new.SessionConfig.InactivityTimeout
+		}
+		if new.SessionConfig.AccessTokenTTL != 0 {
+			merged.SessionConfig.AccessTokenTTL = new.SessionConfig.AccessTokenTTL
+		}
+		if new.SessionConfig.RefreshTokenTTL != 0 {
+			merged.SessionConfig.RefreshTokenTTL = new.SessionConfig.RefreshTokenTTL
+		}
+		// Always update boolean fields (false is a valid value)
+		merged.SessionConfig.RevokeCompromisedRefreshTokens = new.SessionConfig.RevokeCompromisedRefreshTokens
+		merged.SessionConfig.EnforceSingleSessionPerUser = new.SessionConfig.EnforceSingleSessionPerUser
 	}
+
 	if new.RatelimitConfig != nil {
 		merged.RatelimitConfig = new.RatelimitConfig
 	}

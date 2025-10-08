@@ -131,8 +131,8 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenInvalid() {
 	suite.T().Logf("Status Code: %d", refreshResponse.ResponseRecorder.Code)
 	suite.T().Logf("Response Body: %s", refreshResponse.ResponseRecorder.Body.String())
 
-	// Pin Response: All refresh token errors return 200 with error in body
-	suite.Equal(200, refreshResponse.ResponseRecorder.Code, "Refresh request returns 200 (Pin Response format)")
+	// Refresh token errors return 401 with error in body
+	suite.Equal(401, refreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), refreshResponse, "refresh_token_not_found", "Should fail with invalid refresh token")
 
 	suite.T().Logf("Parsed Response: %+v", refreshResponse.Response.Error)
@@ -193,9 +193,9 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenExpired() {
 	suite.T().Logf("Status Code: %d", expiredRefreshResponse.ResponseRecorder.Code)
 	suite.T().Logf("Response Body: %s", expiredRefreshResponse.ResponseRecorder.Body.String())
 
-	// Pin Response: All refresh token errors return 200 with error in body
+	// Refresh token errors return 401 with error in body
 	// Note: RevokeUserSession explicitly revokes refresh tokens, so error is refresh_token_not_found
-	suite.Equal(200, expiredRefreshResponse.ResponseRecorder.Code, "Refresh request returns 200 (Pin Response format)")
+	suite.Equal(401, expiredRefreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), expiredRefreshResponse, "refresh_token_not_found", "Should fail with expired refresh token")
 
 	suite.T().Logf("Parsed Response: %+v", expiredRefreshResponse.Response.Error)

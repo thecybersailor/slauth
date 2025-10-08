@@ -105,7 +105,7 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL1() {
 	config := suite.AuthService.GetConfig()
 	config.SecurityConfig.PasswordUpdateConfig.UpdateRequiredAAL = types.AALLevel1
 
-	email := "update-password-user@example.com"
+	email := fmt.Sprintf("update-password-user-%d@example.com", time.Now().UnixNano())
 	password := "MySecurePassword2024!"
 	newPassword := "NewPassword456!"
 
@@ -115,8 +115,7 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL1() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Require().Nil(signupResponse.Response.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -125,8 +124,7 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL1() {
 	}
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Require().Nil(loginResponse.Response.Error, "Password login should not have error")
 
 	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
 	responseData := loginResponse.Response.Data.(map[string]any)
@@ -171,7 +169,7 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL2() {
 	config := suite.AuthService.GetConfig()
 	config.SecurityConfig.PasswordUpdateConfig.UpdateRequiredAAL = types.AALLevel2
 
-	email := "update-password-aal2@example.com"
+	email := fmt.Sprintf("update-password-aal2-%d@example.com", time.Now().UnixNano())
 	password := "MySecurePassword2024!"
 	newPassword := "NewPassword456!"
 
@@ -181,8 +179,7 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL2() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Require().Nil(signupResponse.Response.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -191,8 +188,7 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL2() {
 	}
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Require().Nil(loginResponse.Response.Error, "Password login should not have error")
 
 	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
 	responseData := loginResponse.Response.Data.(map[string]any)
@@ -785,7 +781,7 @@ func (suite *PasswordManagementTestSuite) TestSessionManagement() {
 
 	suite.ClearCapturedOTPs()
 
-	email := "session-mgmt@example.com"
+	email := fmt.Sprintf("session-mgmt-%d@example.com", time.Now().UnixNano())
 	password := "MySecurePassword2024!"
 
 	signupRequestBody := S{
@@ -794,7 +790,7 @@ func (suite *PasswordManagementTestSuite) TestSessionManagement() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+	suite.Nil(signupResponse.Response.Error, "Signup should succeed")
 
 	var accessTokens []string
 	for i := 0; i < 3; i++ {
@@ -805,7 +801,7 @@ func (suite *PasswordManagementTestSuite) TestSessionManagement() {
 		}
 
 		loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-		suite.Equal(200, loginResponse.ResponseRecorder.Code, fmt.Sprintf("Login %d should succeed", i+1))
+		suite.Require().Nil(loginResponse.Response.Error, fmt.Sprintf("Login %d should succeed", i+1))
 
 		responseData := loginResponse.Response.Data.(map[string]any)
 		session := responseData["session"].(map[string]any)
@@ -1452,7 +1448,7 @@ func (suite *PasswordManagementTestSuite) TestSecurityPolicyCompliance() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	if signupResponse.ResponseRecorder.Code == 200 {
+	if signupResponse.Response.Error == nil {
 		suite.T().Logf("✅ User registration successful")
 
 		loginRequestBody := S{
@@ -1462,7 +1458,7 @@ func (suite *PasswordManagementTestSuite) TestSecurityPolicyCompliance() {
 		}
 
 		loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-		if loginResponse.ResponseRecorder.Code == 200 {
+		if loginResponse.Response.Error == nil {
 			suite.T().Logf("✅ Session creation successful")
 
 			responseData := loginResponse.Response.Data.(map[string]any)
@@ -1470,7 +1466,7 @@ func (suite *PasswordManagementTestSuite) TestSecurityPolicyCompliance() {
 			accessToken := session["access_token"].(string)
 
 			userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
-			if userResponse.ResponseRecorder.Code == 200 {
+			if userResponse.Response.Error == nil {
 				suite.T().Logf("✅ Session validation successful")
 			} else {
 				suite.T().Logf("⚠️  Session validation failed")

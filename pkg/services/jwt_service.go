@@ -106,7 +106,9 @@ func (j *JWTService) GenerateAccessTokenWithExpiry(userID string, domainCode, em
 		return "", 0, err
 	}
 
-	return tokenString, expiresAt.Unix(), nil
+	// Return token and relative expiry time in seconds
+	expiresIn := int64(expiresAt.Sub(now).Seconds())
+	return tokenString, expiresIn, nil
 }
 
 // GenerateRefreshToken generates a new refresh token

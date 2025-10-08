@@ -60,9 +60,14 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
 	if ok {
 		rateLimitService := authServiceImpl.GetRateLimitService()
+		// Use email or phone as userKey for signup
+		var userKey any = req.Email
+		if req.Email == "" {
+			userKey = req.Phone
+		}
 		allowed, err := rateLimitService.CheckAndRecordRequest(
 			c.Request.Context(),
-			0, // No user ID yet for signup
+			userKey,
 			"signup_signin",
 			a.authService.GetDomainCode(),
 			config.RatelimitConfig.SignUpSignInRateLimit,
@@ -313,22 +318,15 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
 	if ok {
 		rateLimitService := authServiceImpl.GetRateLimitService()
-		var userID uint = 0
-		if req.Email != "" {
-			user, err := authServiceImpl.GetUserService().GetByEmail(c.Request.Context(), req.Email)
-			if err == nil && user != nil {
-				userID = user.ID
-			}
-		} else if req.Phone != "" {
-			user, err := services.GetUserByPhone(c.Request.Context(), authServiceImpl.GetDB(), a.authService.GetDomainCode(), req.Phone)
-			if err == nil && user != nil {
-				userID = user.ID
-			}
+		// Use email or phone as userKey
+		var userKey any = req.Email
+		if req.Email == "" {
+			userKey = req.Phone
 		}
 
 		allowed, err := rateLimitService.CheckAndRecordRequest(
 			c.Request.Context(),
-			userID,
+			userKey,
 			"token_verification",
 			a.authService.GetDomainCode(),
 			config.RatelimitConfig.TokenVerificationRateLimit,

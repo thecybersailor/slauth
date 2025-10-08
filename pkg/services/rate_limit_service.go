@@ -23,13 +23,33 @@ func NewRateLimitService(appSecret string) *RateLimitService {
 	}
 }
 
-func (s *RateLimitService) generateKey(userID uint, action, domainCode string, configUpdatedAt int64) string {
+func (s *RateLimitService) generateKey(userKey any, action, domainCode string, configUpdatedAt int64) string {
 	appSecretHash := fmt.Sprintf("%x", md5.Sum([]byte(s.appSecret)))[:8]
-	return fmt.Sprintf("rate_limit:%s:%s:%d:%d:%s", appSecretHash, domainCode, configUpdatedAt, userID, action)
+
+	// Convert userKey to string
+	var userKeyStr string
+	switch v := userKey.(type) {
+	case string:
+		userKeyStr = v
+	case uint:
+		userKeyStr = fmt.Sprintf("user_%d", v)
+	case int:
+		userKeyStr = fmt.Sprintf("user_%d", v)
+	case uint64:
+		userKeyStr = fmt.Sprintf("user_%d", v)
+	case int64:
+		userKeyStr = fmt.Sprintf("user_%d", v)
+	default:
+		userKeyStr = fmt.Sprintf("%v", v)
+	}
+
+	key := fmt.Sprintf("rate_limit:%s:%s:%d:%s:%s", appSecretHash, domainCode, configUpdatedAt, userKeyStr, action)
+	slog.Info("RateLimit: Generated key", "key", key, "userKey", userKey, "userKeyStr", userKeyStr, "action", action, "domainCode", domainCode, "configUpdatedAt", configUpdatedAt)
+	return key
 }
 
-func (s *RateLimitService) CheckRateLimit(ctx context.Context, userID uint, action, domainCode string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
-	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
+func (s *RateLimitService) CheckRateLimit(ctx context.Context, userKey any, action, domainCode string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
+	key := s.generateKey(userKey, action, domainCode, cfg.UpdatedAt().Unix())
 
 	now := time.Now()
 	windowStart := now.Add(-rateLimit.WindowDuration)
@@ -39,14 +59,14 @@ func (s *RateLimitService) CheckRateLimit(ctx context.Context, userID uint, acti
 		strconv.FormatInt(now.UnixNano(), 10)).Result()
 
 	if err != nil && err != redis.Nil {
-		slog.Error("RateLimit: Failed to count requests", "error", err, "userID", userID, "action", action)
+		slog.Error("RateLimit: Failed to count requests", "error", err, "userKey", userKey, "action", action)
 		return false, err
 	}
 
 	allowed := count < int64(rateLimit.MaxRequests)
 
 	slog.Info("RateLimit: Check result",
-		"userID", userID,
+		"userKey", userKey,
 		"action", action,
 		"currentCount", count,
 		"maxRequests", rateLimit.MaxRequests,
@@ -57,8 +77,8 @@ func (s *RateLimitService) CheckRateLimit(ctx context.Context, userID uint, acti
 	return allowed, nil
 }
 
-func (s *RateLimitService) RecordRequest(ctx context.Context, userID uint, action, domainCode string, cfg *config.AuthServiceConfig) error {
-	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
+func (s *RateLimitService) RecordRequest(ctx context.Context, userKey any, action, domainCode string, cfg *config.AuthServiceConfig) error {
+	key := s.generateKey(userKey, action, domainCode, cfg.UpdatedAt().Unix())
 	now := time.Now()
 
 	err := redis.RedisClient.ZAdd(ctx, key, redisv9.Z{
@@ -67,14 +87,14 @@ func (s *RateLimitService) RecordRequest(ctx context.Context, userID uint, actio
 	}).Err()
 
 	if err != nil {
-		slog.Error("RateLimit: Failed to record request", "error", err, "userID", userID, "action", action)
+		slog.Error("RateLimit: Failed to record request", "error", err, "userKey", userKey, "action", action)
 		return err
 	}
 
 	expiry := time.Hour
 	redis.RedisClient.Expire(ctx, key, expiry)
 
-	slog.Info("RateLimit: Request recorded", "userID", userID, "action", action)
+	slog.Info("RateLimit: Request recorded", "userKey", userKey, "action", action)
 	return nil
 }
 
@@ -104,8 +124,8 @@ func (s *RateLimitService) CleanupOldRecords(ctx context.Context, maxAge time.Du
 	return nil
 }
 
-func (s *RateLimitService) GetRequestCount(ctx context.Context, userID uint, action, domainCode string, windowDuration time.Duration, cfg *config.AuthServiceConfig) (int64, error) {
-	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
+func (s *RateLimitService) GetRequestCount(ctx context.Context, userKey any, action, domainCode string, windowDuration time.Duration, cfg *config.AuthServiceConfig) (int64, error) {
+	key := s.generateKey(userKey, action, domainCode, cfg.UpdatedAt().Unix())
 	now := time.Now()
 	windowStart := now.Add(-windowDuration)
 
@@ -120,9 +140,9 @@ func (s *RateLimitService) GetRequestCount(ctx context.Context, userID uint, act
 	return count, nil
 }
 
-func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userID uint, action, domainCode string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
+func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userKey any, action, domainCode string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
 	configUpdatedAt := cfg.UpdatedAt().Unix()
-	key := s.generateKey(userID, action, domainCode, configUpdatedAt)
+	key := s.generateKey(userKey, action, domainCode, configUpdatedAt)
 	now := time.Now()
 	windowStart := now.Add(-rateLimit.WindowDuration)
 
@@ -156,14 +176,14 @@ func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userID uin
 	).Result()
 
 	if err != nil {
-		slog.Error("RateLimit: Lua script failed", "error", err, "userID", userID, "action", action)
+		slog.Error("RateLimit: Lua script failed", "error", err, "userKey", userKey, "action", action)
 		return false, err
 	}
 
 	allowed := result.(int64) == 1
 
 	slog.Info("RateLimit: Atomic check and record result",
-		"userID", userID,
+		"userKey", userKey,
 		"action", action,
 		"maxRequests", rateLimit.MaxRequests,
 		"windowDuration", rateLimit.WindowDuration,
@@ -177,15 +197,15 @@ func (s *RateLimitService) EnsureTableExists(ctx context.Context) error {
 	return nil
 }
 
-func (s *RateLimitService) ClearUserActionRateLimit(ctx context.Context, userID uint, action, domainCode string, cfg *config.AuthServiceConfig) error {
-	key := s.generateKey(userID, action, domainCode, cfg.UpdatedAt().Unix())
+func (s *RateLimitService) ClearUserActionRateLimit(ctx context.Context, userKey any, action, domainCode string, cfg *config.AuthServiceConfig) error {
+	key := s.generateKey(userKey, action, domainCode, cfg.UpdatedAt().Unix())
 
 	err := redis.RedisClient.Del(ctx, key).Err()
 	if err != nil {
-		slog.Error("RateLimit: Failed to clear user action rate limit", "error", err, "userID", userID, "action", action)
+		slog.Error("RateLimit: Failed to clear user action rate limit", "error", err, "userKey", userKey, "action", action)
 		return err
 	}
 
-	slog.Info("RateLimit: Cleared user action rate limit", "userID", userID, "action", action)
+	slog.Info("RateLimit: Cleared user action rate limit", "userKey", userKey, "action", action)
 	return nil
 }
