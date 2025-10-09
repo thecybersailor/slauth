@@ -7,6 +7,34 @@ console.log('[demo:auth.ts] Module loading/reloading', {
   session_exists: !!localStorage.getItem('aira.auth.token')
 })
 
+// Callback tracking for E2E tests
+interface CallbackTracker {
+  onSessionRefreshed: number
+  onUnauthorized: number
+  onAuthError: number
+  lastRefreshedSession: any
+  lastError: any
+  callHistory: Array<{ type: string; timestamp: number; data?: any }>
+}
+
+// Initialize callback tracker on window for E2E testing
+declare global {
+  interface Window {
+    __authCallbacks?: CallbackTracker
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.__authCallbacks = {
+    onSessionRefreshed: 0,
+    onUnauthorized: 0,
+    onAuthError: 0,
+    lastRefreshedSession: null,
+    lastError: null,
+    callHistory: []
+  }
+}
+
 // Create the API clients
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 export const { authClient, adminClient } = createClients({
@@ -15,11 +43,46 @@ export const { authClient, adminClient } = createClients({
   autoRefreshToken: true,
   persistSession: true,
   debug: true,
+  onSessionRefreshed: (session) => {
+    console.log('[demo:auth] onSessionRefreshed called', session)
+    if (window.__authCallbacks) {
+      window.__authCallbacks.onSessionRefreshed++
+      window.__authCallbacks.lastRefreshedSession = session
+      window.__authCallbacks.callHistory.push({
+        type: 'onSessionRefreshed',
+        timestamp: Date.now(),
+        data: session
+      })
+    }
+  },
+  onUnauthorized: () => {
+    console.log('[demo:auth] onUnauthorized called')
+    if (window.__authCallbacks) {
+      window.__authCallbacks.onUnauthorized++
+      window.__authCallbacks.callHistory.push({
+        type: 'onUnauthorized',
+        timestamp: Date.now()
+      })
+    }
+  },
+  onAuthError: (error) => {
+    console.log('[demo:auth] onAuthError called', error)
+    if (window.__authCallbacks) {
+      window.__authCallbacks.onAuthError++
+      window.__authCallbacks.lastError = error
+      window.__authCallbacks.callHistory.push({
+        type: 'onAuthError',
+        timestamp: Date.now(),
+        data: error
+      })
+    }
+  }
 })
 
 console.log('[demo:auth.ts] Clients created', {
   hasAuthClient: !!authClient,
-  hasAdminClient: !!adminClient
+  hasAdminClient: !!adminClient,
+  callbacksEnabled: !!window.__authCallbacks
 })
 
 // Auth configuration for UI components

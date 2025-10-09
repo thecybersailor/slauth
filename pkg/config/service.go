@@ -76,7 +76,7 @@ func NewDefaultAuthServiceConfig() *AuthServiceConfig {
 		AllowNewUsers:                      &trueVal,
 		ManualLinking:                      &falseVal,
 		AnonymousSignIns:                   &falseVal,
-		ConfirmEmail:                       &falseVal,
+		ConfirmEmail:                       &trueVal,
 		MaximumMfaFactors:                  10,
 		MaximumMfaFactorValidationAttempts: 5,
 		EnableCaptcha:                      &falseVal,

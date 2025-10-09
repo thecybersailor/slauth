@@ -11,6 +11,7 @@ export function createClients(config: ClientsConfig) {
     autoRefreshToken: config.autoRefreshToken,
     persistSession: config.persistSession,
     storage: config.storage,
+    storageKey: config.storageKey,
     debug: config.debug,
     timeout: config.timeout,
     // Pass callbacks

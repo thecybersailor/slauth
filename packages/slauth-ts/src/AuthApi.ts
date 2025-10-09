@@ -25,10 +25,11 @@ export class AuthApi {
       autoRefreshToken: config.autoRefreshToken !== false,
       persistSession: config.persistSession !== false,
       hasCustomStorage: !!config.storage,
+      storageKey: config.storageKey,
       debug: config.debug
     })
     
-    this.storage = new StorageManager(config.storage)
+    this.storage = new StorageManager(config.storage, config.storageKey)
     this.autoRefreshToken = config.autoRefreshToken !== false
     this.persistSession = config.persistSession !== false
     

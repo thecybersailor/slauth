@@ -1,6 +1,6 @@
 {
   "name": "@cybersailor/slauth-ui-vue",
-  "version": "0.8.3",
+  "version": "0.8.5",
   "description": "Vue 3 UI components for slauth",
   "keywords": [
     "auth",
@@ -43,7 +43,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@cybersailor/slauth-ts": "^0.8.3",
+    "@cybersailor/slauth-ts": "^0.8.5",
     "ua-parser-js": "^1.0.41"
   },
   "peerDependencies": {

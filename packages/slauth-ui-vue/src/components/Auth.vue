@@ -237,42 +237,10 @@ const navigateToAuthStep = (step: string, additionalParams: Record<string, strin
   }
 }
 
-// Smart navigation function
+// Redirect to final destination after auth completion
 const smartNavigate = (url: string) => {
-  console.log('[DEBUG] smartNavigate called', { 
-    url, 
-    hasRouter: !!router, 
-    currentPath: window.location.pathname 
-  })
-  
-  if (router) {
-    // Check if it's a complete URL
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      // Complete URL: check if same instance
-      const currentInstance = window.location.origin
-      const redirectUrl = new URL(url)
-      const isSameInstance = redirectUrl.origin === currentInstance
-
-      if (isSameInstance) {
-        // Same instance: use Vue Router navigation (only path part)
-        const targetPath = redirectUrl.pathname + redirectUrl.search + redirectUrl.hash
-        console.log('[DEBUG] smartNavigate: same instance, using Vue Router', { targetPath })
-        router.push(targetPath)
-      } else {
-        // Different instance: use window.location
-        console.log('[DEBUG] smartNavigate: different instance, using window.location', { url })
-        window.location.href = url
-      }
-    } else {
-      // Relative path: ensure starts with /, use Vue Router
-      const absolutePath = url.startsWith('/') ? url : `/${url}`
-      console.log('[DEBUG] smartNavigate: relative path, using Vue Router', { absolutePath })
-      router.push(absolutePath)
-    }
-  } else {
-    console.log('[DEBUG] smartNavigate: no router, using window.location', { url })
-    window.location.href = url
-  }
+  console.log('[DEBUG] smartNavigate: redirecting to', { url })
+  window.location.href = url
 }
 
 // Set view based on detected action

@@ -1,6 +1,6 @@
 # Development tools
 
-.PHONY: fmt lint lint-install install-hooks demo-backend demo-frontend dev-services dev-services-down dev-e2e generate-llms
+.PHONY: fmt lint lint-install install-hooks demo-backend demo-frontend dev-services dev-services-down dev-e2e
 
 # Format Go code with gofmt -s
 fmt:
@@ -130,9 +130,3 @@ dev-e2e-prod:
 		echo "Stopping preview server..."; \
 		pkill -f "vite preview" || true; \
 		exit $$TEST_EXIT
-
-# Generate llms.txt files for all packages
-generate-llms:
-	@echo "Generating llms.txt files..."
-	@node tools/generate-llms.mjs
-	@echo "llms.txt files generated successfully!"

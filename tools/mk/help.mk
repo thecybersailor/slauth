@@ -9,6 +9,7 @@ help:
 	@echo "  generate-schemas - Generate Zod schemas from TypeScript types"
 	@echo "  build-ts-sdk- Build TypeScript SDK"
 	@echo "  build-vue-ui- Build Vue UI library"
+	@echo "  generate-llms - Generate llms.txt files for all packages"
 	@echo "  docs-install- Install swag tool"
 	@echo "  clean-schemas - Clean only generated schemas"
 	@echo "  regen-schemas - Force regenerate schemas"

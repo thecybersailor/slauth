@@ -1,9 +1,9 @@
 # Build and documentation targets
 
-.PHONY: all build-ts-sdk build-vue-ui generate-templates generate-schemas regen-schemas clean-schemas docs-install
+.PHONY: all build-ts-sdk build-vue-ui generate-templates generate-schemas regen-schemas clean-schemas docs-install generate-llms
 
 # Default target
-all: generate-templates generate-schemas build-ts-sdk build-vue-ui
+all: generate-templates generate-schemas build-ts-sdk build-vue-ui generate-llms
 
 # Generate templates from templates/ directory
 generate-templates: pkg/consts/tmpl.go
@@ -86,3 +86,9 @@ docs/specs/admin-api.json: tools/prog/main.go $(GO_FILES)
 docs-install:
 	@echo "Installing swag tool..."
 	go install github.com/swaggo/swag/cmd/swag@latest
+
+# Generate llms.txt files for all packages
+generate-llms:
+	@echo "Generating llms.txt files..."
+	@node tools/generate-llms.mjs
+	@echo "llms.txt files generated successfully!"

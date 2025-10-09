@@ -49,6 +49,8 @@ export interface ClientsConfig {
   persistSession?: boolean
   /** Storage implementation for session persistence */
   storage?: Storage
+  /** Storage key for session persistence */
+  storageKey?: string
   /** Debug mode */
   debug?: boolean
   /** Request timeout */
