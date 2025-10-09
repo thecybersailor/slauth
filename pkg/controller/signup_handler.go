@@ -180,12 +180,18 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 
 		slog.Info("SignUp: Session created", "sessionID", session.HashID)
 
+		// Calculate expires_in from expires_at
+		expiresIn := int(expiresAt - time.Now().Unix())
+		if expiresIn < 0 {
+			expiresIn = 0
+		}
+
 		sessionData = &Session{
 			ID:           session.HashID,
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 			TokenType:    "Bearer",
-			ExpiresIn:    3600,
+			ExpiresIn:    expiresIn,
 			ExpiresAt:    expiresAt,
 			User:         userData,
 		}

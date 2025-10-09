@@ -299,12 +299,18 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 	// Convert user to response format
 	userResp := convertUserToResponse(user.GetModel())
 
+	// Calculate expires_in from expires_at
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+
 	// Create session response
 	sessionResp := &Session{
 		ID:                   session.HashID,
 		AccessToken:          accessToken,
 		RefreshToken:         refreshToken,
-		ExpiresIn:            3600,
+		ExpiresIn:            expiresIn,
 		ExpiresAt:            expiresAt,
 		TokenType:            "Bearer",
 		ProviderToken:        oauthResp.TokenInfo.AccessToken,
@@ -399,12 +405,18 @@ func (a *AuthController) SignInWithIdToken(c *pin.Context) error {
 	// Convert user to response format
 	userResp := convertUserToResponse(user.GetModel())
 
+	// Calculate expires_in from expires_at
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+
 	// Create session response
 	sessionResp := &Session{
 		ID:           session.HashID,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
+		ExpiresIn:    expiresIn,
 		ExpiresAt:    expiresAt,
 		TokenType:    "Bearer",
 		User:         userResp,
@@ -607,12 +619,18 @@ func (a *AuthController) HandleSSOCallback(c *pin.Context) error {
 	// Convert user to response format
 	userResp := convertUserToResponse(user.GetModel())
 
+	// Calculate expires_in from expires_at
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+
 	// Create session response
 	sessionResp := &Session{
 		ID:           session.HashID,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600,
+		ExpiresIn:    expiresIn,
 		ExpiresAt:    expiresAt,
 		TokenType:    "Bearer",
 		User:         userResp,

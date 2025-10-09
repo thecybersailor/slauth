@@ -1,15 +1,16 @@
 import { test, expect } from '@playwright/test'
+import { testConfig } from './fixtures/test-data.js'
 
 test.describe('Mock OAuth Flow', () => {
   test('should complete mock OAuth sign in flow', async ({ page }) => {
-    await page.goto('http://localhost:5180/auth/')
-    await page.waitForLoadState('networkidle')
+    await page.goto(`${testConfig.baseUrl}/auth/`)
+    // await page.waitForLoadState('networkidle')
     
     await expect(page.getByRole('button', { name: 'Sign in with Mock OAuth' })).toBeVisible()
     await page.getByRole('button', { name: 'Sign in with Mock OAuth' }).click()
     
     await page.waitForURL('**/mock-oauth/authorize*', { timeout: 10000 })
-    await page.waitForLoadState('networkidle')
+    // await page.waitForLoadState('networkidle')
     
     await expect(page.getByTestId('mock-oauth-title')).toBeVisible()
     await expect(page.getByTestId('mock-oauth-user-select')).toBeVisible()
@@ -23,14 +24,14 @@ test.describe('Mock OAuth Flow', () => {
   })
 
   test('should handle mock OAuth denial', async ({ page }) => {
-    await page.goto('http://localhost:5180/auth/')
-    await page.waitForLoadState('networkidle')
+    await page.goto(`${testConfig.baseUrl}/auth/`)
+    // await page.waitForLoadState('networkidle')
     
     await expect(page.getByRole('button', { name: 'Sign in with Mock OAuth' })).toBeVisible()
     await page.getByRole('button', { name: 'Sign in with Mock OAuth' }).click()
     
     await page.waitForURL('**/mock-oauth/authorize*', { timeout: 10000 })
-    await page.waitForLoadState('networkidle')
+    // await page.waitForLoadState('networkidle')
     
     await expect(page.getByTestId('mock-oauth-deny')).toBeVisible()
     await page.getByTestId('mock-oauth-deny').click()
@@ -38,8 +39,6 @@ test.describe('Mock OAuth Flow', () => {
     await page.waitForURL('**/auth/**', { timeout: 10000 })
     await expect(page.getByTestId('auth-container')).toBeVisible()
     
-    // After denial, may be in callback state processing the error, then should switch to sign_in
-    await page.waitForTimeout(1000)
     const status = await page.getByTestId('auth-container').getAttribute('data-status')
     console.log('Status after OAuth denial:', status)
     
@@ -51,22 +50,22 @@ test.describe('Mock OAuth Flow', () => {
     const testUsers = ['user1', 'admin']
 
     for (const user of testUsers) {
-      await page.goto('http://localhost:5180/auth/')
-      await page.waitForLoadState('networkidle')
+      await page.goto(`${testConfig.baseUrl}/auth/`)
+      // await page.waitForLoadState('networkidle')
       
       await expect(page.getByRole('button', { name: 'Sign in with Mock OAuth' })).toBeVisible()
       await page.getByRole('button', { name: 'Sign in with Mock OAuth' }).click()
       
       await page.waitForURL('**/mock-oauth/authorize*', { timeout: 10000 })
-      await page.waitForLoadState('networkidle')
+      // await page.waitForLoadState('networkidle')
       
       await page.getByTestId('mock-oauth-user-select').selectOption(user)
       await page.getByTestId('mock-oauth-approve').click()
       
       await expect(page.getByTestId('dashboard-page')).toBeVisible({ timeout: 15000 })
       
-      await page.goto('http://localhost:5180/auth/')
-      await page.waitForLoadState('networkidle')
+      await page.goto(`${testConfig.baseUrl}/auth/`)
+      // await page.waitForLoadState('networkidle')
       
       const logoutButton = page.getByTestId('signout-button')
       if (await logoutButton.isVisible()) {
@@ -109,14 +108,14 @@ test.describe('Mock OAuth Flow', () => {
       }
     })
     
-    await page.goto('http://localhost:5180/auth/')
-    await page.waitForLoadState('networkidle')
+    await page.goto(`${testConfig.baseUrl}/auth/`)
+    // await page.waitForLoadState('networkidle')
     
     await expect(page.getByRole('button', { name: 'Sign in with Mock OAuth' })).toBeVisible()
     await page.getByRole('button', { name: 'Sign in with Mock OAuth' }).click()
     
     await page.waitForURL('**/mock-oauth/authorize*', { timeout: 10000 })
-    await page.waitForLoadState('networkidle')
+    // await page.waitForLoadState('networkidle')
     
     await page.getByTestId('mock-oauth-user-select').selectOption('user1')
     await page.getByTestId('mock-oauth-approve').click()
@@ -130,9 +129,6 @@ test.describe('Mock OAuth Flow', () => {
     if (!isCallbackVisible) {
       console.log('⚠️ Callback processed too quickly to observe loading state')
     }
-    
-    // Wait for callback processing to complete or timeout
-    await page.waitForTimeout(2000)
     
     console.log('Token Requests:', tokenRequests.length)
     tokenRequests.forEach(req => {

@@ -284,7 +284,7 @@ test.describe('Complete Signup Flow', () => {
       await page.goto(confirmationLink);
       
       
-      await page.waitForLoadState('networkidle');
+      // await page.waitForLoadState('networkidle');
       
       console.log('📍 Current URL after confirmation:', page.url());
       

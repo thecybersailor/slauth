@@ -153,8 +153,8 @@ test.describe('Complete Login Flow', () => {
 
 
 
-      await expect(page).toHaveURL(/.*\/$/, { timeout: 5000 })
-      console.log('✅ Logout successful, redirected to home page')
+      await expect(page).toHaveURL(/.*\/auth.*/, { timeout: 5000 })
+      console.log('✅ Logout successful, redirected to auth page')
 
 
       const authToken = await page.evaluate(() => {
@@ -264,7 +264,7 @@ test.describe('Complete Login Flow', () => {
     // ==================== Step 2: Verify confirmation success message ====================
     await test.step('Verify confirmation success message display', async () => {
 
-      await page.waitForLoadState('networkidle')
+      // await page.waitForLoadState('networkidle')
 
 
       const successMessage = page.getByTestId(TEST_IDS.SUCCESS_MESSAGE)

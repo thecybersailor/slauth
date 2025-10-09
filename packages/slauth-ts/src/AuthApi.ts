@@ -20,6 +20,14 @@ export class AuthApi {
   }
 
   constructor(baseURL: string, config: any) {
+    console.log('[slauth:AuthApi] Constructor called', {
+      baseURL,
+      autoRefreshToken: config.autoRefreshToken !== false,
+      persistSession: config.persistSession !== false,
+      hasCustomStorage: !!config.storage,
+      debug: config.debug
+    })
+    
     this.storage = new StorageManager(config.storage)
     this.autoRefreshToken = config.autoRefreshToken !== false
     this.persistSession = config.persistSession !== false
@@ -72,26 +80,33 @@ export class AuthApi {
   }
 
   private syncTokenState() {
-    
+    console.log('[slauth:AuthApi] syncTokenState called')
     const originalSetAuth = this.api.setAuth.bind(this.api)
     this.api.setAuth = (token: string | null) => {
+      console.log('[slauth:AuthApi] api.setAuth wrapper called', { 
+        hasToken: !!token,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : null 
+      })
       originalSetAuth(token)
       this.request.setAuth(token)
     }
   }
 
   private async initializeSession(): Promise<void> {
+    console.log('[slauth:AuthApi] initializeSession called', { persistSession: this.persistSession })
     if (!this.persistSession) return
 
-    try {
-      const session = await this.storage.getSession()
-      if (session) {
-        this.currentSession = session
-        this.currentUser = session.user
-        this.api.setAuth(session.access_token)
-      }
-    } catch (error) {
-      console.warn('[slauth] Failed to initialize session:', error)
+    const session = await this.storage.getSession()
+    console.log('[slauth:AuthApi] Session from storage', { 
+      hasSession: !!session,
+      hasAccessToken: !!session?.access_token,
+      tokenPreview: session?.access_token ? `${session.access_token.substring(0, 20)}...` : null
+    })
+    if (session) {
+      this.currentSession = session
+      this.currentUser = session.user
+      this.api.setAuth(session.access_token)
+      console.log('[slauth:AuthApi] Session initialized from storage')
     }
   }
 
@@ -104,11 +119,19 @@ export class AuthApi {
    * to all clients holding the reference.
    */
   private async setSession(session: Types.Session): Promise<void> {
-    // Update existing session object to maintain reference synchronization
+    console.log('[slauth:AuthApi] setSession called', {
+      hasCurrentSession: !!this.currentSession,
+      hasAccessToken: !!session.access_token,
+      tokenPreview: session.access_token ? `${session.access_token.substring(0, 20)}...` : null,
+      persistSession: this.persistSession
+    })
+    
     if (this.currentSession) {
       Object.assign(this.currentSession, session)
+      console.log('[slauth:AuthApi] Session updated via Object.assign')
     } else {
       this.currentSession = session
+      console.log('[slauth:AuthApi] New session created')
     }
     
     this.currentUser = session.user
@@ -116,21 +139,26 @@ export class AuthApi {
       throw new Error('No access token in session')
     }
     this.api.setAuth(session.access_token)
+    console.log('[slauth:AuthApi] Access token set on api client')
 
     if (this.persistSession) {
       await this.storage.saveSession(session)
       await this.storage.saveUser(session.user)
+      console.log('[slauth:AuthApi] Session persisted to storage')
     }
   }
 
   private async clearSession(): Promise<void> {
+    console.log('[slauth:AuthApi] clearSession called')
     this.currentSession = null
     this.currentUser = null
     this.api.setAuth(null)
+    console.log('[slauth:AuthApi] Session cleared')
 
     if (this.persistSession) {
       await this.storage.removeSession()
       await this.storage.removeUser()
+      console.log('[slauth:AuthApi] Session removed from storage')
     }
   }
 

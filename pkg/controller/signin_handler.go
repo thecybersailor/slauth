@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -89,6 +90,15 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 		"ctxDataRefreshToken", ctx.Data.RefreshToken,
 		"signinCtxResponseSession", signinCtx.Response().Session != nil)
 
+	// ctx.Data.ExpiresIn is absolute timestamp from flow
+	expiresAt := ctx.Data.ExpiresIn
+
+	// Calculate relative expires_in from absolute timestamp
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+
 	if signinCtx.Response().Session != nil {
 		slog.Info("SignInWithPassword: Using session from SigninContext",
 			"sessionHashID", signinCtx.Response().Session.HashID,
@@ -98,9 +108,10 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 			ID:           ctx.Data.SessionID,
 			AccessToken:  ctx.Data.AccessToken,
 			RefreshToken: ctx.Data.RefreshToken,
-			ExpiresIn:    int(ctx.Data.ExpiresIn), // ExpiresIn is already relative time in seconds
+			ExpiresIn:    expiresIn,
+			ExpiresAt:    expiresAt,
 			TokenType:    "Bearer",
-			User:         userData, // Use the same user data
+			User:         userData,
 		}
 	} else {
 		slog.Info("SignInWithPassword: Using session from context data",
@@ -110,9 +121,10 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 			ID:           ctx.Data.SessionID,
 			AccessToken:  ctx.Data.AccessToken,
 			RefreshToken: ctx.Data.RefreshToken,
-			ExpiresIn:    int(ctx.Data.ExpiresIn), // ExpiresIn is already relative time in seconds
+			ExpiresIn:    expiresIn,
+			ExpiresAt:    expiresAt,
 			TokenType:    "Bearer",
-			User:         userData, // Use the same user data
+			User:         userData,
 		}
 	}
 

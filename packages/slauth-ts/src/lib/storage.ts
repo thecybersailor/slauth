@@ -47,37 +47,67 @@ export class StorageManager {
   constructor(storage?: SupportedStorage, storageKey: string = 'aira.auth.token') {
     this.storage = storage || getStorage()
     this.storageKey = storageKey
+    console.log('[slauth:storage] StorageManager created', {
+      storageKey: this.storageKey,
+      storageType: this.storage.constructor.name,
+      customStorage: !!storage,
+      stackTrace: new Error().stack?.split('\n').slice(2, 4).join('\n')
+    })
   }
 
   /** Get session from storage */
   async getSession(): Promise<any | null> {
-    try {
-      const data = this.storage.getItem(this.storageKey)
-      if (!data) return null
-      
-      const session = JSON.parse(data)
-      
-      // Check if session is expired
-      if (session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)) {
-        await this.removeSession()
-        return null
-      }
-      
-      return session
-    } catch (error) {
-      console.warn('[slauth] Failed to get session from storage:', error)
+    console.log('[slauth:storage] getSession - checking storage', {
+      storageKey: this.storageKey,
+      storageType: this.storage.constructor.name,
+      allKeys: this.storage === localStorage ? Object.keys(localStorage) : 'N/A'
+    })
+    
+    const data = this.storage.getItem(this.storageKey)
+    console.log('[slauth:storage] getSession - data retrieved', { 
+      storageKey: this.storageKey,
+      hasData: !!data,
+      dataLength: data?.length,
+      dataPreview: data ? `${data.substring(0, 50)}...` : null
+    })
+    if (!data) return null
+    
+    const session = JSON.parse(data)
+    console.log('[slauth:storage] Session parsed', {
+      hasAccessToken: !!session.access_token,
+      hasExpiresAt: !!session.expires_at,
+      expiresAt: session.expires_at
+    })
+    
+    if (session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)) {
+      console.log('[slauth:storage] Session expired, removing')
+      await this.removeSession()
       return null
     }
+    
+    return session
   }
 
   /** Save session to storage */
   async saveSession(session: any): Promise<void> {
-    try {
-      const data = JSON.stringify(session)
-      this.storage.setItem(this.storageKey, data)
-    } catch (error) {
-      console.warn('[slauth] Failed to save session to storage:', error)
-    }
+    const data = JSON.stringify(session)
+    console.log('[slauth:storage] saveSession - before setItem', {
+      storageKey: this.storageKey,
+      hasAccessToken: !!session.access_token,
+      tokenPreview: session.access_token ? `${session.access_token.substring(0, 20)}...` : null,
+      dataLength: data.length,
+      storageType: this.storage.constructor.name
+    })
+    
+    this.storage.setItem(this.storageKey, data)
+    
+    const verification = this.storage.getItem(this.storageKey)
+    console.log('[slauth:storage] saveSession - after setItem verification', {
+      storageKey: this.storageKey,
+      saved: !!verification,
+      dataMatch: verification === data,
+      verificationLength: verification?.length
+    })
   }
 
   /** Remove session from storage */

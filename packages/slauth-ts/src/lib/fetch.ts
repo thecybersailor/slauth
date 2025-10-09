@@ -60,6 +60,13 @@ export class HttpClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
+        const authHeader = config.headers?.['Authorization']
+        console.log(`[slauth:fetch] Request interceptor`, {
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          hasAuthHeader: !!authHeader,
+          authHeaderPreview: authHeader ? `${String(authHeader).substring(0, 30)}...` : null
+        })
         if (this.debug) {
           console.log(`[slauth] ${config.method?.toUpperCase()} ${config.url}`, {
             headers: config.headers,
@@ -135,10 +142,17 @@ export class HttpClient {
 
   /** Set authorization header */
   setAuth(token: string | null) {
+    console.log('[slauth:fetch] setAuth called', { 
+      hasToken: !!token, 
+      tokenPreview: token ? `${token.substring(0, 20)}...` : null,
+      stackTrace: new Error().stack?.split('\n').slice(2, 5).join('\n')
+    })
     if (token) {
       this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      console.log('[slauth:fetch] Authorization header set')
     } else {
       delete this.client.defaults.headers.common['Authorization']
+      console.log('[slauth:fetch] Authorization header cleared')
     }
   }
 

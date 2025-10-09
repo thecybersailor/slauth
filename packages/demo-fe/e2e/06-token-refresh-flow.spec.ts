@@ -46,14 +46,13 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
       await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(userPassword)
       await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click()
       
-      // Wait for login to complete - could redirect to dashboard or stay on auth page
-
-      const currentUrl = page.url()
-      console.log('🔍 Current URL after login:', currentUrl)
-
-      // Accept either dashboard redirect or staying on auth page (depending on user status)
-      expect(currentUrl).toMatch(/\/(dashboard|auth)/)
-      console.log('✅ Login successful')
+      // Wait for successful redirect to dashboard
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      
+      // Verify dashboard loaded by checking title
+      await expect(page.getByTestId(TEST_IDS.DASHBOARD_TITLE)).toBeVisible({ timeout: 5000 })
+      
+      console.log('✅ Login successful and redirected to dashboard')
     })
 
     // Step 2: Get current session tokens
@@ -62,13 +61,6 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
         const sessionStr = localStorage.getItem('aira.auth.token')
         return sessionStr ? JSON.parse(sessionStr) : null
       })
-
-      if (!session) {
-        console.log('⚠️ No session found in localStorage - user may need email confirmation')
-        console.log('   Skipping token refresh test as no tokens are available')
-        test.skip()
-        return
-      }
 
       expect(session).toBeTruthy()
       expect(session.access_token).toBeTruthy()
@@ -83,7 +75,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
 
     // Step 3: Call refresh token API manually
     await test.step('Manually refresh token', async () => {
-      const result = await page.evaluate(async () => {
+      const result = await page.evaluate(async (backendUrl) => {
         const sessionStr = localStorage.getItem('aira.auth.token')
         const session = sessionStr ? JSON.parse(sessionStr) : null
         
@@ -93,7 +85,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
 
         const oldAccessToken = session.access_token
 
-        const response = await fetch(`http://localhost:8080/auth/token?grant_type=refresh_token`, {
+        const response = await fetch(`${backendUrl}/auth/token?grant_type=refresh_token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -118,7 +110,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
         }
 
         return { error: data.error || 'Refresh failed' }
-      })
+      }, testConfig.backendUrl)
 
       expect(result.success).toBe(true)
       expect(result.tokensAreDifferent).toBe(true)
@@ -127,13 +119,13 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
 
     // Step 4: Verify new token works
     await test.step('Verify new access token is valid', async () => {
-      const userInfoResult = await page.evaluate(async () => {
+      const userInfoResult = await page.evaluate(async (backendUrl) => {
         const sessionStr = localStorage.getItem('aira.auth.token')
         const session = sessionStr ? JSON.parse(sessionStr) : null
         
         if (!session) return { error: 'No session' }
 
-        const response = await fetch(`http://localhost:8080/auth/user`, {
+        const response = await fetch(`${backendUrl}/auth/user`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${session.access_token}`
@@ -146,7 +138,7 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
           hasUser: !!data.data?.user,
           email: data.data?.user?.email
         }
-      })
+      }, testConfig.backendUrl)
 
       expect(userInfoResult.status).toBe(200)
       expect(userInfoResult.hasUser).toBe(true)
@@ -246,14 +238,13 @@ test.describe('Token Refresh and Callback Mechanisms', () => {
       await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(userPassword)
       await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click()
 
-      // Wait for login to complete - could redirect to dashboard or stay on auth page
-
-      const currentUrl = page.url()
-      console.log('🔍 Current URL after login:', currentUrl)
-
-      // Accept either dashboard redirect or staying on auth page (depending on user status)
-      expect(currentUrl).toMatch(/\/(dashboard|auth)/)
-      console.log('✅ Login successful')
+      // Wait for successful redirect to dashboard
+      await page.waitForURL(/\/dashboard/, { timeout: 10000 })
+      
+      // Verify dashboard loaded by checking title
+      await expect(page.getByTestId(TEST_IDS.DASHBOARD_TITLE)).toBeVisible({ timeout: 5000 })
+      
+      console.log('✅ Login successful and redirected to dashboard')
     })
 
     await test.step('Manually corrupt session to simulate expiration', async () => {

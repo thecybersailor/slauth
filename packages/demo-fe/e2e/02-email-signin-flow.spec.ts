@@ -147,7 +147,6 @@ test.describe('Email SignIn Flow', () => {
 
     // ==================== Step 7: Update test context ====================
     await test.step('Update test context', async () => {
-      testContext.set('test.status', 'signin_completed');
       testContext.set('test.signin_timestamp', new Date().toISOString());
       
       console.log('✅ Login flow completed, state updated to TestContext');
@@ -313,37 +312,48 @@ test.describe('Email SignIn Flow', () => {
   });
 
   test('Test login with unconfirmed email user', async ({ page, testContext }) => {
-    // ==================== Step 1: Check user status ====================
-    await test.step('Check user status', async () => {
-      const email = testContext.get<string>('auth.email');
-      const password = testContext.get<string>('auth.password');
-      const testStatus = testContext.get<string>('test.status');
+    // ==================== Step 1: Create unconfirmed user ====================
+    let unconfirmedEmail: string;
+    let unconfirmedPassword: string;
+    
+    await test.step('Create user with unconfirmed email', async () => {
+      // Enable email confirmation
+      const configResponse = await page.request.put(`${testConfig.backendUrl}/admin/config`, {
+        data: {
+          config: {
+            confirm_email: true,
+            allow_new_users: true
+          }
+        }
+      });
+      expect(configResponse.ok()).toBeTruthy();
+      console.log('✅ Email confirmation enabled');
 
+      // Create new user
+      unconfirmedEmail = `unconfirmed-${Date.now()}@example.com`;
+      unconfirmedPassword = 'TestPassword123!';
       
-      if (!email || !password || testStatus !== 'signup_completed_pending_confirmation') {
-        console.log('⚠️ This test requires a user with unconfirmed email');
-        console.log(`   📊 Current status: ${testStatus || 'none'}`);
-        console.log('   Expected status: signup_completed_pending_confirmation');
-        test.skip();
-        return;
-      }
-
-      console.log('✅ Found user with unconfirmed email, starting test');
+      const signupResponse = await page.request.post(`${testConfig.backendUrl}/auth/signup`, {
+        data: {
+          email: unconfirmedEmail,
+          password: unconfirmedPassword
+        }
+      });
+      
+      expect(signupResponse.ok()).toBeTruthy();
+      console.log('✅ Created user with unconfirmed email:', unconfirmedEmail);
     });
 
     // ==================== Step 2: Attempt login ====================
     await test.step('Attempt login with unconfirmed email user', async () => {
-      const email = testContext.get<string>('auth.email');
-      const password = testContext.get<string>('auth.password');
-
       await page.goto('/auth/signin');
       
       // Wait for signin form to be visible
       await expect(page.getByTestId(TEST_IDS.SIGNIN_FORM)).toBeVisible();
 
       // Fill login form
-      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill(email);
-      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(password);
+      await page.getByTestId(TEST_IDS.SIGNIN_EMAIL).locator('input').fill(unconfirmedEmail);
+      await page.getByTestId(TEST_IDS.SIGNIN_PASSWORD).locator('input').fill(unconfirmedPassword);
 
       // Submit login
       await page.getByTestId(TEST_IDS.SIGNIN_BUTTON).click();

@@ -1,6 +1,12 @@
 import { createClients } from '@cybersailor/slauth-ts'
 import mockProvider from '../providers/mock.vue'
 
+console.log('[demo:auth.ts] Module loading/reloading', {
+  timestamp: new Date().toISOString(),
+  localStorage_keys: Object.keys(localStorage),
+  session_exists: !!localStorage.getItem('aira.auth.token')
+})
+
 // Create the API clients
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 export const { authClient, adminClient } = createClients({
@@ -11,6 +17,11 @@ export const { authClient, adminClient } = createClients({
   debug: true,
 })
 
+console.log('[demo:auth.ts] Clients created', {
+  hasAuthClient: !!authClient,
+  hasAdminClient: !!adminClient
+})
+
 // Auth configuration for UI components
 export const authConfig = {
   // Social providers configuration
@@ -18,7 +29,7 @@ export const authConfig = {
   
   // Redirect URLs
   redirectTo: `${window.location.origin}/dashboard`,
-  authBaseUrl: 'http://localhost:5180/auth',
+  authBaseUrl: `${window.location.origin}/auth`,
   
   // UI configuration
   appearance: 'default' as const,

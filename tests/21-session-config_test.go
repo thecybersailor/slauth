@@ -289,8 +289,17 @@ func (suite *SessionConfigTestSuite) TestAccessTokenTTL() {
 	sessionData := signinData["session"].(map[string]interface{})
 	accessToken := sessionData["access_token"].(string)
 	expiresIn := sessionData["expires_in"].(float64)
+	expiresAt := sessionData["expires_at"].(float64)
 	suite.NotEmpty(accessToken, "Should have access token")
-	suite.Equal(float64(2), expiresIn, "Access token should expire in 2 seconds")
+
+	// expires_in should be close to 2 seconds (allow some processing time tolerance)
+	suite.GreaterOrEqual(expiresIn, float64(1), "Access token should expire in at least 1 second")
+	suite.LessOrEqual(expiresIn, float64(2), "Access token should expire in at most 2 seconds")
+
+	// expires_at should be an absolute timestamp in the future
+	currentTime := float64(time.Now().Unix())
+	suite.Greater(expiresAt, currentTime, "expires_at should be a future timestamp")
+	suite.LessOrEqual(expiresAt, currentTime+3, "expires_at should be within 3 seconds from now")
 
 	// Wait for access token to expire
 	time.Sleep(3 * time.Second)

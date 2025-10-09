@@ -2,6 +2,7 @@ package controller
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -92,12 +93,18 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 	// Convert user to response format
 	userResp := convertUserToResponse(userObj.GetModel())
 
+	// Calculate expires_in from expires_at
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+
 	// Create session response
 	sessionResp := &Session{
 		ID:           sessionObj.HashID,
 		AccessToken:  accessToken,
 		RefreshToken: newRefreshToken,
-		ExpiresIn:    3600, // TODO: Get from config
+		ExpiresIn:    expiresIn,
 		ExpiresAt:    expiresAt,
 		TokenType:    "Bearer",
 		User:         userResp,
@@ -438,12 +445,18 @@ func (a *AuthController) RefreshSession(c *pin.Context) error {
 	// Convert user to response format
 	userResp := convertUserToResponse(user.GetModel())
 
+	// Calculate expires_in from expires_at
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+
 	// Create session response
 	sessionResp := &Session{
 		ID:           session.HashID,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    3600, // TODO: Get from config
+		ExpiresIn:    expiresIn,
 		ExpiresAt:    expiresAt,
 		TokenType:    "Bearer",
 		User:         userResp,

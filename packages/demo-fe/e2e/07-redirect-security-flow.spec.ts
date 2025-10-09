@@ -380,7 +380,7 @@ test.describe('Redirect Security Flow', () => {
         console.log('🔗 Signin link href:', linkHref)
         
         await page.getByTestId(TEST_IDS.SIGNIN_LINK).click()
-        await page.waitForLoadState('networkidle')
+        // await page.waitForLoadState('networkidle')
       })
 
       await test.step('Verify redirect preserved in signin URL', async () => {
@@ -403,17 +403,15 @@ test.describe('Redirect Security Flow', () => {
 
       await test.step('Click forgot password link', async () => {
         const forgotPasswordLink = page.getByTestId(TEST_IDS.FORGOT_PASSWORD_LINK)
-        if (await forgotPasswordLink.isVisible()) {
-          await forgotPasswordLink.click()
+        
+        // Wait for link to be visible
+        await expect(forgotPasswordLink).toBeVisible({ timeout: 5000 })
+        await forgotPasswordLink.click()
 
-          
-          const forgotPasswordUrl = page.url()
-          expect(forgotPasswordUrl).toContain('forgot-password')
-          expect(forgotPasswordUrl).toContain('redirect=')
-          console.log('✅ Redirect preserved in forgot password flow')
-        } else {
-          console.log('⚠️ Forgot password link not visible, skipping test')
-        }
+        const forgotPasswordUrl = page.url()
+        expect(forgotPasswordUrl).toContain('forgot-password')
+        expect(forgotPasswordUrl).toContain('redirect=')
+        console.log('✅ Redirect preserved in forgot password flow')
       })
     })
   })
