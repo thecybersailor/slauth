@@ -1,0 +1,39 @@
+# @cybersailor/slauth-ui-vue
+
+> Vue 3 UI component library for Slauth authentication
+
+Key features:
+- Pre-built authentication UI components
+- Email/Password, OAuth, Magic Link, Password Recovery
+- Dark/Light theme support with customizable styling
+- Vue 3 Composition API with TypeScript support
+- Responsive design and accessibility
+
+## Quick Start
+
+- [Installation & Setup](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue#installation): NPM installation and plugin configuration
+- [README](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue#readme): Package overview and basic usage
+- [Demo Application](https://github.com/thecybersailor/slauth/tree/main/packages/demo-fe): Live example with all components
+
+## Components
+
+- [Main Components](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ui-vue/docs/components.md): Auth, SignIn, SignUp, VerifyOtp, ForgotPassword, UpdatePassword
+- [User Management](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ui-vue/docs/user-management.md): UserDashboard, UserProfile, MFA, Sessions, Security
+- [Admin Components](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ui-vue/docs/admin-components.md): Admin layout, user management, system stats
+- [UI Components](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue/src/components/ui): Button, Input, Dialog, Table, etc
+
+## Composables
+
+- [Composables Reference](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ui-vue/docs/composables.md): useAuth, useAuthContext, useOAuthSignIn, etc
+- [Source Code](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue/src/composables): Browse composables implementation
+
+## Styling & Theming
+
+- [Theme Customization](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue#styling): CSS variables and theme configuration
+- [OAuth Button Styles](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ui-vue/src/composables/useOAuthButtonStyles.ts): Social login button styling
+
+## Optional
+
+- [NPM Package](https://www.npmjs.com/package/@cybersailor/slauth-ui-vue): Published package on NPM registry
+- [Source Code](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue/src): Browse Vue component source files
+- [Localization](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ui-vue/src/localization): Internationalization support

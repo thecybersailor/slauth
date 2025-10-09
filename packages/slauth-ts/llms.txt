@@ -1,0 +1,34 @@
+# @cybersailor/slauth-ts
+
+> Official TypeScript client library for Slauth authentication
+
+Key features:
+- Multi-tenant architecture support
+- Email/Password, OAuth, SAML, OTP authentication
+- Auto token refresh and session management
+- Full TypeScript support with type safety
+
+## Quick Start
+
+- [Installation & Setup](https://github.com/thecybersailor/slauth#installation): NPM installation and basic configuration
+- [README](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ts#readme): Package overview and usage examples
+- [Single-tenant Example](https://github.com/thecybersailor/slauth#single-tenant-frontend): Basic authentication setup
+- [Multi-tenant Example](https://github.com/thecybersailor/slauth#multi-tenant-frontend): Multiple isolated auth services
+
+## API Reference
+
+- [AuthApi Methods](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ts/docs/auth-api.md): User authentication operations (signUp, signIn, OAuth, MFA, etc)
+- [AdminApi Methods](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ts/docs/admin-api.md): Admin user management operations (CRUD, sessions, identities)
+- [Type Definitions](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ts/src/types): TypeScript interfaces and type definitions
+- [OpenAPI Specs](https://github.com/thecybersailor/slauth/tree/main/docs/specs): Auth API and Admin API specifications
+
+## Examples
+
+- [Demo Application](https://github.com/thecybersailor/slauth/tree/main/packages/demo-fe): Complete working example with Vue 3
+- [E2E Test Suite](https://github.com/thecybersailor/slauth/tree/main/packages/demo-fe/e2e): Real-world usage patterns
+
+## Optional
+
+- [NPM Package](https://www.npmjs.com/package/@cybersailor/slauth-ts): Published package on NPM registry
+- [Source Code](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ts/src): Browse TypeScript source files
+- [CHANGELOG](https://github.com/thecybersailor/slauth/blob/main/CHANGELOG.md): Version history and release notes

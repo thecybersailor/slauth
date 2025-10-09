@@ -1,0 +1,43 @@
+# pkg/
+
+> Slauth Go backend core library
+
+Key features:
+- Multi-tenant architecture with isolated auth services
+- Comprehensive authentication (Email, OAuth, SAML, OTP, MFA)
+- Framework agnostic (works with Gin, Echo, Chi, net/http)
+- Database support (PostgreSQL, MySQL, SQLite via GORM)
+- Production-ready with extensive test coverage
+
+## Getting Started
+
+- [Quick Start](https://github.com/thecybersailor/slauth#quick-start): Basic setup with single-tenant
+- [Multi-Tenant Guide](https://github.com/thecybersailor/slauth#multi-tenant-architecture): Multiple isolated auth services
+- [API Documentation](https://pkg.go.dev/github.com/thecybersailor/slauth): Go package documentation
+- [README](https://github.com/thecybersailor/slauth#readme): Comprehensive project overview
+
+## Architecture
+
+- [Package Structure](https://github.com/thecybersailor/slauth/blob/main/pkg/docs/structure.md): Directory layout and responsibilities
+- [Core Services](https://github.com/thecybersailor/slauth/blob/main/pkg/docs/services.md): AuthService, UserService, SessionService, etc
+- [Models](https://github.com/thecybersailor/slauth/blob/main/pkg/docs/models.md): Database models and relationships
+- [Controllers](https://github.com/thecybersailor/slauth/blob/main/pkg/docs/controllers.md): HTTP handlers and routing
+
+## Key Concepts
+
+- [Multi-Tenant Design](https://github.com/thecybersailor/slauth#multi-tenant-architecture): Cross-service access control
+- [RequestValidator](https://github.com/thecybersailor/slauth#requestvalidator---the-key-to-cross-service-access): JWT validation middleware
+- [Configuration](https://github.com/thecybersailor/slauth/tree/main/pkg/config): Runtime database-driven config
+- [Providers](https://github.com/thecybersailor/slauth/tree/main/pkg/providers): OAuth, SAML, SMS, Email integrations
+
+## Testing
+
+- [Test Suite](https://github.com/thecybersailor/slauth/tree/main/tests): Comprehensive backend tests
+- [Demo Application](https://github.com/thecybersailor/slauth/tree/main/demo): Example backend implementation
+
+## Optional
+
+- [Go Package](https://pkg.go.dev/github.com/thecybersailor/slauth): Browse on pkg.go.dev
+- [Source Code](https://github.com/thecybersailor/slauth/tree/main/pkg): Browse Go source files
+- [OpenAPI Specs](https://github.com/thecybersailor/slauth/tree/main/docs/specs): API specifications
+- [CONTRIBUTING](https://github.com/thecybersailor/slauth/blob/main/CONTRIBUTING.md): Development guidelines

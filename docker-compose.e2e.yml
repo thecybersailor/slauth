@@ -131,6 +131,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
       args:
         VITE_API_URL: http://backend:8080
+        VITE_MOCK_OAUTH_SERVER: http://backend:8080/mock-oauth
     platform: linux/amd64
     depends_on:
       backend:
