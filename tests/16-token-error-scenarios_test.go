@@ -16,6 +16,14 @@ type TokenErrorScenariosTestSuite struct {
 func (suite *TokenErrorScenariosTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
+
+	// Disable email confirmation for testing token error scenarios
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
 }
 
 // Scenario 1: Access Token Missing

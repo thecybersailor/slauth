@@ -15,6 +15,14 @@ type UserMetadataManagementTestSuite struct {
 func (suite *UserMetadataManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
+
+	// Disable email confirmation for testing user metadata
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
 }
 
 func TestUserMetadataManagementTestSuite(t *testing.T) {

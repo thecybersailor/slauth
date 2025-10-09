@@ -22,6 +22,14 @@ func (suite *PasswordManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
+	// Disable email confirmation for testing password management
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
+
 	suite.AuthService.OTPUse(func(ctx services.OTPContext, next func() error) error {
 		err := next()
 		if err == nil && ctx.Response() != nil && ctx.Response().Code != "" {

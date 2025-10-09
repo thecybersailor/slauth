@@ -14,6 +14,14 @@ type SigninAuthenticationTestSuite struct {
 func (suite *SigninAuthenticationTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
+
+	// Disable email confirmation for testing signin flows
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
 }
 
 func (suite *SigninAuthenticationTestSuite) TestPasswordLogin() {

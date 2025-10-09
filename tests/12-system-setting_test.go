@@ -41,7 +41,7 @@ func (suite *SystemSettingTestSuite) Test_01_GetInstanceConfig() {
 	suite.NotNil(configData)
 
 	suite.Equal(true, configData["allow_new_users"], "Default allow_new_users should be true")
-	suite.Equal(false, configData["confirm_email"], "Default confirm_email should be false")
+	suite.Equal(true, configData["confirm_email"], "Default confirm_email should be true")
 	suite.Equal(false, configData["anonymous_sign_ins"], "Default anonymous_sign_ins should be false")
 	suite.Equal(10.0, configData["maximum_mfa_factors"], "Default maximum_mfa_factors should be 10")
 

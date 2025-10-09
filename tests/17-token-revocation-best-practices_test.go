@@ -26,6 +26,14 @@ type TokenRevocationBestPracticesTestSuite struct {
 func (suite *TokenRevocationBestPracticesTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
+
+	// Disable email confirmation for testing token revocation
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
 }
 
 // TestLogoutRevokesAllDevicesRefreshTokens verifies that POST /logout revokes

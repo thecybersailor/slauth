@@ -14,6 +14,14 @@ type SessionManagementTestSuite struct {
 func (suite *SessionManagementTestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 	suite.helper = NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
+
+	// Disable email confirmation for testing session management
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
 }
 
 func (suite *SessionManagementTestSuite) TestRefreshToken() {
