@@ -99,12 +99,12 @@ func (suite *TestSuite) loadDatabaseConfig() *DatabaseConfig {
 func (suite *TestSuite) connectDatabase(config *DatabaseConfig) (*gorm.DB, error) {
 	switch config.Type {
 	case "mysql":
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=UTC",
 			config.User, config.Password, config.Host, config.Port, config.DBName)
 		return gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	case "postgres", "postgresql":
-		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Shanghai",
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
 			config.PostgresHost, config.PostgresUser, config.PostgresPassword,
 			config.PostgresDBName, config.PostgresPort)
 		return gorm.Open(postgres.Open(dsn), &gorm.Config{})

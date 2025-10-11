@@ -335,13 +335,13 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 		return nil, "", "", 0, err
 	}
 
-	// Check if session has expired (time-box)
-	if session.NotAfter != nil && session.NotAfter.Before(time.Now()) {
+	// Check if session has expired (time-box) and update session refresh time
+	now := GetDatabaseNow(s.db)
+	if session.NotAfter != nil && (session.NotAfter.Before(now) || session.NotAfter.Equal(now)) {
 		return nil, "", "", 0, consts.SESSION_EXPIRED
 	}
 
 	// Update session refresh time and metadata
-	now := time.Now()
 	session.RefreshedAt = &now
 	session.UpdatedAt = now
 	session.AAL = &aal
@@ -421,7 +421,8 @@ func (s *AuthServiceImpl) ValidateRefreshToken(ctx context.Context, tokenString 
 
 	// Check if associated session is revoked
 	if token.Session != nil && token.Session.NotAfter != nil {
-		if token.Session.NotAfter.Before(time.Now()) {
+		dbNow := GetDatabaseNow(s.db)
+		if token.Session.NotAfter.Before(dbNow) || token.Session.NotAfter.Equal(dbNow) {
 			return nil, consts.SESSION_EXPIRED
 		}
 	}
@@ -495,21 +496,30 @@ func (s *AuthServiceImpl) ValidateJWT(token string) (map[string]any, error) {
 	}
 
 	// Check if session has expired (time-box)
-	if session.NotAfter != nil && session.NotAfter.Before(time.Now()) {
-		return nil, consts.SESSION_EXPIRED
+	if session.NotAfter != nil {
+		dbNow := GetDatabaseNow(s.db)
+		if session.NotAfter.Before(dbNow) || session.NotAfter.Equal(dbNow) {
+			return nil, consts.SESSION_EXPIRED
+		}
 	}
 
-	// Check for inactivity timeout
+	// Check for inactivity timeout using database time difference calculation
 	config := s.GetConfig()
 	if config.SessionConfig.InactivityTimeout > 0 && session.RefreshedAt != nil {
-		inactiveTime := time.Since(*session.RefreshedAt)
 		timeout := time.Duration(config.SessionConfig.InactivityTimeout) * time.Second
+
+		inactiveSeconds := CalculateTimeDifference(s.db, *session.RefreshedAt)
+		inactiveTime := time.Duration(inactiveSeconds) * time.Second
+
 		slog.Info("ValidateJWT: Checking inactivity timeout",
 			"refreshedAt", session.RefreshedAt,
+			"inactiveSeconds", inactiveSeconds,
 			"inactiveTime", inactiveTime,
 			"timeout", timeout)
-		if inactiveTime > timeout {
-			slog.Info("ValidateJWT: Session expired due to inactivity")
+		if inactiveTime >= timeout {
+			slog.Info("ValidateJWT: Session expired due to inactivity",
+				"inactiveTime", inactiveTime,
+				"timeout", timeout)
 			return nil, consts.SESSION_EXPIRED
 		}
 	}

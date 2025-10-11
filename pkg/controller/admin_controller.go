@@ -12,6 +12,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/services"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -1249,26 +1250,29 @@ func (qb *QueryBuilder) applyFilters(filters map[string]interface{}) {
 		case "$or":
 			if conditions, ok := value.([]interface{}); ok {
 				if len(conditions) > 0 {
-
-					orConditions := make([]*gorm.DB, 0, len(conditions))
+					orConditions := make([]interface{}, 0, len(conditions))
 					for _, cond := range conditions {
 						if condMap, ok := cond.(map[string]interface{}); ok {
-
-							tempDB := qb.query.Session(&gorm.Session{NewDB: true})
+							tempDB := qb.query.Session(&gorm.Session{NewDB: true}).Model(&models.User{})
 							tempQB := &QueryBuilder{
-								query:   tempDB,
-								hasJoin: qb.hasJoin,
+								query:      tempDB,
+								hasJoin:    make(map[string]bool),
+								instanceId: qb.instanceId,
 							}
 							tempQB.applyFilters(condMap)
 							orConditions = append(orConditions, tempQB.query)
 						}
 					}
 
-					if len(orConditions) > 0 {
+					if len(orConditions) == 1 {
 						qb.query = qb.query.Where(orConditions[0])
+					} else if len(orConditions) > 1 {
+						combinedOr := qb.query.Session(&gorm.Session{NewDB: true})
+						combinedOr = combinedOr.Where(orConditions[0])
 						for i := 1; i < len(orConditions); i++ {
-							qb.query = qb.query.Or(orConditions[i])
+							combinedOr = combinedOr.Or(orConditions[i])
 						}
+						qb.query = qb.query.Where(combinedOr)
 					}
 				}
 			}
@@ -1306,37 +1310,25 @@ func (qb *QueryBuilder) applyFieldFilter(field string, value interface{}) {
 }
 
 func (qb *QueryBuilder) applyOperator(field string, operator string, value interface{}) {
-
-	var fullField string
-	var isJSONField bool
-
+	// Handle JSON fields
 	if strings.HasPrefix(field, "app_metadata.") {
 		jsonPath := strings.TrimPrefix(field, "app_metadata.")
-		fullField = fmt.Sprintf("JSON_EXTRACT(raw_app_meta_data, '$.%s')", jsonPath)
-		isJSONField = true
-	} else if strings.HasPrefix(field, "user_metadata.") {
+		qb.applyJSONOperator("raw_app_meta_data", jsonPath, operator, value)
+		return
+	}
+	if strings.HasPrefix(field, "user_metadata.") {
 		jsonPath := strings.TrimPrefix(field, "user_metadata.")
-		fullField = fmt.Sprintf("JSON_EXTRACT(raw_user_meta_data, '$.%s')", jsonPath)
-		isJSONField = true
-	} else {
-
-		fullField = "users." + field
-		isJSONField = false
+		qb.applyJSONOperator("raw_user_meta_data", jsonPath, operator, value)
+		return
 	}
 
+	// Handle regular fields
+	fullField := "users." + field
 	switch operator {
 	case "$eq":
-		if isJSONField {
-			qb.query = qb.query.Where(fullField+" = ?", fmt.Sprintf("%v", value))
-		} else {
-			qb.query = qb.query.Where(fullField+" = ?", value)
-		}
+		qb.query = qb.query.Where(fullField+" = ?", value)
 	case "$ne":
-		if isJSONField {
-			qb.query = qb.query.Where(fullField+" != ?", fmt.Sprintf("%v", value))
-		} else {
-			qb.query = qb.query.Where(fullField+" != ?", value)
-		}
+		qb.query = qb.query.Where(fullField+" != ?", value)
 	case "$in":
 		qb.query = qb.query.Where(fullField+" IN ?", value)
 	case "$nin":
@@ -1348,7 +1340,6 @@ func (qb *QueryBuilder) applyOperator(field string, operator string, value inter
 	case "$endsWith":
 		qb.query = qb.query.Where(fullField+" LIKE ?", "%"+value.(string))
 	case "$gt":
-
 		qb.query = qb.query.Where(fullField+" > ?", convertToTime(value))
 	case "$gte":
 		qb.query = qb.query.Where(fullField+" >= ?", convertToTime(value))
@@ -1367,6 +1358,19 @@ func (qb *QueryBuilder) applyOperator(field string, operator string, value inter
 			qb.query = qb.query.Where(fullField + " IS NOT NULL")
 		} else {
 			qb.query = qb.query.Where(fullField + " IS NULL")
+		}
+	}
+}
+
+func (qb *QueryBuilder) applyJSONOperator(column string, path string, operator string, value interface{}) {
+	switch operator {
+	case "$eq":
+		qb.query = qb.query.Where(datatypes.JSONQuery(column).Equals(value, path))
+	case "$ne":
+		qb.query = qb.query.Not(datatypes.JSONQuery(column).Equals(value, path))
+	case "$exists":
+		if value.(bool) {
+			qb.query = qb.query.Where(datatypes.JSONQuery(column).HasKey(path))
 		}
 	}
 }

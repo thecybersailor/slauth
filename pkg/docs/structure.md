@@ -231,6 +231,11 @@ Overview of Slauth Go package organization.
 - config_loader.go
   - struct: `ConfigLoader`
   - func: `NewConfigLoader`
+- db_time.go
+  - func: `GetDatabaseNow`
+    This ensures consistent time across all operations and avoids timezone issues
+  - func: `CalculateTimeDifference`
+    This is done entirely in the database to avoid timezone conversion issues
 - file_template_resolver.go
   - struct: `FileTemplateResolver`
   - func: `NewFileTemplateResolver`

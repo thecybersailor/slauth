@@ -201,13 +201,17 @@ func (h *TestHelper) MakePOSTRequestWithHeaders(t *testing.T, path string, body 
 }
 
 func (h *TestHelper) HasError(t *testing.T, rsp *PinResponse, errorField string, msg string) {
-	assert.NotNil(t, rsp.Response.Error, msg+": Response should be an error")
+	if !assert.NotNil(t, rsp.Response.Error, msg+": Response should be an error") {
+		return
+	}
 	assert.Contains(t, rsp.Response.Error.Key, errorField, msg+": Error should contain: %s", errorField)
 }
 
 func (h *TestHelper) IsError(t *testing.T, rsp *PinResponse, err error) {
 	// Check that response has an error
-	assert.NotNil(t, rsp.Response.Error, "Response should have an error")
+	if !assert.NotNil(t, rsp.Response.Error, "Response should have an error") {
+		return
+	}
 
 	// Extract expected error code
 	var expectedCode string

@@ -15,9 +15,9 @@ type Session struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	// FactorID    *uuid.UUID      `json:"factor_id" gorm:"type:uuid"`
 	AAL          *types.AALLevel `json:"aal" gorm:"type:varchar(10)"`
-	AALExpiresAt *time.Time      `json:"aal_expires_at" gorm:"type:timestamp"`
+	AALExpiresAt *time.Time      `json:"aal_expires_at"`
 	NotAfter     *time.Time      `json:"not_after"`
-	RefreshedAt  *time.Time      `json:"refreshed_at" gorm:"type:timestamp"`
+	RefreshedAt  *time.Time      `json:"refreshed_at"`
 	UserAgent    *string         `json:"user_agent" gorm:"type:varchar(255)"`
 	IP           *string         `json:"ip" gorm:"type:varchar(255)"`
 	Tag          *string         `json:"tag" gorm:"type:varchar(255)"`

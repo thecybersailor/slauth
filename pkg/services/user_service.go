@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -323,7 +325,7 @@ func (u *User) GetActiveSessions(ctx context.Context) ([]*Session, error) {
 
 // RevokeAllSessions Revoke all user sessions and refresh tokens (industry best practice)
 func (u *User) RevokeAllSessions(ctx context.Context) error {
-	now := time.Now()
+	now := GetDatabaseNow(u.db)
 
 	// Start transaction to ensure atomicity
 	tx := u.db.WithContext(ctx).Begin()
@@ -361,7 +363,7 @@ func (u *User) RevokeAllSessions(ctx context.Context) error {
 
 // RevokeAllSessionsExcept Revoke all user sessions except specified one
 func (u *User) RevokeAllSessionsExcept(ctx context.Context, exceptSessionID uint) error {
-	now := time.Now()
+	now := GetDatabaseNow(u.db)
 	return u.db.WithContext(ctx).Model(&models.Session{}).
 		Where("user_id = ? AND instance_id = ? AND id != ? AND (not_after IS NULL OR not_after > ?)",
 			u.ID, u.instanceId, exceptSessionID, now).
@@ -374,9 +376,10 @@ func (u *User) RevokeAllSessionsExcept(ctx context.Context, exceptSessionID uint
 // CountActiveSessions Count user's active sessions
 func (u *User) CountActiveSessions(ctx context.Context) (int64, error) {
 	var count int64
+	dbNow := GetDatabaseNow(u.db)
 	err := u.db.WithContext(ctx).Model(&models.Session{}).
 		Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
-			u.ID, u.instanceId, time.Now()).
+			u.ID, u.instanceId, dbNow).
 		Count(&count).Error
 	return count, err
 }
@@ -384,9 +387,10 @@ func (u *User) CountActiveSessions(ctx context.Context) (int64, error) {
 // GetSessionsWithRefreshTokens Get user sessions with refresh tokens
 func (u *User) GetSessionsWithRefreshTokens(ctx context.Context) ([]models.Session, error) {
 	var sessions []models.Session
+	dbNow := GetDatabaseNow(u.db)
 	err := u.db.WithContext(ctx).Preload("RefreshTokens").
 		Where("user_id = ? AND instance_id = ? AND (not_after IS NULL OR not_after > ?)",
-			u.ID, u.instanceId, time.Now()).Order("updated_at DESC").Find(&sessions).Error
+			u.ID, u.instanceId, dbNow).Order("updated_at DESC").Find(&sessions).Error
 	return sessions, err
 }
 
@@ -673,14 +677,15 @@ func ListUsers(ctx context.Context, db *gorm.DB, instanceId string, offset, limi
 		}
 	}
 
-	// AppMetadata filters
-	if role, ok := filters["app_metadata.role"]; ok {
-		// Use GORM's JSON query functionality
-		query = query.Where("JSON_EXTRACT(raw_app_meta_data, '$.role') = ?", fmt.Sprintf("%v", role))
-	}
-	if department, ok := filters["app_metadata.department"]; ok {
-		// Use GORM's JSON query functionality
-		query = query.Where("JSON_EXTRACT(raw_app_meta_data, '$.department') = ?", fmt.Sprintf("%v", department))
+	// Generic JSON metadata filters
+	for key, value := range filters {
+		if strings.HasPrefix(key, "app_metadata.") {
+			path := strings.TrimPrefix(key, "app_metadata.")
+			query = query.Where(datatypes.JSONQuery("raw_app_meta_data").Equals(value, path))
+		} else if strings.HasPrefix(key, "user_metadata.") {
+			path := strings.TrimPrefix(key, "user_metadata.")
+			query = query.Where(datatypes.JSONQuery("raw_user_meta_data").Equals(value, path))
+		}
 	}
 
 	// Get total count

@@ -27,6 +27,9 @@ func NewAdminSessionService(db *gorm.DB, sessionService *SessionService) *AdminS
 func (s *AdminSessionService) GetSessionStats(ctx context.Context, instanceId string) (*SessionStats, error) {
 	var totalSessions, activeSessions, expiredSessions int64
 
+	// Get database time for consistent time comparisons
+	dbNow := GetDatabaseNow(s.db)
+
 	// Get total sessions count
 	if err := s.db.WithContext(ctx).Model(&models.Session{}).
 		Where("instance_id = ?", instanceId).
@@ -36,14 +39,14 @@ func (s *AdminSessionService) GetSessionStats(ctx context.Context, instanceId st
 
 	// Get active sessions count
 	if err := s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("instance_id = ? AND (not_after IS NULL OR not_after > ?)", instanceId, time.Now()).
+		Where("instance_id = ? AND (not_after IS NULL OR not_after > ?)", instanceId, dbNow).
 		Count(&activeSessions).Error; err != nil {
 		return nil, err
 	}
 
 	// Get expired sessions count
 	if err := s.db.WithContext(ctx).Model(&models.Session{}).
-		Where("instance_id = ? AND not_after IS NOT NULL AND not_after <= ?", instanceId, time.Now()).
+		Where("instance_id = ? AND not_after IS NOT NULL AND not_after <= ?", instanceId, dbNow).
 		Count(&expiredSessions).Error; err != nil {
 		return nil, err
 	}
@@ -68,7 +71,7 @@ func (s *AdminSessionService) RevokeUserSession(ctx context.Context, instanceId,
 		return fmt.Errorf("invalid session ID format: %w", err)
 	}
 
-	now := time.Now()
+	now := GetDatabaseNow(s.db)
 
 	// Start transaction to ensure atomicity
 	tx := s.db.WithContext(ctx).Begin()
@@ -111,6 +114,9 @@ func (s *AdminSessionService) ListAllSessions(ctx context.Context, instanceId st
 	// Build query
 	query := s.db.WithContext(ctx).Model(&models.Session{}).Where("instance_id = ?", instanceId)
 
+	// Get database time for consistent time comparisons
+	dbNow := GetDatabaseNow(s.db)
+
 	// Apply filters
 	if userID, ok := filters["user_id"]; ok {
 		if userIDStr, ok := userID.(string); ok {
@@ -122,9 +128,9 @@ func (s *AdminSessionService) ListAllSessions(ctx context.Context, instanceId st
 	}
 	if active, ok := filters["active"]; ok {
 		if fmt.Sprintf("%v", active) == "true" {
-			query = query.Where("not_after IS NULL OR not_after > ?", time.Now())
+			query = query.Where("not_after IS NULL OR not_after > ?", dbNow)
 		} else {
-			query = query.Where("not_after IS NOT NULL AND not_after <= ?", time.Now())
+			query = query.Where("not_after IS NOT NULL AND not_after <= ?", dbNow)
 		}
 	}
 	if fromDate, ok := filters["from_date"]; ok {
