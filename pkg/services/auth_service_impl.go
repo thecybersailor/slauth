@@ -137,6 +137,78 @@ func NewAuthServiceImpl(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecre
 	return s
 }
 
+// NewAuthServiceImplWithPasswordService creates a new authentication service with a custom password service
+// This allows external projects to inject custom password encoding implementations
+func NewAuthServiceImplWithPasswordService(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecret string, passwordService *PasswordService) *AuthServiceImpl {
+	// Create config loader
+	configLoader := NewConfigLoader(db, instanceId, globalJWTSecret, globalAppSecret)
+
+	// Load config for the first time
+	cfg := configLoader.GetConfig()
+
+	// Create service instance first (without jwtService)
+	s := &AuthServiceImpl{
+		db:           db,
+		configLoader: configLoader,
+		instanceId:   instanceId,
+	}
+
+	// Now create jwtService with closure that references configLoader
+	jwtService := NewJWTService(
+		cfg.JWTSecret,
+		func() time.Duration {
+			return time.Duration(configLoader.GetConfig().SessionConfig.AccessTokenTTL) * time.Second
+		},
+		func() time.Duration {
+			return time.Duration(configLoader.GetConfig().SessionConfig.RefreshTokenTTL) * time.Second
+		},
+		cfg.AuthServiceBaseUrl,
+	)
+
+	// Initialize HashIDService and set as global instance
+	hashIDService := NewHashIDService(cfg)
+	SetGlobalHashIDService(hashIDService)
+
+	userService := NewUserServiceWithInstance(db, instanceId)
+	sessionService := NewSessionService(db)
+
+	// Set all fields
+	s.jwtService = jwtService
+	s.passwordService = passwordService // Use the provided password service
+	s.otpService = NewOTPService(cfg.AuthServiceBaseUrl)
+	s.validator = NewValidatorService()
+	s.userService = userService
+	s.sessionService = sessionService
+	s.refreshTokenService = NewRefreshTokenService(db)
+	s.otTokenService = NewOneTimeTokenService(db)
+	s.rateLimitService = NewRateLimitService(cfg.AppSecret)
+
+	// Initialize admin service layers
+	s.adminSessionService = NewAdminSessionService(db, sessionService)
+	s.adminIdentityService = NewAdminIdentityService(db)
+	s.adminSystemService = NewAdminSystemService(db, userService, passwordService, instanceId)
+
+	// Initialize middleware slices
+	s.signupMiddlewares = make([]func(ctx SignupContext, next func() error) error, 0)
+	s.signinMiddlewares = make([]func(ctx SigninContext, next func() error) error, 0)
+	s.passwordMiddlewares = make([]func(ctx PasswordContext, next func() error) error, 0)
+	s.otpMiddlewares = []func(ctx OTPContext, next func() error) error{
+		func(ctx OTPContext, next func() error) error {
+			return checkEmailRateLimitWrapper(ctx, next)
+		},
+		func(ctx OTPContext, next func() error) error {
+			return checkSMSRateLimitWrapper(ctx, next)
+		},
+	}
+
+	// Initialize builtin template resolver as fallback
+	s.messageTemplateResolvers = []types.MessageTemplateResolver{
+		NewBuiltinTemplateResolver(),
+	}
+
+	return s
+}
+
 // AuthenticateUser authenticates user with email/phone and password
 func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, password string) (*User, error) {
 	slog.Info("AuthenticateUser called",

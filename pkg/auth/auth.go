@@ -8,6 +8,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/registry"
 	"github.com/thecybersailor/slauth/pkg/services"
+	"gorm.io/gorm"
 )
 
 // ControllerRouteHandler implements RouteHandler interface
@@ -46,6 +47,18 @@ func NewAuthServiceConfig() *config.AuthServiceConfig {
 // The service will automatically load dynamic config from database
 func NewService(instanceId, globalJWTSecret, globalAppSecret string) services.AuthService {
 	authService := registry.RegisterAuthService(instanceId, globalJWTSecret, globalAppSecret, database.Database())
+
+	// Set route handlers
+	authService.SetRouteHandler(&ControllerRouteHandler{})
+	authService.SetAdminRouteHandler(&AdminRouteHandler{})
+
+	return authService
+}
+
+// NewServiceWithPasswordService creates and registers a new auth service with a custom password service
+// This allows external projects to inject custom password encoding implementations
+func NewServiceWithPasswordService(instanceId, globalJWTSecret, globalAppSecret string, passwordService *services.PasswordService, db *gorm.DB) services.AuthService {
+	authService := registry.RegisterAuthServiceWithPasswordService(instanceId, globalJWTSecret, globalAppSecret, passwordService, db)
 
 	// Set route handlers
 	authService.SetRouteHandler(&ControllerRouteHandler{})

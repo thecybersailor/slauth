@@ -23,6 +23,19 @@ func RegisterAuthService(instanceId, globalJWTSecret, globalAppSecret string, db
 	return authService
 }
 
+// RegisterAuthServiceWithPasswordService creates and registers a new auth service with a custom password service
+func RegisterAuthServiceWithPasswordService(instanceId, globalJWTSecret, globalAppSecret string, passwordService *services.PasswordService, db *gorm.DB) services.AuthService {
+	if _, exists := authServices[instanceId]; exists {
+		panic(fmt.Sprintf("AuthService for instance '%s' already registered", instanceId))
+	}
+	authService := services.NewAuthServiceImplWithPasswordService(db, instanceId, globalJWTSecret, globalAppSecret, passwordService)
+
+	authService.SetEmailProvider(adapters.NewMailerAdapter(mailer.SMTPSender))
+
+	authServices[instanceId] = authService
+	return authService
+}
+
 func GetAuthService(instanceId string) services.AuthService {
 	service, exists := authServices[instanceId]
 	if !exists {
