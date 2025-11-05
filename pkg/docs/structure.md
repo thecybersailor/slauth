@@ -23,6 +23,8 @@ Overview of Slauth Go package organization.
     NewAuthServiceConfig creates a new AuthServiceConfig with default values
   - func: `NewService`
     The service will automatically load dynamic config from database
+  - func: `NewServiceWithPasswordService`
+    This allows external projects to inject custom password encoding implementations
   - func: `Start`
 
 ## config/
@@ -185,6 +187,8 @@ Overview of Slauth Go package organization.
 
 - auth_registry.go
   - func: `RegisterAuthService`
+  - func: `RegisterAuthServiceWithPasswordService`
+    RegisterAuthServiceWithPasswordService creates and registers a new auth service with a custom password service
   - func: `GetAuthService`
 
 ## services/
@@ -209,6 +213,11 @@ Overview of Slauth Go package organization.
     AdminSystemService provides admin operations for system management
   - func: `NewAdminSystemService`
     NewAdminSystemService creates a new admin system service
+- argon2id_encoder.go
+  - struct: `Argon2idEncoder`
+    Argon2idEncoder implements PasswordEncoder using Argon2id with dual salt mechanism
+  - func: `NewArgon2idEncoder`
+    NewArgon2idEncoder creates a new Argon2id password encoder
 - auth_context.go
   - struct: `AuthContext`
   - func: `GetAuthContext`
@@ -225,6 +234,8 @@ Overview of Slauth Go package organization.
     InternalMessageTemplate internal template implementation, unified rendering logic
   - func: `NewAuthServiceImpl`
     This is an internal implementation, use auth.NewService() instead
+  - func: `NewAuthServiceImplWithPasswordService`
+    This allows external projects to inject custom password encoding implementations
 - builtin_template_resolver.go
   - struct: `BuiltinTemplateResolver`
   - func: `NewBuiltinTemplateResolver`
@@ -272,6 +283,9 @@ Overview of Slauth Go package organization.
     OTPService handles OTP operations
   - func: `NewOTPService`
     NewOTPService creates a new OTP service
+- password_encoder.go
+  - interface: `PasswordEncoder`
+    This allows external projects to inject custom password encoding implementations
 - password_service.go
   - struct: `PasswordConfig`
     PasswordConfig holds password hashing configuration
@@ -280,7 +294,9 @@ Overview of Slauth Go package organization.
   - func: `DefaultPasswordConfig`
     DefaultPasswordConfig returns default password hashing configuration
   - func: `NewPasswordService`
-    NewPasswordService creates a new password service
+    If encoder is nil, it uses the default Argon2id encoder
+  - func: `NewPasswordServiceWithEncoder`
+    NewPasswordServiceWithEncoder creates a new password service with a custom encoder
 - rate_limit_service.go
   - struct: `RateLimitService`
   - func: `NewRateLimitService`
@@ -311,6 +327,9 @@ Overview of Slauth Go package organization.
   - struct: `Session`
   - func: `NewSessionService`
     NewSessionService creates a new session service
+- sha1_encoder.go
+  - struct: `SHA1SaltEncoder`
+    This is provided for testing purposes only and should not be used in production
 - signup_types.go
 - token_utils.go
   - func: `GenerateSecureToken`

@@ -743,6 +743,11 @@ func (s *AuthServiceImpl) GetUserService() *UserService {
 	return s.userService
 }
 
+// GetPasswordService returns the password service
+func (s *AuthServiceImpl) GetPasswordService() *PasswordService {
+	return s.passwordService
+}
+
 // GetAdminSessionService returns the admin session service
 func (s *AuthServiceImpl) GetAdminSessionService() *AdminSessionService {
 	return s.adminSessionService

@@ -56,6 +56,7 @@ type AuthService interface {
 	GetInstanceId() string
 	GetConfig() *config.AuthServiceConfig
 	GetUserService() *UserService
+	GetPasswordService() *PasswordService
 	SaveConfig(cfg *config.AuthServiceConfig) error
 
 	GetAdminSessionService() *AdminSessionService
