@@ -63,14 +63,20 @@ func CreateUserFlow(signupCtx services.SignupContext) core.Flow[core.SignupData]
 		slog.Info("Flow: CreateUser - Before")
 
 		// Create user
-		user, err := signupCtx.Service().GetUserService().CreateWithMetadata(
-			signupCtx,
-			ctx.Data.Email,
-			ctx.Data.Phone,
-			ctx.Data.Password,
-			ctx.Data.UserData,
-			nil, // appMetadata
-		)
+		opts := &services.UserCreateOptions{
+			UserMetadata: ctx.Data.UserData,
+		}
+		if ctx.Data.Email != "" {
+			opts.Email = &ctx.Data.Email
+		}
+		if ctx.Data.Phone != "" {
+			opts.Phone = &ctx.Data.Phone
+		}
+		if ctx.Data.Password != "" {
+			opts.Password = &ctx.Data.Password
+		}
+
+		user, err := signupCtx.Service().GetUserService().CreateUser(signupCtx, opts)
 		if err != nil {
 			slog.Error("Flow: CreateUser - Failed to create user", "error", err)
 			return err

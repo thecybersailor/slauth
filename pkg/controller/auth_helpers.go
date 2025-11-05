@@ -233,7 +233,11 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 		"provider": provider,
 	}
 
-	user, err := a.authService.GetUserService().CreateWithMetadata(ctx, userInfo.Email, "", "", userData, nil)
+	email := userInfo.Email
+	user, err := a.authService.GetUserService().CreateUser(ctx, &services.UserCreateOptions{
+		Email:        &email,
+		UserMetadata: userData,
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -226,15 +226,21 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	var user models.User
 	query := s.db.Where("instance_id = ?", s.instanceId)
 
-	// Try email first, then phone
+	// Try to determine identifier type: email, phone, or username
 	if err := s.validator.ValidateEmail(emailOrPhone); err == nil {
+		// It's an email
 		emailOrPhone = s.validator.SanitizeEmail(emailOrPhone)
 		query = query.Where("email = ?", emailOrPhone)
 		slog.Info("Searching user by email", "email", emailOrPhone)
-	} else {
+	} else if err := s.validator.ValidatePhone(emailOrPhone); err == nil {
+		// It's a phone
 		phoneOrPhone := s.validator.SanitizePhone(emailOrPhone)
 		query = query.Where("phone = ?", phoneOrPhone)
 		slog.Info("Searching user by phone", "phone", phoneOrPhone)
+	} else {
+		// Assume it's a username
+		query = query.Where("username = ?", emailOrPhone)
+		slog.Info("Searching user by username", "username", emailOrPhone)
 	}
 
 	if err := query.First(&user).Error; err != nil {

@@ -263,6 +263,7 @@ func (c *AdminController) CreateUser(ctx *pin.Context) error {
 	userMetaData := make(map[string]interface{})
 	appMetaData := make(map[string]interface{})
 
+	// Merge UserData and UserMetadata into userMetaData
 	if req.UserData != nil {
 		for k, v := range req.UserData {
 			userMetaData[k] = v
@@ -275,21 +276,32 @@ func (c *AdminController) CreateUser(ctx *pin.Context) error {
 		}
 	}
 
+	// AppMetadata goes to appMetaData
 	if req.AppMetadata != nil {
 		for k, v := range req.AppMetadata {
 			appMetaData[k] = v
 		}
 	}
 
-	user, err := services.CreateUserWithMetadata(
+	opts := &services.UserCreateOptions{
+		UserMetadata: userMetaData,
+		AppMetadata:  appMetaData,
+	}
+	if req.Email != "" {
+		opts.Email = &req.Email
+	}
+	if req.Phone != "" {
+		opts.Phone = &req.Phone
+	}
+	if req.Password != "" {
+		opts.Password = &req.Password
+	}
+
+	user, err := services.CreateUser(
 		ctx.Request.Context(),
 		c.authService.GetDB(),
 		c.authService.GetInstanceId(),
-		req.Email,
-		req.Phone,
-		req.Password,
-		userMetaData,
-		appMetaData,
+		opts,
 	)
 	if err != nil {
 		return err

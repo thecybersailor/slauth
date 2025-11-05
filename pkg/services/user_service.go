@@ -55,21 +55,54 @@ func (s *UserService) SetPasswordService(passwordService *PasswordService) *User
 	return s
 }
 
+// UserCreateOptions defines options for creating a user
+type UserCreateOptions struct {
+	Username     *string        // Optional: username for username-based authentication
+	Email        *string        // Optional: email address for email-based authentication
+	Phone        *string        // Optional: phone number for phone-based authentication
+	Password     *string        // Optional: password (not required for OAuth/anonymous users)
+	UserMetadata map[string]any // Optional: user metadata (stored in raw_user_meta_data)
+	AppMetadata  map[string]any // Optional: app metadata (stored in raw_app_meta_data)
+}
+
 // Create creates a new user
 func (s *UserService) Create(ctx context.Context, user *models.User) error {
 	return s.db.WithContext(ctx).Create(user).Error
 }
 
-// CreateWithMetadata creates a new user with metadata
-func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, password string, userMetadata, appMetadata map[string]any) (*User, error) {
+// CreateUser creates a new user with options
+func (s *UserService) CreateUser(ctx context.Context, opts *UserCreateOptions) (*User, error) {
 	passwordService := s.passwordService
 	if passwordService == nil {
 		passwordService = NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
 	}
 
+	validator := NewValidatorService()
+
+	username := ""
+	email := ""
+	phone := ""
+	if opts.Username != nil {
+		username = *opts.Username
+	}
+	if opts.Email != nil {
+		email = *opts.Email
+	}
+	if opts.Phone != nil {
+		phone = *opts.Phone
+	}
+
+	// Validate username format if provided
+	if username != "" {
+		// Username validation can be customized by business logic
+		// Here we just do basic check
+		if len(username) < 1 {
+			return nil, errors.New("username cannot be empty")
+		}
+	}
+
 	// Validate email format if provided
 	if email != "" {
-		validator := NewValidatorService()
 		if err := validator.ValidateEmail(email); err != nil {
 			return nil, err
 		}
@@ -78,7 +111,6 @@ func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, pass
 
 	// Validate phone format if provided
 	if phone != "" {
-		validator := NewValidatorService()
 		if err := validator.ValidatePhone(phone); err != nil {
 			return nil, err
 		}
@@ -86,17 +118,31 @@ func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, pass
 	}
 
 	// Validate password strength if provided
-	if password != "" {
-		validator := NewValidatorService()
-		if err := validator.ValidatePassword(password); err != nil {
-			return nil, err
-		}
+	var password string
+	if opts.Password != nil {
+		password = *opts.Password
+		if password != "" {
+			if err := validator.ValidatePassword(password); err != nil {
+				return nil, err
+			}
 
-		// Use PasswordService for complete password strength validation
-		valid := passwordService.ValidatePasswordStrength(password)
-		if !valid {
-			slog.Error("Password strength validation failed")
-			return nil, consts.WEAK_PASSWORD
+			valid := passwordService.ValidatePasswordStrength(password)
+			if !valid {
+				slog.Error("Password strength validation failed")
+				return nil, consts.WEAK_PASSWORD
+			}
+		}
+	}
+
+	// Check for duplicate username
+	if username != "" {
+		var existingUser models.User
+		err := s.db.WithContext(ctx).Where("username = ? AND instance_id = ?", username, s.instanceId).First(&existingUser).Error
+		if err == nil {
+			return nil, consts.USER_ALREADY_EXISTS
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
 		}
 	}
 
@@ -136,8 +182,8 @@ func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, pass
 
 	// Serialize user metadata
 	var userMetaJSON *json.RawMessage
-	if len(userMetadata) > 0 {
-		metaBytes, err := json.Marshal(userMetadata)
+	if len(opts.UserMetadata) > 0 {
+		metaBytes, err := json.Marshal(opts.UserMetadata)
 		if err != nil {
 			return nil, err
 		}
@@ -146,8 +192,8 @@ func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, pass
 
 	// Serialize app metadata
 	var appMetaJSON *json.RawMessage
-	if len(appMetadata) > 0 {
-		metaBytes, err := json.Marshal(appMetadata)
+	if len(opts.AppMetadata) > 0 {
+		metaBytes, err := json.Marshal(opts.AppMetadata)
 		if err != nil {
 			return nil, err
 		}
@@ -158,6 +204,7 @@ func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, pass
 	now := time.Now()
 	userModel := &models.User{
 		InstanceId:        s.instanceId,
+		Username:          &username,
 		Email:             &email,
 		Phone:             &phone,
 		EncryptedPassword: hashedPassword,
@@ -168,7 +215,10 @@ func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, pass
 		IsAnonymous:       false,
 	}
 
-	// Set email/phone to nil if empty
+	// Set username/email/phone to nil if empty
+	if username == "" {
+		userModel.Username = nil
+	}
 	if email == "" {
 		userModel.Email = nil
 	}
@@ -195,6 +245,16 @@ func (s *UserService) GetByID(ctx context.Context, id uint, instanceId string) (
 	return &user, nil
 }
 
+// GetByUsername retrieves user by username and instance code
+func (s *UserService) GetByUsername(ctx context.Context, username, instanceId string) (*models.User, error) {
+	var user models.User
+	err := s.db.WithContext(ctx).Where("username = ? AND instance_id = ?", username, instanceId).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 // GetByPhone retrieves user by phone and instance code
 func (s *UserService) GetByPhone(ctx context.Context, phone, instanceId string) (*models.User, error) {
 	var user models.User
@@ -210,6 +270,17 @@ func (s *UserService) GetByEmailOrPhone(ctx context.Context, emailOrPhone, insta
 	var user models.User
 	err := s.db.WithContext(ctx).Where("(email = ? OR phone = ?) AND instance_id = ?",
 		emailOrPhone, emailOrPhone, instanceId).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetByIdentifier retrieves user by username, email or phone and instance code
+func (s *UserService) GetByIdentifier(ctx context.Context, identifier, instanceId string) (*models.User, error) {
+	var user models.User
+	err := s.db.WithContext(ctx).Where("(username = ? OR email = ? OR phone = ?) AND instance_id = ?",
+		identifier, identifier, identifier, instanceId).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -239,6 +310,17 @@ func (s *UserService) UpdateLastSignIn(ctx context.Context, userID uint, instanc
 	return s.db.WithContext(ctx).Model(&models.User{}).
 		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Update("last_sign_in_at", now).Error
+}
+
+// UpdateUsername updates user's username
+func (s *UserService) UpdateUsername(ctx context.Context, userID uint, instanceId, username string) error {
+	now := time.Now()
+	return s.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ? AND instance_id = ?", userID, instanceId).
+		Updates(map[string]any{
+			"username":   username,
+			"updated_at": now,
+		}).Error
 }
 
 // UpdateEmail updates user's email
@@ -331,6 +413,15 @@ func (s *UserService) Delete(ctx context.Context, userID uint, instanceId string
 	return s.db.WithContext(ctx).Model(&models.User{}).
 		Where("id = ? AND instance_id = ?", userID, instanceId).
 		Update("deleted_at", now).Error
+}
+
+// ExistsByUsername checks if user exists by username
+func (s *UserService) ExistsByUsername(ctx context.Context, username, instanceId string) (bool, error) {
+	var count int64
+	err := s.db.WithContext(ctx).Model(&models.User{}).
+		Where("username = ? AND instance_id = ? AND deleted_at IS NULL", username, instanceId).
+		Count(&count).Error
+	return count > 0, err
 }
 
 // ExistsByEmail checks if user exists by email
@@ -594,129 +685,9 @@ func (u *User) DeleteIdentity(ctx context.Context, identityID string) error {
 
 // Package level functions - user creation and query
 
-func CreateUser(ctx context.Context, db *gorm.DB, instanceId string, email, phone, password string, userData map[string]any) (*User, error) {
-	return CreateUserWithMetadata(ctx, db, instanceId, email, phone, password, userData, nil)
-}
-
-func CreateUserWithMetadata(ctx context.Context, db *gorm.DB, instanceId string, email, phone, password string, userMetadata, appMetadata map[string]any) (*User, error) {
-	passwordService := NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
-
-	// Validate email format if provided
-	if email != "" {
-		validator := NewValidatorService()
-		if err := validator.ValidateEmail(email); err != nil {
-			return nil, err
-		}
-		email = validator.SanitizeEmail(email)
-	}
-
-	// Validate phone format if provided
-	if phone != "" {
-		validator := NewValidatorService()
-		if err := validator.ValidatePhone(phone); err != nil {
-			return nil, err
-		}
-		phone = validator.SanitizePhone(phone)
-	}
-
-	// Validate password strength if provided
-	if password != "" {
-		validator := NewValidatorService()
-		if err := validator.ValidatePassword(password); err != nil {
-			return nil, err
-		}
-
-		// Use PasswordService for complete password strength validation
-		valid := passwordService.ValidatePasswordStrength(password)
-		if !valid {
-			slog.Error("Password strength validation failed")
-			return nil, consts.WEAK_PASSWORD
-		}
-	}
-
-	// Check for duplicate email
-	if email != "" {
-		var existingUser models.User
-		err := db.WithContext(ctx).Where("email = ? AND instance_id = ?", email, instanceId).First(&existingUser).Error
-		if err == nil {
-			return nil, consts.USER_ALREADY_EXISTS
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-	}
-
-	// Check for duplicate phone
-	if phone != "" {
-		var existingUser models.User
-		err := db.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, instanceId).First(&existingUser).Error
-		if err == nil {
-			return nil, consts.USER_ALREADY_EXISTS
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-	}
-
-	// Hash password if provided
-	var hashedPassword *string
-	if password != "" {
-		hashed, err := passwordService.HashPassword(password)
-		if err != nil {
-			return nil, err
-		}
-		hashedPassword = &hashed
-	}
-
-	// Serialize user metadata
-	var userMetaJSON *json.RawMessage
-	if len(userMetadata) > 0 {
-		metaBytes, err := json.Marshal(userMetadata)
-		if err != nil {
-			return nil, err
-		}
-		userMetaJSON = (*json.RawMessage)(&metaBytes)
-	}
-
-	// Serialize app metadata
-	var appMetaJSON *json.RawMessage
-	if len(appMetadata) > 0 {
-		metaBytes, err := json.Marshal(appMetadata)
-		if err != nil {
-			return nil, err
-		}
-		appMetaJSON = (*json.RawMessage)(&metaBytes)
-	}
-
-	// Create user model
-	now := time.Now()
-	userModel := &models.User{
-		InstanceId:        instanceId,
-		Email:             &email,
-		Phone:             &phone,
-		EncryptedPassword: hashedPassword,
-		RawUserMetaData:   (*models.JSON)(userMetaJSON),
-		RawAppMetaData:    (*models.JSON)(appMetaJSON),
-		CreatedAt:         now,
-		UpdatedAt:         now,
-		IsAnonymous:       false,
-	}
-
-	// Set email/phone to nil if empty
-	if email == "" {
-		userModel.Email = nil
-	}
-	if phone == "" {
-		userModel.Phone = nil
-	}
-
-	// Save to database
-	if err := db.WithContext(ctx).Create(userModel).Error; err != nil {
-		return nil, err
-	}
-
-	// Create User object
-	return NewUserFromModel(userModel, passwordService, NewSessionService(db), db, instanceId)
+func CreateUser(ctx context.Context, db *gorm.DB, instanceId string, opts *UserCreateOptions) (*User, error) {
+	userService := NewUserServiceWithInstance(db, instanceId)
+	return userService.CreateUser(ctx, opts)
 }
 
 // GetUserByID Get user by ID
@@ -900,6 +871,13 @@ func (u *User) IsAnonymous() bool {
 }
 
 // User property getter methods
+func (u *User) GetUsername() string {
+	if u.Username == nil {
+		return ""
+	}
+	return *u.Username
+}
+
 func (u *User) GetEmail() string {
 	if u.Email == nil {
 		return ""
@@ -915,6 +893,10 @@ func (u *User) GetPhone() string {
 }
 
 func (u *User) GetDisplayName() string {
+	username := u.GetUsername()
+	if username != "" {
+		return username
+	}
 	email := u.GetEmail()
 	if email != "" {
 		return email
@@ -945,6 +927,22 @@ func (u *User) GetAppMetadata() map[string]any {
 }
 
 // User update methods
+func (u *User) UpdateUsername(ctx context.Context, username string) error {
+	now := time.Now()
+	err := u.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
+		Updates(map[string]any{
+			"username":   username,
+			"updated_at": now,
+		}).Error
+	if err != nil {
+		return err
+	}
+	u.Username = &username
+	u.UpdatedAt = now
+	return nil
+}
+
 func (u *User) UpdateEmail(ctx context.Context, email string) error {
 	now := time.Now()
 	err := u.db.WithContext(ctx).Model(&models.User{}).
