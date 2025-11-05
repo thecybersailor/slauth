@@ -31,8 +31,9 @@ func getDefaultPasswordStrengthScore() int {
 
 // UserService provides database operations for User model
 type UserService struct {
-	db         *gorm.DB
-	instanceId string
+	db              *gorm.DB
+	instanceId      string
+	passwordService *PasswordService
 }
 
 // NewUserService creates a new user service
@@ -42,7 +43,16 @@ func NewUserService(db *gorm.DB) *UserService {
 
 // NewUserServiceWithInstance creates a new user service with instance code
 func NewUserServiceWithInstance(db *gorm.DB, instanceId string) *UserService {
-	return &UserService{db: db, instanceId: instanceId}
+	return &UserService{
+		db:         db,
+		instanceId: instanceId,
+	}
+}
+
+// SetPasswordService sets the password service (chainable)
+func (s *UserService) SetPasswordService(passwordService *PasswordService) *UserService {
+	s.passwordService = passwordService
+	return s
 }
 
 // Create creates a new user
@@ -52,7 +62,127 @@ func (s *UserService) Create(ctx context.Context, user *models.User) error {
 
 // CreateWithMetadata creates a new user with metadata
 func (s *UserService) CreateWithMetadata(ctx context.Context, email, phone, password string, userMetadata, appMetadata map[string]any) (*User, error) {
-	return CreateUserWithMetadata(ctx, s.db, s.instanceId, email, phone, password, userMetadata, appMetadata)
+	passwordService := s.passwordService
+	if passwordService == nil {
+		passwordService = NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
+	}
+
+	// Validate email format if provided
+	if email != "" {
+		validator := NewValidatorService()
+		if err := validator.ValidateEmail(email); err != nil {
+			return nil, err
+		}
+		email = validator.SanitizeEmail(email)
+	}
+
+	// Validate phone format if provided
+	if phone != "" {
+		validator := NewValidatorService()
+		if err := validator.ValidatePhone(phone); err != nil {
+			return nil, err
+		}
+		phone = validator.SanitizePhone(phone)
+	}
+
+	// Validate password strength if provided
+	if password != "" {
+		validator := NewValidatorService()
+		if err := validator.ValidatePassword(password); err != nil {
+			return nil, err
+		}
+
+		// Use PasswordService for complete password strength validation
+		valid := passwordService.ValidatePasswordStrength(password)
+		if !valid {
+			slog.Error("Password strength validation failed")
+			return nil, consts.WEAK_PASSWORD
+		}
+	}
+
+	// Check for duplicate email
+	if email != "" {
+		var existingUser models.User
+		err := s.db.WithContext(ctx).Where("email = ? AND instance_id = ?", email, s.instanceId).First(&existingUser).Error
+		if err == nil {
+			return nil, consts.USER_ALREADY_EXISTS
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+	}
+
+	// Check for duplicate phone
+	if phone != "" {
+		var existingUser models.User
+		err := s.db.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, s.instanceId).First(&existingUser).Error
+		if err == nil {
+			return nil, consts.USER_ALREADY_EXISTS
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+	}
+
+	// Hash password if provided
+	var hashedPassword *string
+	if password != "" {
+		hashed, err := passwordService.HashPassword(password)
+		if err != nil {
+			return nil, err
+		}
+		hashedPassword = &hashed
+	}
+
+	// Serialize user metadata
+	var userMetaJSON *json.RawMessage
+	if len(userMetadata) > 0 {
+		metaBytes, err := json.Marshal(userMetadata)
+		if err != nil {
+			return nil, err
+		}
+		userMetaJSON = (*json.RawMessage)(&metaBytes)
+	}
+
+	// Serialize app metadata
+	var appMetaJSON *json.RawMessage
+	if len(appMetadata) > 0 {
+		metaBytes, err := json.Marshal(appMetadata)
+		if err != nil {
+			return nil, err
+		}
+		appMetaJSON = (*json.RawMessage)(&metaBytes)
+	}
+
+	// Create user model
+	now := time.Now()
+	userModel := &models.User{
+		InstanceId:        s.instanceId,
+		Email:             &email,
+		Phone:             &phone,
+		EncryptedPassword: hashedPassword,
+		RawUserMetaData:   (*models.JSON)(userMetaJSON),
+		RawAppMetaData:    (*models.JSON)(appMetaJSON),
+		CreatedAt:         now,
+		UpdatedAt:         now,
+		IsAnonymous:       false,
+	}
+
+	// Set email/phone to nil if empty
+	if email == "" {
+		userModel.Email = nil
+	}
+	if phone == "" {
+		userModel.Phone = nil
+	}
+
+	// Save to database
+	if err := s.db.WithContext(ctx).Create(userModel).Error; err != nil {
+		return nil, err
+	}
+
+	// Create User object
+	return NewUserFromModel(userModel, passwordService, NewSessionService(s.db), s.db, s.instanceId)
 }
 
 // GetByID retrieves user by ID and instance code

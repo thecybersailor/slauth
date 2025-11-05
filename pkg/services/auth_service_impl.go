@@ -96,9 +96,9 @@ func NewAuthServiceImpl(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecre
 	hashIDService := NewHashIDService(cfg)
 	SetGlobalHashIDService(hashIDService)
 
-	userService := NewUserServiceWithInstance(db, instanceId)
-	sessionService := NewSessionService(db)
 	passwordService := NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore)
+	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService)
+	sessionService := NewSessionService(db)
 
 	// Set all fields
 	s.jwtService = jwtService
@@ -169,7 +169,7 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, instanceId, globalJWTSec
 	hashIDService := NewHashIDService(cfg)
 	SetGlobalHashIDService(hashIDService)
 
-	userService := NewUserServiceWithInstance(db, instanceId)
+	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService)
 	sessionService := NewSessionService(db)
 
 	// Set all fields
