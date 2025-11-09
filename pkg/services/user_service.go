@@ -1243,3 +1243,62 @@ func (u *User) Delete(ctx context.Context) error {
 func (u *User) CanSignIn() bool {
 	return !u.IsDeleted() && !u.IsBanned()
 }
+
+// GetUsersByHashIDs loads multiple users by their hash IDs across all instances
+// This is a package-level convenience function for batch loading users without creating a UserService
+//
+// Parameters:
+//   - ctx: context for the database query
+//   - db: gorm database connection
+//   - hashIDs: slice of user hash IDs to load
+//
+// Returns:
+//   - map[string]*User: map of hashID -> User for efficient lookup
+//   - error: any error during the query
+func GetUsersByHashIDs(ctx context.Context, db *gorm.DB, hashIDs []string) (map[string]*User, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database connection is nil")
+	}
+
+	if len(hashIDs) == 0 {
+		return make(map[string]*User), nil
+	}
+
+	// 1. Decode all hashIDs to get numeric IDs
+	userIDs := make([]uint, 0, len(hashIDs))
+	hashIDToNumeric := make(map[uint]string)
+
+	for _, hashID := range hashIDs {
+		numericID, err := GetUserIDFromHashID(hashID)
+		if err == nil {
+			userIDs = append(userIDs, numericID)
+			hashIDToNumeric[numericID] = hashID
+		}
+	}
+
+	if len(userIDs) == 0 {
+		return make(map[string]*User), nil
+	}
+
+	// 2. Batch query (not restricted by instance_id)
+	var userModels []*models.User
+	err := db.WithContext(ctx).Where("id IN ?", userIDs).Find(&userModels).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Build result map
+	result := make(map[string]*User, len(userModels))
+	for _, userModel := range userModels {
+		if hashID, ok := hashIDToNumeric[userModel.ID]; ok {
+			result[hashID] = &User{
+				User:       userModel,
+				HashID:     hashID,
+				db:         db,
+				instanceId: userModel.InstanceID,
+			}
+		}
+	}
+
+	return result, nil
+}
