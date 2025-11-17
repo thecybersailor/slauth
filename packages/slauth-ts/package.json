@@ -1,6 +1,6 @@
 {
   "name": "@cybersailor/slauth-ts",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Official client library for slauth",
   "keywords": [
     "auth",
