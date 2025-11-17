@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/mail"
 	"strconv"
 	"time"
@@ -216,7 +217,22 @@ type OAuthUserInfo struct {
 
 // findOrCreateUserFromOAuth finds existing user or creates new one from OAuth data
 func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo *OAuthUserInfo, provider string) (*services.User, error) {
-	// Try to find existing user by email
+	// Step 1: Try to find existing identity by provider + provider_id
+	if userInfo.ID != "" {
+		var identity models.Identity
+		err := a.authService.GetDB().Where("instance_id = ? AND provider = ? AND provider_id = ?",
+			a.authService.GetInstanceId(), provider, userInfo.ID).First(&identity).Error
+
+		if err == nil {
+			// Get user by ID using global function
+			user, err := services.GetUserByID(ctx, a.authService.GetDB(), a.authService.GetInstanceId(), identity.UserID)
+			if err == nil {
+				return user, nil
+			}
+		}
+	}
+
+	// Step 2: Try to find existing user by email
 	if userInfo.Email != "" {
 		user, err := a.authService.GetUserService().GetByEmail(ctx, userInfo.Email)
 		if err == nil {
@@ -226,7 +242,7 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 		}
 	}
 
-	// Create new user
+	// Step 3: Create new user
 	userData := map[string]any{
 		"name":     userInfo.Name,
 		"picture":  userInfo.Picture,
@@ -239,6 +255,7 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 		UserMetadata: userData,
 	})
 	if err != nil {
+		slog.Error("[OAuth findOrCreate] Failed to create user", "error", err)
 		return nil, err
 	}
 

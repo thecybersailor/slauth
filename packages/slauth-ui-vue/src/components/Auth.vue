@@ -20,9 +20,14 @@
     </div>
     
     <div class="slauth-ui__container" :class="class">
+      <!-- Custom Action View (for custom providers like employee-login, idcard-login) -->
+      <div v-if="$slots['custom-action'] && isCustomAction" class="slauth-ui__custom-action">
+        <slot name="custom-action" :path="currentAction" />
+      </div>
+
       <!-- Sign In View -->
       <SignIn
-        v-if="currentView === 'sign_in'"
+        v-else-if="currentView === 'sign_in'"
         :localization="mergedLocalization.sign_in"
         @auth-event="handleAuthEvent"
       >
@@ -205,6 +210,7 @@ const route = instance?.appContext.config.globalProperties.$route
 const currentView = ref<'sign_in' | 'sign_up' | 'magic_link' | 'forgotten_password' | 'update_password' | 'verify_otp' | 'callback' | 'confirmed'>('sign_in')
 const confirmationStatus = ref<string>('')
 const callbackError = ref<{ message: string; key?: string } | null>(null)
+const currentAction = ref<string>('')
 
 // Debug mode detection
 const isDebugMode = computed(() => {
@@ -245,6 +251,9 @@ const smartNavigate = (url: string) => {
 
 // Set view based on detected action
 const setViewFromAction = (action: string) => {
+  // Save current action for custom action detection
+  currentAction.value = action
+
   const actionToViewMap: Record<string, typeof currentView.value> = {
     'signin': 'sign_in',
     'signup': 'sign_up',
@@ -256,13 +265,14 @@ const setViewFromAction = (action: string) => {
     'confirm': 'sign_in',
     'confirmed': 'confirmed'
   }
-  
+
   const newView = actionToViewMap[action] || 'sign_in'
   currentView.value = newView
-  
+
   debugLog('Set view', {
     action,
     newView,
+    isCustomAction: isCustomAction.value,
     currentPath: window.location.pathname,
     currentUrl: window.location.href
   })
@@ -453,6 +463,12 @@ if (route) {
 const mergedLocalization = computed(() => mergeLocalization(localization as any))
 const theme = computed(() => darkMode ? 'dark' : 'light')
 const appearance = computed(() => authConfig.appearance || 'default')
+
+// Check if current action is a custom action (not in known actions list)
+const isCustomAction = computed(() => {
+  const knownActions = ['signin', 'signup', 'forgot-password', 'reset-password', 'magic-link', 'verify-otp', 'callback', 'confirm', 'confirmed']
+  return currentAction.value && !knownActions.includes(currentAction.value)
+})
 
 
 const handleAuthFlowResponse = (response: any) => {

@@ -115,6 +115,12 @@ export class HttpClient {
               if (this.debug) {
                 console.log('[slauth] Token refresh successful, retrying request')
               }
+              // Update the Authorization header in the original request with the new token
+              const newToken = this.client.defaults.headers.common['Authorization']
+              if (newToken) {
+                originalRequest.headers = originalRequest.headers || {}
+                originalRequest.headers['Authorization'] = newToken
+              }
               // Retry the original request
               return this.client(originalRequest)
             } else {

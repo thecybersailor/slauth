@@ -460,6 +460,52 @@ const { authClient: staffAuth, adminClient: staffAdmin } = createClients({
 const customers = await staffAdmin.listUsers() // Lists customer users
 ```
 
+#### Making API Calls with Automatic Token Management
+
+When building your application, use `authClient.request` for authenticated API calls. It automatically handles token injection and refresh:
+
+```typescript
+import { createClients } from '@cybersailor/slauth-ts'
+
+const { authClient } = createClients({
+  auth: { url: 'http://localhost:8080/auth' },
+  autoRefreshToken: true,
+  persistSession: true,
+})
+
+// After user signs in
+await authClient.signInWithPassword({
+  email: 'user@example.com',
+  password: 'Password123!'
+})
+
+// Use authClient.request instead of axios - token is automatically attached
+const response = await authClient.request.get('/api/user/profile')
+const userProfile = response.data
+
+// POST, PUT, PATCH, DELETE are all supported
+await authClient.request.post('/api/orders', { productId: '123' })
+await authClient.request.put('/api/user/settings', { theme: 'dark' })
+```
+
+**Key Benefits:**
+- ✅ Automatic access token injection
+- ✅ Automatic token refresh on 401 errors
+- ✅ Automatic request retry after refresh
+- ✅ No manual token management needed
+
+**Migration from Axios:**
+
+```typescript
+// ❌ Before: Manual token management
+const response = await axios.get('/api/user', {
+  headers: { Authorization: `Bearer ${token}` }
+})
+
+// ✅ After: Automatic token management
+const response = await authClient.request.get('/api/user')
+```
+
 ### Vue 3 UI Components
 
 ```bash

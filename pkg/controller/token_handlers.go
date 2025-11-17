@@ -22,21 +22,28 @@ import (
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /refresh [post]
 func (a *AuthController) RefreshToken(c *pin.Context) error {
+	slog.Info("RefreshToken: Starting token refresh request", "userAgent", c.GetHeader("User-Agent"), "ip", c.ClientIP())
+	
 	req := &RefreshTokenRequest{}
 	if err := c.BindJSON(req); err != nil {
+		slog.Warn("RefreshToken: Failed to bind JSON", "error", err)
 		return consts.BAD_JSON
 	}
 
 	// Validate refresh token
 	if req.RefreshToken == "" {
+		slog.Warn("RefreshToken: Empty refresh token provided")
 		return consts.VALIDATION_FAILED
 	}
 
 	// Validate refresh token
 	refreshTokenRecord, err := a.authService.ValidateRefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
+		slog.Warn("RefreshToken: Invalid refresh token", "error", err)
 		return err
 	}
+	
+	slog.Info("RefreshToken: Refresh token validated", "userID", refreshTokenRecord.UserID, "sessionID", refreshTokenRecord.SessionID)
 
 	// Check token refresh rate limit
 	config := a.authService.GetConfig()
@@ -82,11 +89,19 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		c.GetHeader("User-Agent"), c.ClientIP(),
 	)
 	if err != nil {
+		slog.Error("RefreshToken: Failed to refresh session", "error", err, "userID", refreshTokenRecord.UserID)
 		return err // Return original error instead of wrapping
 	}
 
+	slog.Info("RefreshToken: Session refreshed successfully", 
+		"userID", refreshTokenRecord.UserID,
+		"sessionID", sessionObj.HashID,
+		"expiresAt", time.Unix(expiresAt, 0).Format(time.RFC3339),
+		"accessTokenLength", len(accessToken))
+
 	// Revoke old refresh token (token rotation)
 	if err := a.authService.RevokeRefreshToken(c.Request.Context(), req.RefreshToken); err != nil {
+		slog.Error("RefreshToken: Failed to revoke old refresh token", "error", err)
 		return consts.UNEXPECTED_FAILURE
 	}
 
@@ -115,6 +130,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		Session: sessionResp,
 	}
 
+	slog.Info("RefreshToken: Token refresh completed successfully", "userID", refreshTokenRecord.UserID, "sessionID", sessionObj.HashID)
 	return c.Render(resp)
 }
 

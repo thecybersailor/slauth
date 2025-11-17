@@ -16,19 +16,22 @@ import (
 )
 
 type GoogleProvider struct {
-	clientID     string
-	clientSecret string
+	clientID      string
+	clientSecret  string
+	useEmailIdent bool
 }
 
 type GoogleOAuthConfig struct {
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
+	ClientID      string `json:"client_id"`
+	ClientSecret  string `json:"client_secret"`
+	UseEmailIdent bool   `json:"use_email_ident"` // Use email as UID instead of sub (default: false)
 }
 
 func NewGoogleProvider(config *GoogleOAuthConfig) types.IdentityProvider {
 	return &GoogleProvider{
-		clientID:     config.ClientID,
-		clientSecret: config.ClientSecret,
+		clientID:      config.ClientID,
+		clientSecret:  config.ClientSecret,
+		useEmailIdent: config.UseEmailIdent,
 	}
 }
 
@@ -83,8 +86,21 @@ func (p *GoogleProvider) ValidateCredential(ctx context.Context, credential json
 		return nil, consts.BAD_JWT
 	}
 
+	// Determine UID based on configuration
+	uid := payload.Subject // Default: use Google's 'sub' (unique user ID)
+	if p.useEmailIdent {
+		uid = getString(payload.Claims, "email") // Use email for backward compatibility
+		slog.Info("[Google OAuth] Using email as UID for backward compatibility",
+			"email", uid,
+			"sub", payload.Subject)
+	} else {
+		slog.Info("[Google OAuth] Using sub as UID",
+			"sub", uid,
+			"email", getString(payload.Claims, "email"))
+	}
+
 	userInfo := &types.ExternalUserInfo{
-		UID:    getString(payload.Claims, "email"),
+		UID:    uid,
 		Name:   getString(payload.Claims, "name"),
 		Avatar: getString(payload.Claims, "picture"),
 		Locale: getString(payload.Claims, "locale"),
@@ -97,6 +113,11 @@ func (p *GoogleProvider) ValidateCredential(ctx context.Context, credential json
 	if payload.Claims["email_verified"] == true {
 		userInfo.Email = getString(payload.Claims, "email")
 	}
+
+	slog.Info("[Google OAuth] ValidateCredential completed",
+		"uid", userInfo.UID,
+		"email", userInfo.Email,
+		"name", userInfo.Name)
 
 	tokenInfo := &types.OAuthTokenInfo{
 		AccessToken: credData.Credential, // For Google, the credential is the ID token
@@ -196,9 +217,22 @@ func (p *GoogleProvider) ExchangeCodeForToken(ctx context.Context, code string, 
 		return nil, consts.BAD_JWT
 	}
 
+	// Determine UID based on configuration
+	uid := payload.Subject // Default: use Google's 'sub' (unique user ID)
+	if p.useEmailIdent {
+		uid = getString(payload.Claims, "email") // Use email for backward compatibility
+		slog.Info("[Google OAuth] Using email as UID for backward compatibility",
+			"email", uid,
+			"sub", payload.Subject)
+	} else {
+		slog.Info("[Google OAuth] Using sub as UID",
+			"sub", uid,
+			"email", getString(payload.Claims, "email"))
+	}
+
 	// Extract user information from ID token
 	userInfo := &types.ExternalUserInfo{
-		UID:    getString(payload.Claims, "email"),
+		UID:    uid,
 		Name:   getString(payload.Claims, "name"),
 		Avatar: getString(payload.Claims, "picture"),
 		Locale: getString(payload.Claims, "locale"),
@@ -211,6 +245,11 @@ func (p *GoogleProvider) ExchangeCodeForToken(ctx context.Context, code string, 
 	if payload.Claims["email_verified"] == true {
 		userInfo.Email = getString(payload.Claims, "email")
 	}
+
+	slog.Info("[Google OAuth] ExchangeCodeForToken completed",
+		"uid", userInfo.UID,
+		"email", userInfo.Email,
+		"name", userInfo.Name)
 
 	tokenInfo := &types.OAuthTokenInfo{
 		AccessToken:  tokenResp.AccessToken,

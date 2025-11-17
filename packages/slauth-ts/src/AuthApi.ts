@@ -94,21 +94,77 @@ export class AuthApi {
   }
 
   private async initializeSession(): Promise<void> {
-    console.log('[slauth:AuthApi] initializeSession called', { persistSession: this.persistSession })
+    console.log('[slauth:AuthApi] initializeSession called', { 
+      persistSession: this.persistSession,
+      autoRefreshToken: this.autoRefreshToken 
+    })
     if (!this.persistSession) return
 
-    const session = await this.storage.getSession()
+    // Get session without expiry check to allow refresh attempt
+    const session = await this.storage.getSession({ checkExpiry: false })
     console.log('[slauth:AuthApi] Session from storage', { 
       hasSession: !!session,
       hasAccessToken: !!session?.access_token,
+      hasRefreshToken: !!session?.refresh_token,
+      expiresAt: session?.expires_at,
       tokenPreview: session?.access_token ? `${session.access_token.substring(0, 20)}...` : null
     })
-    if (session) {
-      this.currentSession = session
-      this.currentUser = session.user
-      this.api.setAuth(session.access_token)
-      console.log('[slauth:AuthApi] Session initialized from storage')
+    
+    if (!session) {
+      console.log('[slauth:AuthApi] No session found in storage')
+      return
     }
+
+    // Check if session is expired
+    const isExpired = session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)
+    console.log('[slauth:AuthApi] Session expiry check', {
+      isExpired,
+      expiresAt: session.expires_at,
+      currentTime: Math.floor(Date.now() / 1000)
+    })
+
+    if (isExpired) {
+      // Session expired - attempt refresh if enabled and refresh token exists
+      if (this.autoRefreshToken && session.refresh_token) {
+        console.log('[slauth:AuthApi] Session expired, attempting auto-refresh')
+        
+        // Set current session temporarily for refresh function
+        this.currentSession = session
+        
+        const requestBody = {
+          refresh_token: session.refresh_token
+        }
+        
+        const { data, error } = await this.api.postWithValidation<Types.AuthData>(
+          '/token?grant_type=refresh_token',
+          requestBody,
+          Schemas.RefreshTokenRequestSchema,
+          Schemas.AuthDataSchema
+        )
+        
+        if (error || !data || !data.session) {
+          console.log('[slauth:AuthApi] Auto-refresh failed, clearing session', { error })
+          await this.storage.removeSession()
+          this.currentSession = null
+          this.currentUser = null
+          return
+        }
+        
+        console.log('[slauth:AuthApi] Auto-refresh successful')
+        await this.setSession(data.session as Types.Session)
+        return
+      } else {
+        console.log('[slauth:AuthApi] Session expired, no auto-refresh available, clearing session')
+        await this.storage.removeSession()
+        return
+      }
+    }
+
+    // Session is valid
+    this.currentSession = session
+    this.currentUser = session.user
+    this.api.setAuth(session.access_token)
+    console.log('[slauth:AuthApi] Session initialized from storage')
   }
 
   /**

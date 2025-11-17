@@ -1295,7 +1295,7 @@ func GetUsersByHashIDs(ctx context.Context, db *gorm.DB, hashIDs []string) (map[
 				User:       userModel,
 				HashID:     hashID,
 				db:         db,
-				instanceId: userModel.InstanceID,
+				instanceId: userModel.InstanceId,
 			}
 		}
 	}
