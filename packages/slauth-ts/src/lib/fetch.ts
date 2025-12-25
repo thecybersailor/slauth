@@ -60,12 +60,18 @@ export class HttpClient {
     // Request interceptor
     this.client.interceptors.request.use(
       (config) => {
+        // Handle FormData: remove Content-Type to let browser set it with boundary
+        if (config.data instanceof FormData) {
+          delete config.headers['Content-Type']
+        }
+        
         const authHeader = config.headers?.['Authorization']
         console.log(`[slauth:fetch] Request interceptor`, {
           method: config.method?.toUpperCase(),
           url: config.url,
           hasAuthHeader: !!authHeader,
-          authHeaderPreview: authHeader ? `${String(authHeader).substring(0, 30)}...` : null
+          authHeaderPreview: authHeader ? `${String(authHeader).substring(0, 30)}...` : null,
+          isFormData: config.data instanceof FormData
         })
         if (this.debug) {
           console.log(`[slauth] ${config.method?.toUpperCase()} ${config.url}`, {
