@@ -2,8 +2,16 @@ package tests
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +19,9 @@ import (
 
 	"github.com/flaboy/pin"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/thecybersailor/slauth/pkg/types"
 	"gorm.io/gorm"
 )
 
@@ -413,4 +423,261 @@ func (h *TestHelper) MakeDELETERequest(t *testing.T, path string, body S, header
 	return rsp
 }
 
+// JWTClaims represents the JWT claims structure (copy for testing)
+type JWTClaims struct {
+	jwt.RegisteredClaims
+	UserID     string         `json:"user_id"`
+	InstanceId string         `json:"instance_id"`
+	Email      string         `json:"email,omitempty"`
+	Phone      string         `json:"phone,omitempty"`
+	Role       string         `json:"role,omitempty"`
+	AAL        types.AALLevel `json:"aal"`
+	AMR        []string       `json:"amr"` // Authentication Method Reference
+	SessionID  uint           `json:"session_id"`
+	UserMeta   map[string]any `json:"user_metadata,omitempty"`
+	AppMeta    map[string]any `json:"app_metadata,omitempty"`
+}
+
+// JWKPublicKey represents parsed public key from JWKS endpoint
+type JWKPublicKey struct {
+	Kid       string
+	Algorithm types.SignAlgorithm
+	PublicKey interface{} // *ecdsa.PublicKey or *rsa.PublicKey
+}
+
+// FetchJWKSKeys fetches and parses public keys from JWKS endpoint
+func (h *TestHelper) FetchJWKSKeys(t *testing.T, jwksURL string) map[string]*JWKPublicKey {
+	response := h.MakeGETRequest(t, jwksURL)
+	assert.Equal(t, http.StatusOK, response.ResponseRecorder.Code, "JWKS endpoint should return 200")
+
+	var jwks struct {
+		Keys []struct {
+			Kty string `json:"kty"`
+			Use string `json:"use"`
+			Kid string `json:"kid"`
+			Alg string `json:"alg"`
+			// ECDSA fields
+			Crv string `json:"crv,omitempty"`
+			X   string `json:"x,omitempty"`
+			Y   string `json:"y,omitempty"`
+			// RSA fields
+			N string `json:"n,omitempty"`
+			E string `json:"e,omitempty"`
+		} `json:"keys"`
+	}
+
+	err := json.Unmarshal(response.ResponseRecorder.Body.Bytes(), &jwks)
+	assert.NoError(t, err, "JWKS response should be valid JSON")
+
+	keys := make(map[string]*JWKPublicKey)
+	for _, key := range jwks.Keys {
+		assert.Equal(t, "sig", key.Use, "Key use should be 'sig'")
+		assert.NotEmpty(t, key.Kid, "Key ID should not be empty")
+		assert.NotEmpty(t, key.Alg, "Algorithm should not be empty")
+
+		var publicKey interface{}
+		var algorithm types.SignAlgorithm
+
+		if key.Kty == "EC" && key.Crv == "P-256" {
+			algorithm = types.SignAlgES256
+			xBytes, err := base64.RawURLEncoding.DecodeString(key.X)
+			assert.NoError(t, err, "Failed to decode ECDSA X coordinate")
+			yBytes, err := base64.RawURLEncoding.DecodeString(key.Y)
+			assert.NoError(t, err, "Failed to decode ECDSA Y coordinate")
+
+			publicKey = &ecdsa.PublicKey{
+				Curve: elliptic.P256(),
+				X:     new(big.Int).SetBytes(xBytes),
+				Y:     new(big.Int).SetBytes(yBytes),
+			}
+		} else if key.Kty == "RSA" {
+			algorithm = types.SignAlgRS256
+			nBytes, err := base64.RawURLEncoding.DecodeString(key.N)
+			assert.NoError(t, err, "Failed to decode RSA modulus")
+			eBytes, err := base64.RawURLEncoding.DecodeString(key.E)
+			assert.NoError(t, err, "Failed to decode RSA exponent")
+
+			publicKey = &rsa.PublicKey{
+				N: new(big.Int).SetBytes(nBytes),
+				E: int(new(big.Int).SetBytes(eBytes).Int64()),
+			}
+		} else {
+			t.Fatalf("Unsupported key type: %s", key.Kty)
+		}
+
+		keys[key.Kid] = &JWKPublicKey{
+			Kid:       key.Kid,
+			Algorithm: algorithm,
+			PublicKey: publicKey,
+		}
+	}
+
+	return keys
+}
+
+// VerifyJWTWithJWKS independently verifies JWT using JWKS public keys (without Auth server)
+func VerifyJWTWithJWKS(t *testing.T, tokenString string, jwks map[string]*JWKPublicKey) *JWTClaims {
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		// Extract kid from header
+		kid, ok := token.Header["kid"].(string)
+		assert.True(t, ok, "JWT should have kid in header")
+		assert.NotEmpty(t, kid, "kid should not be empty")
+
+		// Find public key in JWKS
+		jwk, exists := jwks[kid]
+		assert.True(t, exists, "kid should exist in JWKS: %s", kid)
+
+		// Validate signing method matches the key algorithm
+		var expectedMethod jwt.SigningMethod
+		switch jwk.Algorithm {
+		case types.SignAlgES256:
+			expectedMethod = jwt.SigningMethodES256
+		case types.SignAlgRS256:
+			expectedMethod = jwt.SigningMethodRS256
+		default:
+			t.Fatalf("Unsupported algorithm in JWKS: %s", jwk.Algorithm)
+		}
+
+		assert.Equal(t, expectedMethod.Alg(), token.Method.Alg(),
+			"JWT algorithm should match JWKS key algorithm")
+
+		return jwk.PublicKey, nil
+	})
+
+	assert.NoError(t, err, "JWT verification should succeed")
+	assert.True(t, token.Valid, "Token should be valid")
+
+	claims, ok := token.Claims.(*JWTClaims)
+	assert.True(t, ok, "Claims should be of correct type")
+
+	return claims
+}
+
+// CreateTestSecretsProvider creates a dynamic secrets provider for testing key rotation/revocation
+func CreateTestSecretsProvider(initialSecrets *types.InstanceSecrets) *TestSecretsProvider {
+	return &TestSecretsProvider{
+		secrets: initialSecrets,
+	}
+}
+
+// TestSecretsProvider allows dynamic modification of secrets for testing
+type TestSecretsProvider struct {
+	secrets *types.InstanceSecrets
+}
+
+func (p *TestSecretsProvider) GetSecrets(instanceId string) (*types.InstanceSecrets, error) {
+	return p.secrets, nil
+}
+
+func (p *TestSecretsProvider) UpdateSecrets(secrets *types.InstanceSecrets) {
+	p.secrets = secrets
+}
+
+func (p *TestSecretsProvider) AddKey(kid string, key *types.SigningKey) {
+	if p.secrets.Keys == nil {
+		p.secrets.Keys = make(map[string]*types.SigningKey)
+	}
+	p.secrets.Keys[kid] = key
+}
+
+func (p *TestSecretsProvider) RemoveKey(kid string) {
+	delete(p.secrets.Keys, kid)
+}
+
+func (p *TestSecretsProvider) SetPrimaryKey(kid string) {
+	p.secrets.PrimaryKeyId = kid
+}
+
 type S map[string]any
+
+// GenerateES256KeyPair generates an ES256 (ECDSA P-256) key pair for testing
+func GenerateES256KeyPair() (privateKeyPEM string, publicKeyPEM string, err error) {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return "", "", err
+	}
+
+	privateKeyDER, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	privateKeyBlock := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: privateKeyDER,
+	}
+	privateKeyPEM = string(pem.EncodeToMemory(privateKeyBlock))
+
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	publicKeyBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyDER,
+	}
+	publicKeyPEM = string(pem.EncodeToMemory(publicKeyBlock))
+
+	return privateKeyPEM, publicKeyPEM, nil
+}
+
+// GenerateRS256KeyPair generates an RS256 (RSA 2048) key pair for testing
+func GenerateRS256KeyPair() (privateKeyPEM string, publicKeyPEM string, err error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", err
+	}
+
+	privateKeyDER := x509.MarshalPKCS1PrivateKey(privateKey)
+	privateKeyBlock := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: privateKeyDER,
+	}
+	privateKeyPEM = string(pem.EncodeToMemory(privateKeyBlock))
+
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return "", "", err
+	}
+
+	publicKeyBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyDER,
+	}
+	publicKeyPEM = string(pem.EncodeToMemory(publicKeyBlock))
+
+	return privateKeyPEM, publicKeyPEM, nil
+}
+
+// GenerateTestSecrets creates test secrets with valid key pairs
+func GenerateTestSecrets(algorithm types.SignAlgorithm) (*types.InstanceSecrets, error) {
+	var privateKeyPEM, publicKeyPEM string
+	var err error
+
+	switch algorithm {
+	case types.SignAlgES256:
+		privateKeyPEM, publicKeyPEM, err = GenerateES256KeyPair()
+	case types.SignAlgRS256:
+		privateKeyPEM, publicKeyPEM, err = GenerateRS256KeyPair()
+	default:
+		return nil, fmt.Errorf("unsupported algorithm: %s", algorithm)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.InstanceSecrets{
+		PrimaryKeyId: "test-key",
+		Keys: map[string]*types.SigningKey{
+			"test-key": {
+				Kid:        "test-key",
+				Algorithm:  algorithm,
+				PrivateKey: privateKeyPEM,
+				PublicKey:  publicKeyPEM,
+			},
+		},
+		AppSecret: "test-app-secret-fixed-for-hashid-consistency",
+	}, nil
+}

@@ -26,6 +26,7 @@ type SessionStats struct {
 // AuthServiceImpl implements authentication business logic
 type AuthServiceImpl struct {
 	db              *gorm.DB
+	secretsProvider types.InstanceSecretsProvider
 	configLoader    *ConfigLoader
 	jwtService      *JWTService
 	passwordService *PasswordService
@@ -64,25 +65,32 @@ type AuthServiceImpl struct {
 	otpMiddlewares      []func(ctx OTPContext, next func() error) error
 }
 
-// NewAuthServiceImpl creates a new authentication service with global secrets
+// NewAuthServiceImpl creates a new authentication service with secrets provider
 // This is an internal implementation, use auth.NewService() instead
-func NewAuthServiceImpl(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecret string) *AuthServiceImpl {
+func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string) *AuthServiceImpl {
 	// Create config loader
-	configLoader := NewConfigLoader(db, instanceId, globalJWTSecret, globalAppSecret)
+	configLoader := NewConfigLoader(db, secretsProvider, instanceId)
 
 	// Load config for the first time
 	cfg := configLoader.GetConfig()
 
 	// Create service instance first (without jwtService)
 	s := &AuthServiceImpl{
-		db:           db,
-		configLoader: configLoader,
-		instanceId:   instanceId,
+		db:             db,
+		secretsProvider: secretsProvider,
+		configLoader:   configLoader,
+		instanceId:     instanceId,
 	}
 
-	// Now create jwtService with closure that references configLoader
+	// Now create jwtService with closure that references secrets provider
 	jwtService := NewJWTService(
-		cfg.JWTSecret,
+		func() *types.InstanceSecrets {
+			secrets, err := secretsProvider.GetSecrets(instanceId)
+			if err != nil {
+				return nil
+			}
+			return secrets
+		},
 		func() time.Duration {
 			return time.Duration(configLoader.GetConfig().SessionConfig.AccessTokenTTL) * time.Second
 		},
@@ -139,23 +147,30 @@ func NewAuthServiceImpl(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecre
 
 // NewAuthServiceImplWithPasswordService creates a new authentication service with a custom password service
 // This allows external projects to inject custom password encoding implementations
-func NewAuthServiceImplWithPasswordService(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecret string, passwordService *PasswordService) *AuthServiceImpl {
+func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string, passwordService *PasswordService) *AuthServiceImpl {
 	// Create config loader
-	configLoader := NewConfigLoader(db, instanceId, globalJWTSecret, globalAppSecret)
+	configLoader := NewConfigLoader(db, secretsProvider, instanceId)
 
 	// Load config for the first time
 	cfg := configLoader.GetConfig()
 
 	// Create service instance first (without jwtService)
 	s := &AuthServiceImpl{
-		db:           db,
-		configLoader: configLoader,
-		instanceId:   instanceId,
+		db:             db,
+		secretsProvider: secretsProvider,
+		configLoader:   configLoader,
+		instanceId:     instanceId,
 	}
 
-	// Now create jwtService with closure that references configLoader
+	// Now create jwtService with closure that references secrets provider
 	jwtService := NewJWTService(
-		cfg.JWTSecret,
+		func() *types.InstanceSecrets {
+			secrets, err := secretsProvider.GetSecrets(instanceId)
+			if err != nil {
+				return nil
+			}
+			return secrets
+		},
 		func() time.Duration {
 			return time.Duration(configLoader.GetConfig().SessionConfig.AccessTokenTTL) * time.Second
 		},
@@ -713,6 +728,10 @@ func (s *AuthServiceImpl) GetDB() *gorm.DB {
 
 func (s *AuthServiceImpl) GetInstanceId() string {
 	return s.instanceId
+}
+
+func (s *AuthServiceImpl) GetSecretsProvider() types.InstanceSecretsProvider {
+	return s.secretsProvider
 }
 
 func (s *AuthServiceImpl) GetConfig() *config.AuthServiceConfig {

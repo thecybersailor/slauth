@@ -8,6 +8,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/registry"
 	"github.com/thecybersailor/slauth/pkg/services"
+	"github.com/thecybersailor/slauth/pkg/types"
 	"gorm.io/gorm"
 )
 
@@ -43,9 +44,25 @@ func NewAuthServiceConfig() *config.AuthServiceConfig {
 	return config.NewAuthServiceConfig()
 }
 
-// NewService creates and registers a new auth service with global secrets
+// NewService creates and registers a new auth service with secrets provider
 // The service will automatically load dynamic config from database
-func NewService(instanceId, globalJWTSecret, globalAppSecret string) services.AuthService {
+func NewService(instanceId string, secretsProvider types.InstanceSecretsProvider, db *gorm.DB) services.AuthService {
+	authService, err := registry.GetOrCreateAuthService(instanceId, secretsProvider, db)
+	if err != nil {
+		panic(err) // Keep panic for backward compatibility
+	}
+
+	// Set route handlers
+	authService.SetRouteHandler(&ControllerRouteHandler{})
+	authService.SetAdminRouteHandler(&AdminRouteHandler{})
+
+	return authService
+}
+
+// Deprecated: Use NewService with InstanceSecretsProvider
+// NewServiceLegacy creates and registers a new auth service with global secrets
+// The service will automatically load dynamic config from database
+func NewServiceLegacy(instanceId, globalJWTSecret, globalAppSecret string) services.AuthService {
 	authService := registry.RegisterAuthService(instanceId, globalJWTSecret, globalAppSecret, database.Database())
 
 	// Set route handlers
@@ -57,7 +74,23 @@ func NewService(instanceId, globalJWTSecret, globalAppSecret string) services.Au
 
 // NewServiceWithPasswordService creates and registers a new auth service with a custom password service
 // This allows external projects to inject custom password encoding implementations
-func NewServiceWithPasswordService(instanceId, globalJWTSecret, globalAppSecret string, passwordService *services.PasswordService, db *gorm.DB) services.AuthService {
+func NewServiceWithPasswordService(instanceId string, secretsProvider types.InstanceSecretsProvider, passwordService *services.PasswordService, db *gorm.DB) services.AuthService {
+	authService, err := registry.GetOrCreateAuthServiceWithPasswordService(instanceId, secretsProvider, passwordService, db)
+	if err != nil {
+		panic(err) // Keep panic for backward compatibility
+	}
+
+	// Set route handlers
+	authService.SetRouteHandler(&ControllerRouteHandler{})
+	authService.SetAdminRouteHandler(&AdminRouteHandler{})
+
+	return authService
+}
+
+// Deprecated: Use NewServiceWithPasswordService with InstanceSecretsProvider
+// NewServiceWithPasswordServiceLegacy creates and registers a new auth service with a custom password service
+// This allows external projects to inject custom password encoding implementations
+func NewServiceWithPasswordServiceLegacy(instanceId, globalJWTSecret, globalAppSecret string, passwordService *services.PasswordService, db *gorm.DB) services.AuthService {
 	authService := registry.RegisterAuthServiceWithPasswordService(instanceId, globalJWTSecret, globalAppSecret, passwordService, db)
 
 	// Set route handlers

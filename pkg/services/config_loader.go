@@ -6,29 +6,27 @@ import (
 
 	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/models"
+	"github.com/thecybersailor/slauth/pkg/types"
 	"gorm.io/gorm"
 )
 
 type ConfigLoader struct {
-	db         *gorm.DB
-	instanceId string
+	db             *gorm.DB
+	secretsProvider types.InstanceSecretsProvider
+	instanceId     string
 
 	cachedConfig *config.AuthServiceConfig
 	cacheMutex   sync.RWMutex
 	cachedAt     time.Time
 	cacheTTL     time.Duration
-
-	globalJWTSecret string
-	globalAppSecret string
 }
 
-func NewConfigLoader(db *gorm.DB, instanceId, globalJWTSecret, globalAppSecret string) *ConfigLoader {
+func NewConfigLoader(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string) *ConfigLoader {
 	return &ConfigLoader{
-		db:              db,
-		instanceId:      instanceId,
-		globalJWTSecret: globalJWTSecret,
-		globalAppSecret: globalAppSecret,
-		cacheTTL:        30 * time.Second,
+		db:             db,
+		secretsProvider: secretsProvider,
+		instanceId:     instanceId,
+		cacheTTL:       30 * time.Second,
 	}
 }
 
@@ -74,8 +72,13 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 	// Set UpdatedAt from database to config
 	cfg.SetUpdatedAt(instance.UpdatedAt)
 
-	cfg.JWTSecret = l.globalJWTSecret
-	cfg.AppSecret = l.globalAppSecret
+	// Get AppSecret from secrets provider
+	if l.secretsProvider != nil {
+		secrets, err := l.secretsProvider.GetSecrets(l.instanceId)
+		if err == nil {
+			cfg.AppSecret = secrets.AppSecret
+		}
+	}
 
 	return cfg
 }
@@ -90,16 +93,26 @@ func (l *ConfigLoader) createDefaultInstance() *config.AuthServiceConfig {
 
 	result := l.db.Create(&instance)
 	if result.Error != nil {
-		cfg.JWTSecret = l.globalJWTSecret
-		cfg.AppSecret = l.globalAppSecret
+		// Get AppSecret from secrets provider
+		if l.secretsProvider != nil {
+			secrets, err := l.secretsProvider.GetSecrets(l.instanceId)
+			if err == nil {
+				cfg.AppSecret = secrets.AppSecret
+			}
+		}
 		return cfg
 	}
 
 	// Set UpdatedAt from created instance
 	cfg.SetUpdatedAt(instance.UpdatedAt)
 
-	cfg.JWTSecret = l.globalJWTSecret
-	cfg.AppSecret = l.globalAppSecret
+	// Get AppSecret from secrets provider
+	if l.secretsProvider != nil {
+		secrets, err := l.secretsProvider.GetSecrets(l.instanceId)
+		if err == nil {
+			cfg.AppSecret = secrets.AppSecret
+		}
+	}
 
 	return cfg
 }
@@ -221,8 +234,7 @@ func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *con
 		merged.SecurityConfig = new.SecurityConfig
 	}
 
-	// Always preserve secrets
-	merged.JWTSecret = current.JWTSecret
+	// AppSecret is managed by secrets provider, preserve current value
 	merged.AppSecret = current.AppSecret
 
 	return merged

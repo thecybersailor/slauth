@@ -23,7 +23,8 @@ import (
 	"github.com/thecybersailor/slauth/pkg/providers/identidies/google"
 	"github.com/thecybersailor/slauth/pkg/providers/identidies/mock"
 	awssms "github.com/thecybersailor/slauth/pkg/providers/sms/aws"
-	"github.com/thecybersailor/slauth/pkg/registry"
+	"github.com/thecybersailor/slauth/pkg/services"
+	"github.com/thecybersailor/slauth/pkg/types"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -152,12 +153,33 @@ func main() {
 
 	smsProvider := awssms.NewAWSSMSProvider(awsConfig)
 
-	// Load global secrets from environment variables, dynamic config loaded from database
-	globalJWTSecret := "your-global-jwt-secret-change-in-production"
-	globalAppSecret := "your-global-app-secret-change-in-production"
+	// Create secrets provider (in production, use database-backed provider)
+	// This is a test ES256 key pair generated for demo purposes
+	// For production, generate your own key pair:
+	//   openssl ecparam -name prime256v1 -genkey -noout -out private.pem
+	//   openssl ec -in private.pem -pubout -out public.pem
+	secretsProvider := services.NewStaticSecretsProvider(&types.InstanceSecrets{
+		PrimaryKeyId: "demo-key-2024",
+		Keys: map[string]*types.SigningKey{
+			"demo-key-2024": {
+				Kid:       "demo-key-2024",
+				Algorithm: types.SignAlgES256,
+				PrivateKey: `-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIHC0S3NQ1U2n1r7FsIbao7D+/VYjuKJQOvUm7dCDEIsnoAoGCCqGSM49
+AwEHoUQDQgAEt3Q4Blgz6wwilLLzBzB1sBVVIi5MdEwlz0x+bpuqRaWjIzdgBwZd
+Vqj7FEJJRQfQip9Qpde3pFHB1MsVS4UL+Q==
+-----END EC PRIVATE KEY-----`,
+				PublicKey: `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEt3Q4Blgz6wwilLLzBzB1sBVVIi5M
+dEwlz0x+bpuqRaWjIzdgBwZdVqj7FEJJRQfQip9Qpde3pFHB1MsVS4UL+Q==
+-----END PUBLIC KEY-----`,
+			},
+		},
+		AppSecret: "your-app-secret-for-hashid-change-in-production",
+	})
 
-	// Register auth service with database
-	userAuth := registry.RegisterAuthService("user", globalJWTSecret, globalAppSecret, db)
+	// Create auth service with secrets provider
+	userAuth := auth.NewService("user", secretsProvider, db)
 
 	// Set route handlers
 	userAuth.SetRouteHandler(&auth.ControllerRouteHandler{})

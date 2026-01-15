@@ -16,6 +16,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/providers/mfa"
 	"github.com/thecybersailor/slauth/pkg/registry"
 	"github.com/thecybersailor/slauth/pkg/services"
+	"github.com/thecybersailor/slauth/pkg/types"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -193,13 +194,17 @@ func (suite *TestSuite) setupAuthService() {
 		suite.Require().NoError(err, "Failed to initialize Redis")
 	}
 
-	globalJWTSecret := "test-jwt-secret-key-for-testing-only"
-	globalAppSecret := "test-app-secret-fixed-for-hashid-consistency"
-
 	suite.EmailProvider = NewMockEmailProvider()
 	suite.SMSProvider = NewMockSMSProvider()
 
-	suite.AuthService = registry.RegisterAuthService(suite.TestInstance, globalJWTSecret, globalAppSecret, suite.DB)
+	// Generate test keys for JWT signing
+	testSecrets, err := GenerateTestSecrets(types.SignAlgES256)
+	suite.Require().NoError(err, "Failed to generate test keys")
+
+	// Create static secrets provider for testing
+	secretsProvider := services.NewStaticSecretsProvider(testSecrets)
+
+	suite.AuthService, _ = registry.GetOrCreateAuthService(suite.TestInstance, secretsProvider, suite.DB)
 	suite.AuthService.SetEmailProvider(suite.EmailProvider).
 		SetSMSProvider(suite.SMSProvider).
 		AddMFAProvider(mfa.NewTOTPProvider()).

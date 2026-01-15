@@ -17,6 +17,10 @@ func RegisterRoutes(parent gin.IRouter, authService services.AuthService) {
 	// Handle all OPTIONS requests for CORS preflight
 	parent.OPTIONS("/*path", func(c *gin.Context) { c.Status(204) })
 
+	// ===== Public JWKS Endpoint =====
+	// JWKS endpoint for JWT verification (no authentication required)
+	parent.GET("/.well-known/jwks.json", HandleJWKS(authService.GetSecretsProvider(), authService.GetInstanceId()))
+
 	// ===== Public Authentication Routes =====
 	// These routes don't require authentication
 

@@ -23,7 +23,11 @@ Overview of Slauth Go package organization.
     NewAuthServiceConfig creates a new AuthServiceConfig with default values
   - func: `NewService`
     The service will automatically load dynamic config from database
+  - func: `NewServiceLegacy`
+    The service will automatically load dynamic config from database
   - func: `NewServiceWithPasswordService`
+    This allows external projects to inject custom password encoding implementations
+  - func: `NewServiceWithPasswordServiceLegacy`
     This allows external projects to inject custom password encoding implementations
   - func: `Start`
 
@@ -83,6 +87,13 @@ Overview of Slauth Go package organization.
   - struct: `OAuthUserInfo`
     OAuthUserInfo represents user info from OAuth provider
 - auth_types.go
+- jwks_handler.go
+  - struct: `JWK`
+    JWK represents a JSON Web Key
+  - struct: `JWKS`
+    JWKS represents a JSON Web Key Set
+  - func: `HandleJWKS`
+    HandleJWKS handles GET /.well-known/jwks.json endpoint
 - mfa_controller.go
 - middleware.go
   - func: `JWTAuthMiddleware`
@@ -186,9 +197,14 @@ Overview of Slauth Go package organization.
 **Files:**
 
 - auth_registry.go
+  - func: `GetOrCreateAuthService`
+    GetOrCreateAuthService lazily creates and returns an auth service for the instance
+  - func: `GetOrCreateAuthServiceWithPasswordService`
+    GetOrCreateAuthServiceWithPasswordService lazily creates and returns an auth service with custom password service
   - func: `RegisterAuthService`
+    Deprecated: Use GetOrCreateAuthService with InstanceSecretsProvider
   - func: `RegisterAuthServiceWithPasswordService`
-    RegisterAuthServiceWithPasswordService creates and registers a new auth service with a custom password service
+    Deprecated: Use GetOrCreateAuthServiceWithPasswordService with InstanceSecretsProvider
   - func: `GetAuthService`
 
 ## services/
@@ -331,6 +347,11 @@ Overview of Slauth Go package organization.
   - struct: `SHA1SaltEncoder`
     This is provided for testing purposes only and should not be used in production
 - signup_types.go
+- static_secrets_provider.go
+  - struct: `StaticSecretsProvider`
+    StaticSecretsProvider provides hardcoded secrets for development/testing
+  - func: `NewStaticSecretsProvider`
+    NewStaticSecretsProvider creates a provider with hardcoded secrets
 - token_utils.go
   - func: `GenerateSecureToken`
     GenerateSecureToken generates a cryptographically secure random token
@@ -364,3 +385,10 @@ Overview of Slauth Go package organization.
 - provider.go
 - requests.go
 - responses.go
+- secrets_provider.go
+  - struct: `SigningKey`
+    SigningKey 单个签名密钥
+  - struct: `InstanceSecrets`
+    InstanceSecrets 实例的所有密钥
+  - interface: `InstanceSecretsProvider`
+    slauth 通过此接口获取租户密钥

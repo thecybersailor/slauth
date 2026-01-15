@@ -6,7 +6,6 @@ Key features:
 - Multi-tenant architecture support
 - Email/Password, OAuth, SAML, OTP authentication
 - Auto token refresh and session management
-- Automatic token injection for API calls via `authClient.request`
 - Full TypeScript support with type safety
 
 ## Quick Start
@@ -22,42 +21,6 @@ Key features:
 - [AdminApi Methods](https://github.com/thecybersailor/slauth/blob/main/packages/slauth-ts/docs/admin-api.md): Admin user management operations (CRUD, sessions, identities)
 - [Type Definitions](https://github.com/thecybersailor/slauth/tree/main/packages/slauth-ts/src/types): TypeScript interfaces and type definitions
 - [OpenAPI Specs](https://github.com/thecybersailor/slauth/tree/main/docs/specs): Auth API and Admin API specifications
-
-## Making API Calls with Automatic Token Management
-
-The `authClient.request` property provides an HTTP client for making authenticated API calls to your backend. It automatically:
-
-- Attaches the access token from the current session to all requests
-- Refreshes expired tokens automatically when receiving 401 errors
-- Retries failed requests after successful token refresh
-- Synchronizes token state with the auth session
-
-### Usage
-
-```typescript
-// After user signs in
-await authClient.signInWithPassword({ email, password })
-
-// Use authClient.request instead of axios for API calls
-const response = await authClient.request.get('/api/user/profile')
-const result = await authClient.request.post('/api/orders', orderData)
-```
-
-### Migration from Axios
-
-Replace axios calls with `authClient.request`:
-
-```typescript
-// Before: Manual token management
-const response = await axios.get('/api/user', {
-  headers: { Authorization: `Bearer ${token}` }
-})
-
-// After: Automatic token management
-const response = await authClient.request.get('/api/user')
-```
-
-The request client supports all standard HTTP methods: `get()`, `post()`, `put()`, `patch()`, `delete()`, with the same options as axios.
 
 ## Examples
 

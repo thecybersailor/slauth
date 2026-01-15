@@ -54,6 +54,7 @@ type AuthService interface {
 	GetDB() *gorm.DB
 
 	GetInstanceId() string
+	GetSecretsProvider() types.InstanceSecretsProvider
 	GetConfig() *config.AuthServiceConfig
 	GetUserService() *UserService
 	GetPasswordService() *PasswordService
