@@ -111,7 +111,14 @@ export class HttpClient {
         
         // Check if it's a 401 error and auto refresh is enabled
         if (axios.isAxiosError(error) && error.response?.status === 401) {
-          if (this.config.autoRefreshToken && this.config.refreshTokenFn && !originalRequest._retry) {
+          // Skip auto refresh for refresh token requests to prevent infinite loop
+          const url = originalRequest.url || ''
+          const hasSkipFlag = (originalRequest as any)._skipAutoRefresh === true
+          const isRefreshTokenEndpoint = url.includes('/token') && (url.includes('grant_type=refresh_token') || url.includes('refresh_token'))
+          
+          const isRefreshTokenRequest = hasSkipFlag || isRefreshTokenEndpoint
+          
+          if (!isRefreshTokenRequest && this.config.autoRefreshToken && this.config.refreshTokenFn && !originalRequest._retry) {
             originalRequest._retry = true
             
             debugLog(this.debug, '[slauth] Attempting to refresh token')
@@ -135,7 +142,7 @@ export class HttpClient {
               this.config.onUnauthorized?.()
             }
           } else {
-            // Auto refresh not enabled or already retried, trigger onUnauthorized
+            // Auto refresh not enabled, already retried, or is refresh token request, trigger onUnauthorized
             this.config.onUnauthorized?.()
           }
         }

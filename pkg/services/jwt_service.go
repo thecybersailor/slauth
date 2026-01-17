@@ -308,7 +308,11 @@ func (j *JWTService) ValidateAccessToken(tokenString string) (*JWTClaims, error)
 
 		key, exists := secrets.Keys[kid]
 		if !exists {
-			slog.Warn("JWT: Unknown kid", "kid", kid)
+			availableKids := make([]string, 0, len(secrets.Keys))
+			for k := range secrets.Keys {
+				availableKids = append(availableKids, k)
+			}
+			slog.Warn("JWT: Unknown kid", "kid", kid, "primaryKeyId", secrets.PrimaryKeyId, "availableKids", availableKids)
 			return nil, consts.BAD_JWT
 		}
 

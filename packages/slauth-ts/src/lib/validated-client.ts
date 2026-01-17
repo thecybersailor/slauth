@@ -132,7 +132,8 @@ export class ValidatedApiClient extends HttpClient {
     url: string, 
     body: any,
     requestSchema?: z.ZodSchema,
-    responseSchema?: z.ZodSchema
+    responseSchema?: z.ZodSchema,
+    options?: any
   ): Promise<FetchResponse<T>> {
     
     // 1. Validate request body
@@ -150,7 +151,7 @@ export class ValidatedApiClient extends HttpClient {
     }
     
     // 2. Call HttpClient and catch HTTP errors
-    const response = await super.post<T>(url, body).catch(() => null)
+    const response = await super.post<T>(url, body, options).catch(() => null)
     
     if (!response) {
       return {

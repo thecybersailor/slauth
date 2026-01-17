@@ -57,11 +57,13 @@ export class AuthApi {
         refresh_token: this.currentSession.refresh_token
       }
       
+      // Mark this request to skip auto refresh to prevent infinite loop
       const { data, error } = await this.api.postWithValidation<Types.AuthData>(
         '/token?grant_type=refresh_token',
         requestBody,
         Schemas.RefreshTokenRequestSchema,
-        Schemas.AuthDataSchema
+        Schemas.AuthDataSchema,
+        { _skipAutoRefresh: true } as any
       )
       
       if (error || !data || !data.session) {
@@ -604,11 +606,13 @@ export class AuthApi {
       refresh_token: this.currentSession.refresh_token
     }
 
+    // Mark this request to skip auto refresh to prevent infinite loop
     const { data, error } = await this.api.postWithValidation<Types.AuthData>(
       '/token?grant_type=refresh_token',
       requestBody,
       Schemas.RefreshTokenRequestSchema,
-      Schemas.AuthDataSchema
+      Schemas.AuthDataSchema,
+      { _skipAutoRefresh: true } as any
     )
 
     if (error || !data) {

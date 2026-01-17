@@ -1,9 +1,12 @@
 import { AuthApi } from '../../AuthApi'
 import { MemoryStorage } from '../storage'
+import MockAdapter from 'axios-mock-adapter'
+import axios from 'axios'
 
 describe('Session Auto-Refresh on Initialization', () => {
   let authClient: AuthApi
   let mockStorage: MemoryStorage
+  let mockAdapter: MockAdapter
   let refreshCallCount = 0
 
   beforeEach(() => {
@@ -12,6 +15,9 @@ describe('Session Auto-Refresh on Initialization', () => {
   })
 
   afterEach(() => {
+    if (mockAdapter) {
+      mockAdapter.restore()
+    }
     jest.clearAllMocks()
   })
 
@@ -27,23 +33,7 @@ describe('Session Auto-Refresh on Initialization', () => {
     // Save expired session to storage
     mockStorage.setItem('test.auth.token', JSON.stringify(expiredSession))
 
-    // Mock the refresh endpoint
-    global.fetch = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        data: {
-          session: {
-            access_token: 'new-access-token',
-            refresh_token: 'new-refresh-token',
-            expires_at: Math.floor(Date.now() / 1000) + 3600,
-            user: { id: '1', email: 'test@example.com' }
-          }
-        }
-      })
-    })
-
-    // Create auth client - this should trigger auto-refresh
+    // Create auth client first to get the axios instance
     authClient = new AuthApi('http://localhost:8080/auth', {
       storage: mockStorage,
       storageKey: 'test.auth.token',
@@ -52,17 +42,34 @@ describe('Session Auto-Refresh on Initialization', () => {
       debug: false
     })
 
+    // Get the axios instance from the client
+    const axiosInstance = (authClient as any).api.client
+    mockAdapter = new MockAdapter(axiosInstance)
+
+    // Mock the refresh endpoint
+    mockAdapter.onPost('http://localhost:8080/auth/token?grant_type=refresh_token').reply(200, {
+      data: {
+        session: {
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: { id: '1', email: 'test@example.com' }
+        }
+      }
+    })
+
     // Wait for initialization to complete
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise(resolve => setTimeout(resolve, 200))
 
     // Verify that refresh was called
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/token?grant_type=refresh_token'),
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('valid-refresh-token')
-      })
+    expect(mockAdapter.history.post.length).toBeGreaterThan(0)
+    const refreshRequest = mockAdapter.history.post.find(req => 
+      req.url?.includes('/token?grant_type=refresh_token')
     )
+    expect(refreshRequest).toBeDefined()
+    expect(JSON.parse(refreshRequest!.data)).toMatchObject({
+      refresh_token: 'valid-refresh-token'
+    })
 
     // Verify that session was updated with new token
     const currentSession = authClient.getSession()
@@ -108,8 +115,6 @@ describe('Session Auto-Refresh on Initialization', () => {
 
     mockStorage.setItem('test.auth.token', JSON.stringify(validSession))
 
-    global.fetch = jest.fn()
-
     // Create auth client
     authClient = new AuthApi('http://localhost:8080/auth', {
       storage: mockStorage,
@@ -119,11 +124,15 @@ describe('Session Auto-Refresh on Initialization', () => {
       debug: false
     })
 
+    // Get the axios instance from the client
+    const axiosInstance = (authClient as any).api.client
+    mockAdapter = new MockAdapter(axiosInstance)
+
     // Wait for initialization
     await new Promise(resolve => setTimeout(resolve, 100))
 
     // Verify that refresh was NOT called
-    expect(global.fetch).not.toHaveBeenCalled()
+    expect(mockAdapter.history.post.length).toBe(0)
 
     // Verify that session is still valid
     const currentSession = authClient.getSession()

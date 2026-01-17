@@ -41,9 +41,13 @@ describe('HttpClient - Callback Mechanisms', () => {
         }
       })
 
-      const { data, error } = await client.get('/test')
+      let error: any = null
+      try {
+        await client.get('/test')
+      } catch (e) {
+        error = e
+      }
 
-      expect(data).toBeNull()
       expect(error).toBeTruthy()
       expect(onUnauthorizedMock).toHaveBeenCalledTimes(1)
       expect(onAuthErrorMock).toHaveBeenCalledTimes(1)
@@ -58,9 +62,13 @@ describe('HttpClient - Callback Mechanisms', () => {
         }
       })
 
-      const { data, error } = await client.post('/protected', {})
+      let error: any = null
+      try {
+        await client.post('/protected', {})
+      } catch (e) {
+        error = e
+      }
 
-      expect(data).toBeNull()
       expect(error).toBeTruthy()
       expect(onUnauthorizedMock).toHaveBeenCalledTimes(1)
       expect(onAuthErrorMock).toHaveBeenCalledTimes(1)
@@ -77,9 +85,13 @@ describe('HttpClient - Callback Mechanisms', () => {
         }
       })
 
-      const { data, error } = await client.get('/user')
+      let error: any = null
+      try {
+        await client.get('/user')
+      } catch (e) {
+        error = e
+      }
 
-      expect(data).toBeNull()
       expect(error).toBeTruthy()
       expect(onUnauthorizedMock).toHaveBeenCalledTimes(1)
       expect(onAuthErrorMock).toHaveBeenCalledTimes(1)
@@ -96,9 +108,13 @@ describe('HttpClient - Callback Mechanisms', () => {
         }
       })
 
-      const { data, error } = await client.post('/login', {})
+      let error: any = null
+      try {
+        await client.post('/login', {})
+      } catch (e) {
+        error = e
+      }
 
-      expect(data).toBeNull()
       expect(error).toBeTruthy()
       expect(onAuthErrorMock).toHaveBeenCalledTimes(1)
       expect(onAuthErrorMock).toHaveBeenCalledWith(
@@ -112,9 +128,13 @@ describe('HttpClient - Callback Mechanisms', () => {
     it('should trigger onAuthError but not onUnauthorized for network errors', async () => {
       mock.onGet('/test').networkError()
 
-      const { data, error } = await client.get('/test')
+      let error: any = null
+      try {
+        await client.get('/test')
+      } catch (e) {
+        error = e
+      }
 
-      expect(data).toBeNull()
       expect(error).toBeTruthy()
       expect(onUnauthorizedMock).not.toHaveBeenCalled()
       expect(onAuthErrorMock).toHaveBeenCalledTimes(1)
@@ -199,13 +219,13 @@ describe('Auto Token Refresh', () => {
       data: { user: { id: '1', email: 'test@example.com' } }
     })
 
-    const { data, error } = await client.get('/user')
+    const response = await client.get('/user')
 
     expect(refreshCallCount).toBe(1)
     expect(onSessionRefreshedMock).toHaveBeenCalledTimes(1)
     expect(onUnauthorizedMock).not.toHaveBeenCalled()
-    expect(data).toHaveProperty('user')
-    expect(error).toBeNull()
+    expect(response.data).toHaveProperty('data')
+    expect(response.data.data).toHaveProperty('user')
   })
 
   it('should trigger onUnauthorized if refresh fails', async () => {
@@ -231,9 +251,13 @@ describe('Auto Token Refresh', () => {
       }
     })
 
-    const { data, error } = await failClient.get('/user')
+    let error: any = null
+    try {
+      await failClient.get('/user')
+    } catch (e) {
+      error = e
+    }
 
-    expect(data).toBeNull()
     expect(error).toBeTruthy()
     expect(onUnauthorizedMock).toHaveBeenCalledTimes(1)
 

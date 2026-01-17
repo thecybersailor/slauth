@@ -1,5 +1,13 @@
 import { isBrowser, supportsLocalStorage, debugLog } from './helpers'
 
+// Safe reference to localStorage for Node.js environments
+const getLocalStorage = (): Storage | null => {
+  if (isBrowser() && supportsLocalStorage()) {
+    return localStorage
+  }
+  return null
+}
+
 /** Storage interface */
 export interface SupportedStorage {
   getItem(key: string): string | null
@@ -8,7 +16,7 @@ export interface SupportedStorage {
 }
 
 /** Memory storage implementation for non-browser environments */
-class MemoryStorage implements SupportedStorage {
+export class MemoryStorage implements SupportedStorage {
   private store: { [key: string]: string } = {}
 
   getItem(key: string): string | null {
@@ -61,11 +69,12 @@ export class StorageManager {
   async getSession(options: { checkExpiry?: boolean } = {}): Promise<any | null> {
     const { checkExpiry = true } = options
     
+    const localStorageRef = getLocalStorage()
     debugLog(this.debug, '[slauth:storage] getSession - checking storage', {
       storageKey: this.storageKey,
       storageType: this.storage.constructor.name,
       checkExpiry,
-      allKeys: this.storage === localStorage ? Object.keys(localStorage) : 'N/A'
+      allKeys: localStorageRef && this.storage === localStorageRef ? Object.keys(localStorageRef) : 'N/A'
     })
     
     const data = this.storage.getItem(this.storageKey)

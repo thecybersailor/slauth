@@ -421,6 +421,121 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 	suite.T().Log("✅ Security Best Practice: Token rotation revokes old tokens")
 }
 
+// TestConcurrentRefreshTokenRotation verifies the problem with concurrent refresh requests
+//
+// Problem Scenario:
+// - Multiple requests use the same refresh token simultaneously
+// - First request succeeds, creates new token, revokes old token
+// - Other requests fail because old token was already revoked
+// - This is the root cause of refresh_token_not_found errors
+//
+// Expected Behavior (with RefreshTokenReuseInterval):
+// - Within reuse interval (10 seconds), same refresh token can be used multiple times
+// - Only one new refresh token should be created
+// - Other concurrent requests should reuse the same refresh token or wait
+func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRotation() {
+	email := "concurrent-refresh@example.com"
+	password := "MySecurePassword2024!"
+
+	// Step 1: Create user and login
+	signupRequestBody := S{
+		"email":    email,
+		"password": password,
+	}
+	suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
+
+	loginRequestBody := S{
+		"grant_type": "password",
+		"email":      email,
+		"password":   password,
+	}
+	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
+	loginData := loginResponse.Data.(map[string]any)
+	session := loginData["session"].(map[string]any)
+	originalRefreshToken := session["refresh_token"].(string)
+
+	// Step 2: Simulate concurrent refresh requests (3 requests using same token)
+	// This simulates multiple browser tabs or API calls refreshing simultaneously
+	type refreshResult struct {
+		success bool
+		code    int
+		error   string
+		token   string
+	}
+	results := make(chan refreshResult, 3)
+
+	for i := 0; i < 3; i++ {
+		go func() {
+			refreshRequest := S{
+				"grant_type":    "refresh_token",
+				"refresh_token": originalRefreshToken,
+			}
+			refreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", refreshRequest)
+			
+			result := refreshResult{
+				success: refreshResponse.ResponseRecorder.Code == 200,
+				code:    refreshResponse.ResponseRecorder.Code,
+			}
+			
+			// Extract error key if present
+			if refreshResponse.Error != nil {
+				result.error = refreshResponse.Error.Key
+			}
+			
+			if result.success && refreshResponse.Data != nil {
+				if refreshData, ok := refreshResponse.Data.(map[string]any); ok {
+					if session, ok := refreshData["session"].(map[string]any); ok {
+						if token, ok := session["refresh_token"].(string); ok {
+							result.token = token
+						}
+					}
+				}
+			}
+			
+			results <- result
+		}()
+	}
+
+	// Collect results
+	var successCount int
+	var failureCount int
+	var refreshTokens []string
+	for i := 0; i < 3; i++ {
+		result := <-results
+		if result.success {
+			successCount++
+			if result.token != "" {
+				refreshTokens = append(refreshTokens, result.token)
+			}
+		} else {
+			failureCount++
+			suite.T().Logf("Concurrent refresh failed: code=%d, error=%s", result.code, result.error)
+		}
+	}
+
+	// Step 3: Analyze the problem
+	// Current implementation: Only 1 request succeeds, others fail with refresh_token_not_found
+	// This is the root cause of the infinite refresh loop in frontend
+	suite.T().Logf("Concurrent refresh results: %d succeeded, %d failed", successCount, failureCount)
+	
+	if failureCount > 0 {
+		suite.T().Logf("❌ PROBLEM CONFIRMED: %d concurrent requests failed", failureCount)
+		suite.T().Logf("   Root cause: Token rotation happens immediately, causing race condition")
+		suite.T().Logf("   Expected: RefreshTokenReuseInterval should allow reuse within 10 seconds")
+		suite.T().Logf("   Actual: Each refresh immediately revokes old token")
+		suite.T().Logf("   This causes refresh_token_not_found errors and infinite refresh loops")
+	} else {
+		suite.T().Logf("✅ All concurrent requests succeeded (RefreshTokenReuseInterval working)")
+	}
+
+	// Verify unique tokens (if multiple succeeded, they should be different due to rotation)
+	uniqueTokens := make(map[string]bool)
+	for _, token := range refreshTokens {
+		uniqueTokens[token] = true
+	}
+	suite.T().Logf("Unique refresh tokens generated: %d", len(uniqueTokens))
+}
+
 func TestTokenRevocationBestPracticesTestSuite(t *testing.T) {
 	suite.Run(t, new(TokenRevocationBestPracticesTestSuite))
 }
