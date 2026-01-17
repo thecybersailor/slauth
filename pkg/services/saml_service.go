@@ -38,10 +38,16 @@ func NewSAMLService(db *gorm.DB, instanceId string) *SAMLService {
 func (s *SAMLService) FindSSOProviderByInstance(ctx context.Context, instance string) (*SSOProvider, error) {
 	var ssoProvider models.SSOProvider
 
+	// Get table names dynamically
+	ssoProviderTable := models.SSOProvider{}.TableName()
+	ssoInstanceTable := models.SSOInstance{}.TableName()
+
 	// Find SSO provider by instance
 	err := s.db.WithContext(ctx).
-		Joins("JOIN sso_instances ON sso_instances.sso_provider_id = sso_providers.id").
-		Where("sso_instances.instance = ? AND sso_providers.instance_id = ? AND sso_providers.enabled = ?",
+		Table(ssoProviderTable + " AS sp").
+		Joins("JOIN ? AS si ON si.sso_provider_id = sp.id",
+			gorm.Expr(ssoInstanceTable)).
+		Where("si.instance = ? AND sp.instance_id = ? AND sp.enabled = ?",
 			instance, s.instanceId, true).
 		First(&ssoProvider).Error
 

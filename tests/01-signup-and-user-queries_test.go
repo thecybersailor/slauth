@@ -2,9 +2,9 @@ package tests
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 type SignupAndUserQueriesTestSuite struct {
@@ -32,7 +32,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignup() {
 	email := "test@example.com"
 
 	var countBefore int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&countBefore).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&countBefore).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), countBefore, "User should not exist before signup")
 
@@ -51,18 +51,14 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignup() {
 	suite.Nil(responseData["session"], "Session should be nil for unconfirmed user")
 
 	var countAfter int64
-	err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&countAfter).Error
+	err = suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&countAfter).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(1), countAfter, "User should exist after signup")
 
-	var user struct {
-		Email      string
-		InstanceId string
-		CreatedAt  string
-	}
-	err = suite.DB.Raw("SELECT email, instance_id, created_at FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&user).Error
+	var user models.User
+	err = suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).First(&user).Error
 	suite.Require().NoError(err)
-	suite.Equal(email, user.Email, "User email should match")
+	suite.Equal(email, *user.Email, "User email should match")
 	suite.Equal(suite.TestInstance, user.InstanceId, "User instance should match")
 	suite.NotEmpty(user.CreatedAt, "User created_at should not be empty")
 }
@@ -407,14 +403,10 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignupWithoutEmailConfirmation()
 	}
 
 	// Verify user exists in database
-	var user struct {
-		Email            string
-		EmailConfirmedAt *time.Time
-		InstanceId       string
-	}
-	err := suite.DB.Raw("SELECT email, email_confirmed_at, instance_id FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&user).Error
+	var user models.User
+	err := suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).First(&user).Error
 	suite.Require().NoError(err)
-	suite.Equal(email, user.Email, "User email should match")
+	suite.Equal(email, *user.Email, "User email should match")
 	suite.Equal(suite.TestInstance, user.InstanceId, "User instance should match")
 
 	// When confirm_email is disabled, email_confirmed_at remains NULL

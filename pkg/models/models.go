@@ -65,8 +65,3 @@ func AutoMigrate(db *gorm.DB) error {
 	db.DisableForeignKeyConstraintWhenMigrating = true
 	return db.AutoMigrate(AllModels()...)
 }
-
-// CreateSchema creates the auth schema if it doesn't exist
-func CreateSchema(db *gorm.DB) error {
-	return db.Exec("CREATE SCHEMA IF NOT EXISTS auth").Error
-}

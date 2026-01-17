@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 	"github.com/thecybersailor/slauth/pkg/consts"
+	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/services"
 )
 
@@ -113,7 +114,7 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithBlockedIP() {
 	suite.helper.HasError(suite.T(), response, "unexpected_failure", "Blocked IP should return error")
 
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&count).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), count, "User should not be created with blocked IP")
 }
@@ -131,7 +132,7 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithAnotherBlockedIP() {
 	suite.helper.HasError(suite.T(), response, "unexpected_failure", "Another blocked IP should return error")
 
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&count).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), count, "User should not be created with blocked IP")
 }
@@ -151,7 +152,7 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithXForwardedForHeader() {
 	suite.helper.HasError(suite.T(), response, "unexpected_failure", "X-Forwarded-For header with blocked IP should return error")
 
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&count).Error
 	suite.Require().NoError(err)
 	suite.Equal(int64(0), count, "User should not be created with blocked IP in X-Forwarded-For header")
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 type ServiceConfigTestSuite struct {
@@ -101,7 +102,7 @@ func (suite *ServiceConfigTestSuite) TestAllowNewUsersConfiguration() {
 
 	// Verify user was not created in database
 	var count int64
-	err := suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&count).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&count).Error
 	suite.NoError(err)
 	suite.Equal(int64(0), count, "User should not exist in database when signup is disabled")
 
@@ -128,7 +129,7 @@ func (suite *ServiceConfigTestSuite) TestAllowNewUsersConfiguration() {
 
 	// Verify user was created in database
 	var countAfter int64
-	err = suite.DB.Raw("SELECT COUNT(*) FROM users WHERE email = ? AND instance_id = ?", email, suite.TestInstance).Scan(&countAfter).Error
+	err = suite.DB.Model(&models.User{}).Where("email = ? AND instance_id = ?", email, suite.TestInstance).Count(&countAfter).Error
 	suite.NoError(err)
 	suite.Equal(int64(1), countAfter, "User should exist in database after signup is enabled")
 }

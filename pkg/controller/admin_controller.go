@@ -14,6 +14,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/services"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // AdminController handles admin operations
@@ -70,7 +71,7 @@ func (c *AdminController) QueryUsers(ctx *pin.Context) error {
 	if len(req.Sort) > 0 {
 		query = applySorting(query, req.Sort)
 	} else {
-		query = query.Order("users.created_at DESC")
+		query = query.Order("tu.created_at DESC")
 	}
 
 	// Count total
@@ -1221,8 +1222,9 @@ type QueryBuilder struct {
 }
 
 func NewQueryBuilder(db *gorm.DB, instanceId string) *QueryBuilder {
+	userTable := models.User{}.TableName()
 	return &QueryBuilder{
-		query:      db.Model(&models.User{}).Where("users.instance_id = ?", instanceId),
+		query:      db.Table(userTable + " AS tu").Where("tu.instance_id = ?", instanceId),
 		hasJoin:    make(map[string]bool),
 		instanceId: instanceId,
 	}
@@ -1235,7 +1237,11 @@ func (qb *QueryBuilder) ensureJoin(table string) {
 
 	switch table {
 	case "identities":
-		qb.query = qb.query.Joins("LEFT JOIN identities ON identities.user_id = users.id")
+		identityTable := models.Identity{}.TableName()
+		qb.query = qb.query.Joins(
+			"LEFT JOIN ? AS ti ON ti.user_id = tu.id",
+			clause.Table{Name: identityTable},
+		)
 		qb.hasJoin[table] = true
 	}
 }
@@ -1301,9 +1307,9 @@ func (qb *QueryBuilder) applyFilters(filters map[string]interface{}) {
 
 			qb.ensureJoin("identities")
 			if value.(bool) {
-				qb.query = qb.query.Where("identities.id IS NOT NULL")
+				qb.query = qb.query.Where("ti.id IS NOT NULL")
 			} else {
-				qb.query = qb.query.Where("identities.id IS NULL")
+				qb.query = qb.query.Where("ti.id IS NULL")
 			}
 		default:
 			qb.applyFieldFilter(key, value)
@@ -1317,7 +1323,7 @@ func (qb *QueryBuilder) applyFieldFilter(field string, value interface{}) {
 			qb.applyOperator(field, op, val)
 		}
 	} else {
-		qb.query = qb.query.Where("users."+field+" = ?", value)
+		qb.query = qb.query.Where("tu."+field+" = ?", value)
 	}
 }
 
@@ -1335,41 +1341,40 @@ func (qb *QueryBuilder) applyOperator(field string, operator string, value inter
 	}
 
 	// Handle regular fields
-	fullField := "users." + field
 	switch operator {
 	case "$eq":
-		qb.query = qb.query.Where(fullField+" = ?", value)
+		qb.query = qb.query.Where("tu."+field+" = ?", value)
 	case "$ne":
-		qb.query = qb.query.Where(fullField+" != ?", value)
+		qb.query = qb.query.Where("tu."+field+" != ?", value)
 	case "$in":
-		qb.query = qb.query.Where(fullField+" IN ?", value)
+		qb.query = qb.query.Where("tu."+field+" IN ?", value)
 	case "$nin":
-		qb.query = qb.query.Where(fullField+" NOT IN ?", value)
+		qb.query = qb.query.Where("tu."+field+" NOT IN ?", value)
 	case "$contains":
-		qb.query = qb.query.Where(fullField+" LIKE ?", "%"+value.(string)+"%")
+		qb.query = qb.query.Where("tu."+field+" LIKE ?", "%"+value.(string)+"%")
 	case "$startsWith":
-		qb.query = qb.query.Where(fullField+" LIKE ?", value.(string)+"%")
+		qb.query = qb.query.Where("tu."+field+" LIKE ?", value.(string)+"%")
 	case "$endsWith":
-		qb.query = qb.query.Where(fullField+" LIKE ?", "%"+value.(string))
+		qb.query = qb.query.Where("tu."+field+" LIKE ?", "%"+value.(string))
 	case "$gt":
-		qb.query = qb.query.Where(fullField+" > ?", convertToTime(value))
+		qb.query = qb.query.Where("tu."+field+" > ?", convertToTime(value))
 	case "$gte":
-		qb.query = qb.query.Where(fullField+" >= ?", convertToTime(value))
+		qb.query = qb.query.Where("tu."+field+" >= ?", convertToTime(value))
 	case "$lt":
-		qb.query = qb.query.Where(fullField+" < ?", convertToTime(value))
+		qb.query = qb.query.Where("tu."+field+" < ?", convertToTime(value))
 	case "$lte":
-		qb.query = qb.query.Where(fullField+" <= ?", convertToTime(value))
+		qb.query = qb.query.Where("tu."+field+" <= ?", convertToTime(value))
 	case "$null":
 		if value.(bool) {
-			qb.query = qb.query.Where(fullField + " IS NULL")
+			qb.query = qb.query.Where("tu." + field + " IS NULL")
 		} else {
-			qb.query = qb.query.Where(fullField + " IS NOT NULL")
+			qb.query = qb.query.Where("tu." + field + " IS NOT NULL")
 		}
 	case "$exists":
 		if value.(bool) {
-			qb.query = qb.query.Where(fullField + " IS NOT NULL")
+			qb.query = qb.query.Where("tu." + field + " IS NOT NULL")
 		} else {
-			qb.query = qb.query.Where(fullField + " IS NULL")
+			qb.query = qb.query.Where("tu." + field + " IS NULL")
 		}
 	}
 }
@@ -1400,13 +1405,13 @@ func convertToTime(value interface{}) interface{} {
 	}
 }
 
-// Map from allowed sort field to actual fully-qualified column name for safety
+// Map from allowed sort field to actual column name for safety
 var allowedSortFieldColumns = map[string]string{
-	"id":         "users.id",
-	"username":   "users.username",
-	"email":      "users.email",
-	"created_at": "users.created_at",
-	"updated_at": "users.updated_at",
+	"id":         "tu.id",
+	"username":   "tu.username",
+	"email":      "tu.email",
+	"created_at": "tu.created_at",
+	"updated_at": "tu.updated_at",
 }
 
 func applySorting(query *gorm.DB, sort []string) *gorm.DB {
