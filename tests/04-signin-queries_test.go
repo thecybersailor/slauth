@@ -36,7 +36,7 @@ func (suite *SigninQueriesTestSuite) TestGetUserInfo() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -46,20 +46,20 @@ func (suite *SigninQueriesTestSuite) TestGetUserInfo() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 	sessionInfo := responseData["session"].(map[string]any)
 	accessToken := sessionInfo["access_token"].(string)
 	suite.NotEmpty(accessToken, "Should have access token")
 
 	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user info should succeed")
-	suite.Nil(userResponse.Response.Error, "Get user info should not have error")
+	suite.Nil(userResponse.Error, "Get user info should not have error")
 
-	suite.NotNil(userResponse.Response.Data, "User response should have data")
-	userData := userResponse.Response.Data.(map[string]any)
+	suite.NotNil(userResponse.Data, "User response should have data")
+	userData := userResponse.Data.(map[string]any)
 	suite.NotNil(userData["user"], "Should have user object")
 
 	user := userData["user"].(map[string]any)
@@ -93,7 +93,7 @@ func (suite *SigninQueriesTestSuite) TestListAllSessions() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -103,20 +103,20 @@ func (suite *SigninQueriesTestSuite) TestListAllSessions() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 	sessionInfo := responseData["session"].(map[string]any)
 	accessToken := sessionInfo["access_token"].(string)
 	suite.NotEmpty(accessToken, "Should have access token")
 
 	sessionsResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/admin/sessions", accessToken)
 	suite.Equal(200, sessionsResponse.ResponseRecorder.Code, "List all sessions should succeed")
-	suite.Nil(sessionsResponse.Response.Error, "List all sessions should not have error")
+	suite.Nil(sessionsResponse.Error, "List all sessions should not have error")
 
-	suite.NotNil(sessionsResponse.Response.Data, "Sessions response should have data")
-	sessionsData := sessionsResponse.Response.Data.(map[string]any)
+	suite.NotNil(sessionsResponse.Data, "Sessions response should have data")
+	sessionsData := sessionsResponse.Data.(map[string]any)
 
 	suite.Contains(sessionsData, "sessions", "Should have sessions array")
 	suite.Contains(sessionsData, "total", "Should have total count")
@@ -148,7 +148,7 @@ func (suite *SigninQueriesTestSuite) TestGetActiveSessionStats() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -158,20 +158,20 @@ func (suite *SigninQueriesTestSuite) TestGetActiveSessionStats() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 	sessionInfo := responseData["session"].(map[string]any)
 	accessToken := sessionInfo["access_token"].(string)
 	suite.NotEmpty(accessToken, "Should have access token")
 
 	statsResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/admin/stats/sessions", accessToken)
 	suite.Equal(200, statsResponse.ResponseRecorder.Code, "Get session stats should succeed")
-	suite.Nil(statsResponse.Response.Error, "Get session stats should not have error")
+	suite.Nil(statsResponse.Error, "Get session stats should not have error")
 
-	suite.NotNil(statsResponse.Response.Data, "Stats response should have data")
-	statsData := statsResponse.Response.Data.(map[string]any)
+	suite.NotNil(statsResponse.Data, "Stats response should have data")
+	statsData := statsResponse.Data.(map[string]any)
 
 	suite.Contains(statsData, "total_sessions", "Should have total_sessions")
 	suite.Contains(statsData, "active_sessions", "Should have active_sessions")
@@ -199,7 +199,7 @@ func (suite *SigninQueriesTestSuite) TestGetRecentSignins() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -209,20 +209,20 @@ func (suite *SigninQueriesTestSuite) TestGetRecentSignins() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 	sessionInfo := responseData["session"].(map[string]any)
 	accessToken := sessionInfo["access_token"].(string)
 	suite.NotEmpty(accessToken, "Should have access token")
 
 	signinsResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/admin/stats/recent-signins", accessToken)
 	suite.Equal(200, signinsResponse.ResponseRecorder.Code, "Get recent signins should succeed")
-	suite.Nil(signinsResponse.Response.Error, "Get recent signins should not have error")
+	suite.Nil(signinsResponse.Error, "Get recent signins should not have error")
 
-	suite.NotNil(signinsResponse.Response.Data, "Signins response should have data")
-	signinsData := signinsResponse.Response.Data.(map[string]any)
+	suite.NotNil(signinsResponse.Data, "Signins response should have data")
+	signinsData := signinsResponse.Data.(map[string]any)
 
 	suite.Contains(signinsData, "recent_signins", "Should have recent_signins array")
 
@@ -254,7 +254,7 @@ func (suite *SigninQueriesTestSuite) TestListUserSessions() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -264,10 +264,10 @@ func (suite *SigninQueriesTestSuite) TestListUserSessions() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 	sessionInfo := responseData["session"].(map[string]any)
 	accessToken := sessionInfo["access_token"].(string)
 	suite.NotEmpty(accessToken, "Should have access token")
@@ -278,19 +278,19 @@ func (suite *SigninQueriesTestSuite) TestListUserSessions() {
 
 	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user info should succeed")
-	suite.Nil(userResponse.Response.Error, "Get user info should not have error")
+	suite.Nil(userResponse.Error, "Get user info should not have error")
 
-	userData := userResponse.Response.Data.(map[string]any)
+	userData := userResponse.Data.(map[string]any)
 	user := userData["user"].(map[string]any)
 	userHashID := user["id"].(string)
 	suite.NotEmpty(userHashID, "Should have user hashid")
 
 	userSessionsResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/admin/users/"+userHashID+"/sessions", accessToken)
 	suite.Equal(200, userSessionsResponse.ResponseRecorder.Code, "List user sessions should succeed")
-	suite.Nil(userSessionsResponse.Response.Error, "List user sessions should not have error")
+	suite.Nil(userSessionsResponse.Error, "List user sessions should not have error")
 
-	suite.NotNil(userSessionsResponse.Response.Data, "User sessions response should have data")
-	sessionsData := userSessionsResponse.Response.Data.(map[string]any)
+	suite.NotNil(userSessionsResponse.Data, "User sessions response should have data")
+	sessionsData := userSessionsResponse.Data.(map[string]any)
 
 	suite.Contains(sessionsData, "sessions", "Should have sessions array")
 	suite.Contains(sessionsData, "total", "Should have total count")
@@ -324,7 +324,7 @@ func (suite *SigninQueriesTestSuite) TestGetUserSessions() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -334,20 +334,20 @@ func (suite *SigninQueriesTestSuite) TestGetUserSessions() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 	sessionInfo := responseData["session"].(map[string]any)
 	accessToken := sessionInfo["access_token"].(string)
 	suite.NotEmpty(accessToken, "Should have access token")
 
 	sessionsResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/sessions", accessToken)
 	suite.Equal(200, sessionsResponse.ResponseRecorder.Code, "Get user sessions should succeed")
-	suite.Nil(sessionsResponse.Response.Error, "Get user sessions should not have error")
+	suite.Nil(sessionsResponse.Error, "Get user sessions should not have error")
 
-	suite.NotNil(sessionsResponse.Response.Data, "Sessions response should have data")
-	sessionsData := sessionsResponse.Response.Data.(map[string]any)
+	suite.NotNil(sessionsResponse.Data, "Sessions response should have data")
+	sessionsData := sessionsResponse.Data.(map[string]any)
 
 	suite.Contains(sessionsData, "sessions", "Should have sessions array")
 	suite.Contains(sessionsData, "total", "Should have total count")

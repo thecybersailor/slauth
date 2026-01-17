@@ -11,8 +11,12 @@ fmt:
 # Run golangci-lint
 lint:
 	@echo "Running golangci-lint..."
-	@golangci-lint run ./...
-	@echo "Linting completed!"
+	@echo "Checking pkg/ directory..."
+	@golangci-lint run --timeout=5m ./pkg/... || exit 1
+	@echo "Checking tests/ directory..."
+	@cd tests && golangci-lint run --timeout=5m ./... || exit 1
+	@touch .checks-passed
+	@echo "Linting completed and marked as passed!"
 
 # Install golangci-lint
 lint-install:

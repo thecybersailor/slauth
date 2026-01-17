@@ -163,6 +163,21 @@ func CreateSessionFlow(signinCtx services.SigninContext) core.Flow[core.SigninDa
 			"userID", user.ID,
 			"expiresIn", expiresIn)
 
+		// Trigger AuthenticatedUse middleware
+		if authServiceImpl, ok := signinCtx.Service().(*services.AuthServiceImpl); ok {
+			if err := authServiceImpl.ExecuteAuthenticatedMiddlewares(
+				signinCtx,
+				user,
+				session,
+				services.AuthMethodPassword,
+				"", // no provider for password
+				signinCtx.HttpRequest(),
+			); err != nil {
+				slog.Error("Flow: CreateSession - AuthenticatedUse middleware failed", "error", err)
+				// Don't fail the flow, just log the error
+			}
+		}
+
 		return next()
 	}
 }

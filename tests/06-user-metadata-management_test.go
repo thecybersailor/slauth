@@ -49,12 +49,12 @@ func (suite *UserMetadataManagementTestSuite) TestCreateUserWithUserMetadata() {
 
 	signupResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupData)
 	suite.Equal(200, signupResp.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResp.Response.Error, "Signup should not have error")
+	suite.Nil(signupResp.Error, "Signup should not have error")
 
 	signupResp.Print()
 
-	suite.NotNil(signupResp.Response.Data, "Signup should return data")
-	signupResponseData := signupResp.Response.Data.(map[string]interface{})
+	suite.NotNil(signupResp.Data, "Signup should return data")
+	signupResponseData := signupResp.Data.(map[string]interface{})
 	userData := signupResponseData["user"].(map[string]interface{})
 
 	suite.Equal("metadata-user@example.com", userData["email"], "Email should match")
@@ -68,21 +68,21 @@ func (suite *UserMetadataManagementTestSuite) TestCreateUserWithUserMetadata() {
 
 	loginResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginData)
 	suite.Equal(200, loginResp.ResponseRecorder.Code, "Login should succeed")
-	suite.Nil(loginResp.Response.Error, "Login should not have error")
+	suite.Nil(loginResp.Error, "Login should not have error")
 
 	loginResp.Print()
 
-	loginResponseData := loginResp.Response.Data.(map[string]interface{})
+	loginResponseData := loginResp.Data.(map[string]interface{})
 	sessionData := loginResponseData["session"].(map[string]interface{})
 	accessToken := sessionData["access_token"].(string)
 
 	userInfoResp := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userInfoResp.ResponseRecorder.Code, "Get user info should succeed")
-	suite.Nil(userInfoResp.Response.Error, "Get user info should not have error")
+	suite.Nil(userInfoResp.Error, "Get user info should not have error")
 
 	userInfoResp.Print()
 
-	suite.NotNil(userInfoResp.Response.Data, "User info should return data")
+	suite.NotNil(userInfoResp.Data, "User info should return data")
 
 	var dbUser struct {
 		ID              uint `gorm:"primaryKey"`
@@ -151,12 +151,12 @@ func (suite *UserMetadataManagementTestSuite) TestAdminCreateUserWithAppMetadata
 
 	adminCreateResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", adminCreateData)
 	suite.Equal(200, adminCreateResp.ResponseRecorder.Code, "Admin create user should succeed")
-	suite.Nil(adminCreateResp.Response.Error, "Admin create user should not have error")
+	suite.Nil(adminCreateResp.Error, "Admin create user should not have error")
 
 	adminCreateResp.Print()
 
-	suite.NotNil(adminCreateResp.Response.Data, "Admin create should return data")
-	userData := adminCreateResp.Response.Data.(map[string]interface{})
+	suite.NotNil(adminCreateResp.Data, "Admin create should return data")
+	userData := adminCreateResp.Data.(map[string]interface{})
 
 	suite.Equal("admin-created-user@example.com", userData["email"], "Email should match")
 	suite.NotEmpty(userData["id"], "User ID should not be empty")
@@ -169,17 +169,17 @@ func (suite *UserMetadataManagementTestSuite) TestAdminCreateUserWithAppMetadata
 
 	loginResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginData)
 	suite.Equal(200, loginResp.ResponseRecorder.Code, "Login should succeed")
-	suite.Nil(loginResp.Response.Error, "Login should not have error")
+	suite.Nil(loginResp.Error, "Login should not have error")
 
 	loginResp.Print()
 
-	loginResponseData := loginResp.Response.Data.(map[string]interface{})
+	loginResponseData := loginResp.Data.(map[string]interface{})
 	sessionData := loginResponseData["session"].(map[string]interface{})
 	accessToken := sessionData["access_token"].(string)
 
 	userInfoResp := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userInfoResp.ResponseRecorder.Code, "Get user info should succeed")
-	suite.Nil(userInfoResp.Response.Error, "Get user info should not have error")
+	suite.Nil(userInfoResp.Error, "Get user info should not have error")
 
 	userInfoResp.Print()
 

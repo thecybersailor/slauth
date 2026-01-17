@@ -4,6 +4,7 @@ import {
   AuthNetworkError,
   isAuthError
 } from './errors'
+import { debugLog } from './helpers'
 import { version } from './version'
 
 /** HTTP client configuration */
@@ -40,15 +41,22 @@ export class HttpClient {
     this.config = config
     this.debug = config.debug || false
     
+    // Build headers object
+    const headers: { [key: string]: string } = {
+      'Content-Type': 'application/json',
+      ...config.headers,
+      ...(config.apiKey && { 'Authorization': `Bearer ${config.apiKey}` })
+    }
+    
+    // Only set User-Agent in Node.js environment (browser blocks it)
+    if (typeof window === 'undefined') {
+      headers['User-Agent'] = `@cybersailor/slauth-ts-js/${version}`
+    }
+    
     this.client = axios.create({
       baseURL: config.baseURL,
       timeout: config.timeout || 10000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': `@cybersailor/slauth-ts-js/${version}`,
-        ...config.headers,
-        ...(config.apiKey && { 'Authorization': `Bearer ${config.apiKey}` })
-      }
+      headers
     })
 
     // Setup interceptors
@@ -66,19 +74,17 @@ export class HttpClient {
         }
         
         const authHeader = config.headers?.['Authorization']
-        console.log(`[slauth:fetch] Request interceptor`, {
+        debugLog(this.debug, `[slauth:fetch] Request interceptor`, {
           method: config.method?.toUpperCase(),
           url: config.url,
           hasAuthHeader: !!authHeader,
           authHeaderPreview: authHeader ? `${String(authHeader).substring(0, 30)}...` : null,
           isFormData: config.data instanceof FormData
         })
-        if (this.debug) {
-          console.log(`[slauth] ${config.method?.toUpperCase()} ${config.url}`, {
-            headers: config.headers,
-            data: config.data
-          })
-        }
+        debugLog(this.debug, `[slauth] ${config.method?.toUpperCase()} ${config.url}`, {
+          headers: config.headers,
+          data: config.data
+        })
         return config
       },
       (error) => {
@@ -92,9 +98,7 @@ export class HttpClient {
     // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
-        if (this.debug) {
-          console.log(`[slauth] Response ${response.status}:`, response.data)
-        }
+        debugLog(this.debug, `[slauth] Response ${response.status}:`, response.data)
         return response
       },
       async (error) => {
@@ -110,17 +114,13 @@ export class HttpClient {
           if (this.config.autoRefreshToken && this.config.refreshTokenFn && !originalRequest._retry) {
             originalRequest._retry = true
             
-            if (this.debug) {
-              console.log('[slauth] Attempting to refresh token')
-            }
+            debugLog(this.debug, '[slauth] Attempting to refresh token')
             
             // Attempt to refresh token
             const refreshSuccess = await this.config.refreshTokenFn().catch(() => false)
             
             if (refreshSuccess) {
-              if (this.debug) {
-                console.log('[slauth] Token refresh successful, retrying request')
-              }
+              debugLog(this.debug, '[slauth] Token refresh successful, retrying request')
               // Update the Authorization header in the original request with the new token
               const newToken = this.client.defaults.headers.common['Authorization']
               if (newToken) {
@@ -130,9 +130,7 @@ export class HttpClient {
               // Retry the original request
               return this.client(originalRequest)
             } else {
-              if (this.debug) {
-                console.log('[slauth] Token refresh failed')
-              }
+              debugLog(this.debug, '[slauth] Token refresh failed')
               // Refresh failed, trigger onUnauthorized
               this.config.onUnauthorized?.()
             }
@@ -154,17 +152,17 @@ export class HttpClient {
 
   /** Set authorization header */
   setAuth(token: string | null) {
-    console.log('[slauth:fetch] setAuth called', { 
+    debugLog(this.debug, '[slauth:fetch] setAuth called', { 
       hasToken: !!token, 
       tokenPreview: token ? `${token.substring(0, 20)}...` : null,
       stackTrace: new Error().stack?.split('\n').slice(2, 5).join('\n')
     })
     if (token) {
       this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      console.log('[slauth:fetch] Authorization header set')
+      debugLog(this.debug, '[slauth:fetch] Authorization header set')
     } else {
       delete this.client.defaults.headers.common['Authorization']
-      console.log('[slauth:fetch] Authorization header cleared')
+      debugLog(this.debug, '[slauth:fetch] Authorization header cleared')
     }
   }
 

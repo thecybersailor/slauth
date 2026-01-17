@@ -178,6 +178,63 @@ func (suite *TestSuite) setupRouter() {
 	suite.AuthService.HandleAdminRequest(adminGroup)
 }
 
+// TestAuthServiceInstance 包含测试用的 AuthService、Router 和 Helper
+type TestAuthServiceInstance struct {
+	AuthService services.AuthService
+	Router      *gin.Engine
+	Helper      *TestHelper
+}
+
+// CreateTestAuthServiceInstance 创建一个独立的测试用 AuthService 实例
+// 用于需要隔离 hooks 的测试场景
+func CreateTestAuthServiceInstance(
+	db *gorm.DB,
+	instanceId string,
+	emailProvider *MockEmailProvider,
+	smsProvider *MockSMSProvider,
+	t *testing.T,
+) *TestAuthServiceInstance {
+	// 生成测试密钥
+	testSecrets, err := GenerateTestSecrets(types.SignAlgES256)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate test keys: %v", err))
+	}
+
+	secretsProvider := services.NewStaticSecretsProvider(testSecrets)
+
+	// 创建新的 AuthService 实例（不使用 registry 缓存）
+	authService := services.NewAuthServiceImpl(db, secretsProvider, instanceId)
+	authService.SetEmailProvider(emailProvider).
+		SetSMSProvider(smsProvider).
+		AddMFAProvider(mfa.NewTOTPProvider()).
+		RegisterMessageTemplateResolver(services.NewFileTemplateResolver("../templates")).
+		SetAdminRouteHandler(&TestAdminRouteHandler{})
+
+	// 创建 Router
+	router := gin.New()
+	authGroup := router.Group("/auth")
+	controller.RegisterRoutes(authGroup, authService)
+	adminGroup := router.Group("/admin")
+	authService.HandleAdminRequest(adminGroup)
+
+	// 创建 Helper
+	helper := NewTestHelper(db, router, instanceId, emailProvider, smsProvider)
+
+	// Disable email confirmation for testing
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}
+	helper.MakePUTRequest(t, "/admin/config", updateConfigReq, nil)
+
+	return &TestAuthServiceInstance{
+		AuthService: authService,
+		Router:      router,
+		Helper:      helper,
+	}
+}
+
 func TestTestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

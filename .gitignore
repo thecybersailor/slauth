@@ -62,7 +62,7 @@ tmp/
 temp/
 *.tmp
 .cache/
-
+.test-passed
 # Database Files
 *.db
 *.sqlite
@@ -97,7 +97,7 @@ playwright-report/
 test_results.log
 e2e-results/
 .test-context/
-.test-passed
+.checks-passed
 
 # Package Manager Lockfiles (keep package-lock.json, but ignore others)
 # We keep package-lock.json for consistency

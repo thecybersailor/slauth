@@ -84,17 +84,17 @@ func (suite *EmailPhoneManagementTestSuite) TestEmailConfirmation() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
-	suite.NotNil(signupResponse.Response.Data, "Signup response should have data")
-	signupData := signupResponse.Response.Data.(map[string]any)
+	suite.NotNil(signupResponse.Data, "Signup response should have data")
+	signupData := signupResponse.Data.(map[string]any)
 	userData := signupData["user"].(map[string]any)
 	userID := userData["id"].(string)
 	suite.NotEmpty(userID, "User ID should not be empty")
 
 	userResponse := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed")
-	userInfo := userResponse.Response.Data.(map[string]any)
+	userInfo := userResponse.Data.(map[string]any)
 	suite.False(userInfo["email_confirmed"].(bool), "Email should not be confirmed initially")
 
 	mockEmailProvider := suite.helper.GetMockEmailProvider()
@@ -125,11 +125,11 @@ func (suite *EmailPhoneManagementTestSuite) TestEmailConfirmation() {
 
 	confirmResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/confirm?token="+confirmationToken)
 	suite.Equal(200, confirmResponse.ResponseRecorder.Code, "Email confirmation should succeed")
-	suite.Nil(confirmResponse.Response.Error, "Email confirmation should not have error")
+	suite.Nil(confirmResponse.Error, "Email confirmation should not have error")
 
 	userResponseAfter := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, userResponseAfter.ResponseRecorder.Code, "Get user after confirmation should succeed")
-	userInfoAfter := userResponseAfter.Response.Data.(map[string]any)
+	userInfoAfter := userResponseAfter.Data.(map[string]any)
 	suite.True(userInfoAfter["email_confirmed"].(bool), "Email should be confirmed after using confirmation token")
 
 	loginRequestBody := S{
@@ -140,7 +140,7 @@ func (suite *EmailPhoneManagementTestSuite) TestEmailConfirmation() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed after email confirmation")
-	suite.Nil(loginResponse.Response.Error, "Login should not have error")
+	suite.Nil(loginResponse.Error, "Login should not have error")
 }
 
 func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
@@ -157,14 +157,14 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Require().Nil(signupResponse.Response.Error, "Signup should succeed")
+	suite.Require().Nil(signupResponse.Error, "Signup should succeed")
 
 	// Confirm email
 	confirmationToken := suite.GetConfirmationTokenFromEmail()
 	suite.Require().NotEmpty(confirmationToken, "Confirmation token should be extracted from email")
 
 	confirmResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/confirm?token="+confirmationToken)
-	suite.Require().Nil(confirmResponse.Response.Error, "Email confirmation should succeed")
+	suite.Require().Nil(confirmResponse.Error, "Email confirmation should succeed")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -173,9 +173,9 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 	}
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	suite.Require().Nil(loginResponse.Response.Error, "Login should succeed")
+	suite.Require().Nil(loginResponse.Error, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]any)
+	responseData := loginResponse.Data.(map[string]any)
 	session := responseData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 
@@ -189,7 +189,7 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 
 	updateEmailResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/email", updateEmailRequestBody, updateEmailHeaders)
 	suite.Equal(200, updateEmailResponse.ResponseRecorder.Code, "Update email should succeed")
-	suite.Nil(updateEmailResponse.Response.Error, "Update email should not have error")
+	suite.Nil(updateEmailResponse.Error, "Update email should not have error")
 
 	mockEmailProvider := suite.helper.GetMockEmailProvider()
 	lastEmail := mockEmailProvider.GetLastEmail()
@@ -211,11 +211,11 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 
 	verifyEmailResponse := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/email/verify", verifyEmailRequestBody, verifyEmailHeaders)
 	suite.Equal(200, verifyEmailResponse.ResponseRecorder.Code, "Email change verification should succeed")
-	suite.Nil(verifyEmailResponse.Response.Error, "Email change verification should not have error")
+	suite.Nil(verifyEmailResponse.Error, "Email change verification should not have error")
 
 	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed")
-	userInfo := userResponse.Response.Data.(map[string]any)["user"].(map[string]any)
+	userInfo := userResponse.Data.(map[string]any)["user"].(map[string]any)
 	suite.Equal(newEmail, userInfo["email"], "User email should be updated to new email")
 
 	newLoginRequestBody := S{
@@ -235,7 +235,7 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 
 	oldLoginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", oldLoginRequestBody)
 	suite.Equal(200, oldLoginResponse.ResponseRecorder.Code, "Login with old email should return 200")
-	suite.NotNil(oldLoginResponse.Response.Error, "Login with old email should have error")
+	suite.NotNil(oldLoginResponse.Error, "Login with old email should have error")
 }
 
 func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
@@ -254,14 +254,14 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Require().Nil(signupResponse.Response.Error, "Signup should succeed")
+	suite.Require().Nil(signupResponse.Error, "Signup should succeed")
 
 	// Confirm email
 	confirmationToken := suite.GetConfirmationTokenFromEmail()
 	suite.Require().NotEmpty(confirmationToken, "Confirmation token should be extracted from email")
 
 	confirmResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/confirm?token="+confirmationToken)
-	suite.Require().Nil(confirmResponse.Response.Error, "Email confirmation should succeed")
+	suite.Require().Nil(confirmResponse.Error, "Email confirmation should succeed")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -270,9 +270,9 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
 	}
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	suite.Require().Nil(loginResponse.Response.Error, "Login should succeed")
+	suite.Require().Nil(loginResponse.Error, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]any)
+	responseData := loginResponse.Data.(map[string]any)
 	session := responseData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 
@@ -286,7 +286,7 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
 
 	updatePhoneResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/phone", updatePhoneRequestBody, updatePhoneHeaders)
 	suite.Equal(200, updatePhoneResponse.ResponseRecorder.Code, "Update phone should succeed")
-	suite.Nil(updatePhoneResponse.Response.Error, "Update phone should not have error")
+	suite.Nil(updatePhoneResponse.Error, "Update phone should not have error")
 
 	mockSMSProvider := suite.helper.GetMockSMSProvider()
 	lastSMS := mockSMSProvider.GetLastSMS()
@@ -307,11 +307,11 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
 
 	verifyPhoneResponse := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/phone/verify", verifyPhoneRequestBody, verifyPhoneHeaders)
 	suite.Equal(200, verifyPhoneResponse.ResponseRecorder.Code, "Phone change verification should succeed")
-	suite.Nil(verifyPhoneResponse.Response.Error, "Phone change verification should not have error")
+	suite.Nil(verifyPhoneResponse.Error, "Phone change verification should not have error")
 
 	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed")
-	userInfo := userResponse.Response.Data.(map[string]any)["user"].(map[string]any)
+	userInfo := userResponse.Data.(map[string]any)["user"].(map[string]any)
 	suite.Equal(newPhone, userInfo["phone"], "User phone should be updated to new phone")
 }
 
@@ -328,13 +328,13 @@ func (suite *EmailPhoneManagementTestSuite) TestAdminSetEmailConfirmed() {
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
 
-	signupData := signupResponse.Response.Data.(map[string]any)
+	signupData := signupResponse.Data.(map[string]any)
 	userData := signupData["user"].(map[string]any)
 	userID := userData["id"].(string)
 
 	userResponse := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed")
-	userInfo := userResponse.Response.Data.(map[string]any)
+	userInfo := userResponse.Data.(map[string]any)
 	suite.False(userInfo["email_confirmed"].(bool), "Email should not be confirmed initially")
 
 	setEmailConfirmedRequestBody := S{
@@ -343,11 +343,11 @@ func (suite *EmailPhoneManagementTestSuite) TestAdminSetEmailConfirmed() {
 
 	setEmailConfirmedResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/users/"+userID+"/email-confirmed", setEmailConfirmedRequestBody, nil)
 	suite.Equal(200, setEmailConfirmedResponse.ResponseRecorder.Code, "Set email confirmed should succeed")
-	suite.Nil(setEmailConfirmedResponse.Response.Error, "Set email confirmed should not have error")
+	suite.Nil(setEmailConfirmedResponse.Error, "Set email confirmed should not have error")
 
 	userResponseAfter := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, userResponseAfter.ResponseRecorder.Code, "Get user after setting should succeed")
-	userInfoAfter := userResponseAfter.Response.Data.(map[string]any)
+	userInfoAfter := userResponseAfter.Data.(map[string]any)
 	suite.True(userInfoAfter["email_confirmed"].(bool), "Email should be confirmed after admin setting")
 
 	loginRequestBody := S{
@@ -358,7 +358,7 @@ func (suite *EmailPhoneManagementTestSuite) TestAdminSetEmailConfirmed() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed after admin email confirmation")
-	suite.Nil(loginResponse.Response.Error, "Login should not have error")
+	suite.Nil(loginResponse.Error, "Login should not have error")
 }
 
 func (suite *EmailPhoneManagementTestSuite) TestAdminSetPhoneConfirmed() {
@@ -376,13 +376,13 @@ func (suite *EmailPhoneManagementTestSuite) TestAdminSetPhoneConfirmed() {
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
 
-	signupData := signupResponse.Response.Data.(map[string]any)
+	signupData := signupResponse.Data.(map[string]any)
 	userData := signupData["user"].(map[string]any)
 	userID := userData["id"].(string)
 
 	userResponse := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed")
-	userInfo := userResponse.Response.Data.(map[string]any)
+	userInfo := userResponse.Data.(map[string]any)
 	suite.False(userInfo["phone_confirmed"].(bool), "Phone should not be confirmed initially")
 
 	setPhoneConfirmedRequestBody := S{
@@ -391,11 +391,11 @@ func (suite *EmailPhoneManagementTestSuite) TestAdminSetPhoneConfirmed() {
 
 	setPhoneConfirmedResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/users/"+userID+"/phone-confirmed", setPhoneConfirmedRequestBody, nil)
 	suite.Equal(200, setPhoneConfirmedResponse.ResponseRecorder.Code, "Set phone confirmed should succeed")
-	suite.Nil(setPhoneConfirmedResponse.Response.Error, "Set phone confirmed should not have error")
+	suite.Nil(setPhoneConfirmedResponse.Error, "Set phone confirmed should not have error")
 
 	userResponseAfter := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, userResponseAfter.ResponseRecorder.Code, "Get user after setting should succeed")
-	userInfoAfter := userResponseAfter.Response.Data.(map[string]any)
+	userInfoAfter := userResponseAfter.Data.(map[string]any)
 	suite.True(userInfoAfter["phone_confirmed"].(bool), "Phone should be confirmed after admin setting")
 }
 
@@ -413,14 +413,14 @@ func (suite *EmailPhoneManagementTestSuite) TestEmailUpdateAALRequirement() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Require().Nil(signupResponse.Response.Error, "Signup should succeed")
+	suite.Require().Nil(signupResponse.Error, "Signup should succeed")
 
 	// Confirm email
 	confirmationToken := suite.GetConfirmationTokenFromEmail()
 	suite.Require().NotEmpty(confirmationToken, "Confirmation token should be extracted from email")
 
 	confirmResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/confirm?token="+confirmationToken)
-	suite.Require().Nil(confirmResponse.Response.Error, "Email confirmation should succeed")
+	suite.Require().Nil(confirmResponse.Error, "Email confirmation should succeed")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -429,9 +429,9 @@ func (suite *EmailPhoneManagementTestSuite) TestEmailUpdateAALRequirement() {
 	}
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	suite.Require().Nil(loginResponse.Response.Error, "Login should succeed")
+	suite.Require().Nil(loginResponse.Error, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]any)
+	responseData := loginResponse.Data.(map[string]any)
 	session := responseData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 
@@ -445,7 +445,7 @@ func (suite *EmailPhoneManagementTestSuite) TestEmailUpdateAALRequirement() {
 
 	updateEmailResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/email", updateEmailRequestBody, updateEmailHeaders)
 	suite.Equal(200, updateEmailResponse.ResponseRecorder.Code, "Update email should succeed with AAL1")
-	suite.Nil(updateEmailResponse.Response.Error, "Update email should not have error")
+	suite.Nil(updateEmailResponse.Error, "Update email should not have error")
 
 	suite.T().Logf("Email update AAL requirement test completed successfully")
 }
@@ -463,14 +463,14 @@ func (suite *EmailPhoneManagementTestSuite) TestPhoneUpdateRateLimit() {
 	}
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
-	suite.Require().Nil(signupResponse.Response.Error, "Signup should succeed")
+	suite.Require().Nil(signupResponse.Error, "Signup should succeed")
 
 	// Confirm email
 	confirmationToken := suite.GetConfirmationTokenFromEmail()
 	suite.Require().NotEmpty(confirmationToken, "Confirmation token should be extracted from email")
 
 	confirmResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/confirm?token="+confirmationToken)
-	suite.Require().Nil(confirmResponse.Response.Error, "Email confirmation should succeed")
+	suite.Require().Nil(confirmResponse.Error, "Email confirmation should succeed")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -479,9 +479,9 @@ func (suite *EmailPhoneManagementTestSuite) TestPhoneUpdateRateLimit() {
 	}
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	suite.Require().Nil(loginResponse.Response.Error, "Login should succeed")
+	suite.Require().Nil(loginResponse.Error, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]any)
+	responseData := loginResponse.Data.(map[string]any)
 	session := responseData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 
@@ -497,7 +497,7 @@ func (suite *EmailPhoneManagementTestSuite) TestPhoneUpdateRateLimit() {
 
 		updatePhoneResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/phone", updatePhoneRequestBody, updatePhoneHeaders)
 		suite.Equal(200, updatePhoneResponse.ResponseRecorder.Code, fmt.Sprintf("Phone update %d should succeed", i))
-		suite.Nil(updatePhoneResponse.Response.Error, fmt.Sprintf("Phone update %d should not have error", i))
+		suite.Nil(updatePhoneResponse.Error, fmt.Sprintf("Phone update %d should not have error", i))
 
 		suite.T().Logf("Phone update %d completed successfully", i)
 	}

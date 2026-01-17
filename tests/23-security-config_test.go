@@ -126,7 +126,7 @@ func (suite *SecurityConfigTestSuite) Test_06_PasswordUpdateRateLimit() {
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", loginRequest)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]interface{})
+	responseData := loginResponse.Data.(map[string]interface{})
 	session := responseData["session"].(map[string]interface{})
 	accessToken := session["access_token"].(string)
 

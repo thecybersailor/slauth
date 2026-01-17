@@ -128,10 +128,11 @@ func (suite *TableStructureTestSuite) getMySQLTableNames(dbName string) ([]strin
 }
 
 // getPostgreSQLTableNames queries information_schema for table names
-// If prefix ends with ".", it queries the specific schema, otherwise queries public schema
+// If prefix ends with ".", it queries the specific schema and returns schema.table format
 func (suite *TableStructureTestSuite) getPostgreSQLTableNames(tablePrefix string) ([]string, error) {
 	var schemaName string
-	if strings.HasSuffix(tablePrefix, ".") {
+	hasSchema := strings.HasSuffix(tablePrefix, ".")
+	if hasSchema {
 		schemaName = strings.TrimSuffix(tablePrefix, ".")
 	} else {
 		schemaName = "public"
@@ -143,7 +144,18 @@ func (suite *TableStructureTestSuite) getPostgreSQLTableNames(tablePrefix string
 		FROM information_schema.tables 
 		WHERE table_schema = ?
 	`, schemaName).Scan(&tables).Error
-	return tables, err
+	if err != nil {
+		return nil, err
+	}
+
+	// If using schema prefix, prepend schema name to table names
+	if hasSchema {
+		for i := range tables {
+			tables[i] = schemaName + "." + tables[i]
+		}
+	}
+
+	return tables, nil
 }
 
 // filterBusinessTables filters out system tables, keeping only tables with the expected prefix

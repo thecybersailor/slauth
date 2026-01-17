@@ -70,4 +70,11 @@ type AuthService interface {
 	SigninUse(middleware func(ctx SigninContext, next func() error) error) AuthService
 	PasswordUse(middleware func(ctx PasswordContext, next func() error) error) AuthService
 	OTPUse(middleware func(ctx OTPContext, next func() error) error) AuthService
+
+	// 生命周期hooks
+	BeforeUserCreatedUse(middleware func(ctx UserCreatedContext, next func() error) error) AuthService
+	AfterUserCreatedUse(middleware func(ctx UserCreatedContext, next func() error) error) AuthService
+	AuthenticatedUse(middleware func(ctx AuthenticatedContext, next func() error) error) AuthService
+	SessionCreatedUse(middleware func(ctx SessionCreatedContext, next func() error) error) AuthService
+	IdentityLinkedUse(middleware func(ctx IdentityLinkedContext, next func() error) error) AuthService
 }

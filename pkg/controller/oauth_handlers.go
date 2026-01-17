@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -19,6 +20,11 @@ import (
 var (
 	hashidData *hashids.HashIDData
 )
+
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const httpRequestContextKey contextKey = "http_request"
 
 func init() {
 	hd := hashids.NewData()
@@ -276,28 +282,89 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 		Verified: true,
 	}
 
-	// Create or find user account
-	user, err := a.findOrCreateUserFromOAuth(c.Request.Context(), oauthUserInfo, flowState.ProviderType)
+	// Create or find user account (pass httpRequest in context for hooks)
+	ctx := context.WithValue(c.Request.Context(), httpRequestContextKey, c.Request)
+	user, err := a.findOrCreateUserFromOAuth(ctx, oauthUserInfo, flowState.ProviderType)
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
 
 	// Create session
+	slog.Info("[OAuth ExchangeCodeForSession] Before CreateSession", "userID", user.ID, "userIsNil", user == nil)
 	session, accessToken, refreshToken, expiresAt, err := a.authService.CreateSession(
 		c.Request.Context(), user, "aal1", []string{"oauth"},
 		c.GetHeader("User-Agent"), c.ClientIP(),
 	)
 	if err != nil {
+		slog.Error("[OAuth ExchangeCodeForSession] CreateSession failed", "error", err)
 		return consts.UNEXPECTED_FAILURE
 	}
+	sessionHashID := "nil"
+	if session != nil {
+		sessionHashID = session.HashID
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] After CreateSession",
+		"sessionIsNil", session == nil,
+		"sessionHashID", sessionHashID,
+		"accessTokenLen", len(accessToken),
+		"refreshTokenLen", len(refreshToken),
+		"expiresAt", expiresAt)
+
+	// Trigger AuthenticatedUse middleware
+	slog.Info("[OAuth ExchangeCodeForSession] Before ExecuteAuthenticatedMiddlewares")
+	if authServiceImpl, ok := a.authService.(*services.AuthServiceImpl); ok {
+		if err := authServiceImpl.ExecuteAuthenticatedMiddlewares(
+			c.Request.Context(),
+			user,
+			session,
+			services.AuthMethodOAuth,
+			flowState.ProviderType,
+			c.Request,
+		); err != nil {
+			slog.Error("AuthenticatedUse middleware failed", "error", err)
+			// Don't fail the request, just log the error
+		}
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] After ExecuteAuthenticatedMiddlewares")
 
 	// Clean up flow state
+	slog.Info("[OAuth ExchangeCodeForSession] Before DeleteFlowState", "flowStateID", flowState.ID)
 	if err := a.authService.DeleteFlowState(c.Request.Context(), flowState.ID); err != nil {
+		slog.Error("Failed to delete flow state", "error", err, "flowStateID", flowState.ID)
 		return consts.UNEXPECTED_FAILURE
 	}
+	slog.Info("[OAuth ExchangeCodeForSession] After DeleteFlowState", "flowStateID", flowState.ID)
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userGetModelIsNil := true
+	if user != nil {
+		userGetModelIsNil = user.GetModel() == nil
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] Before convertUserToResponse",
+		"userIsNil", user == nil,
+		"userGetModelIsNil", userGetModelIsNil)
+	userModel := user.GetModel()
+	userModelID := uint(0)
+	identitiesLen := -1
+	mfaFactorsLen := -1
+	if userModel != nil {
+		userModelID = userModel.ID
+		identitiesLen = len(userModel.Identities)
+		mfaFactorsLen = len(userModel.MFAFactors)
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] Got user model",
+		"userModelIsNil", userModel == nil,
+		"userModelID", userModelID,
+		"identitiesLen", identitiesLen,
+		"mfaFactorsLen", mfaFactorsLen)
+	userResp := convertUserToResponse(userModel)
+	userRespID := "nil"
+	if userResp != nil {
+		userRespID = userResp.ID
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] After convertUserToResponse",
+		"userRespIsNil", userResp == nil,
+		"userRespID", userRespID)
 
 	// Calculate expires_in from expires_at
 	expiresIn := int(expiresAt - time.Now().Unix())
@@ -306,6 +373,13 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 	}
 
 	// Create session response
+	oauthRespTokenInfoIsNil := true
+	if oauthResp != nil {
+		oauthRespTokenInfoIsNil = oauthResp.TokenInfo == nil
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] Before creating sessionResp",
+		"oauthRespIsNil", oauthResp == nil,
+		"oauthRespTokenInfoIsNil", oauthRespTokenInfoIsNil)
 	sessionResp := &Session{
 		ID:                   session.HashID,
 		AccessToken:          accessToken,
@@ -317,22 +391,38 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 		ProviderRefreshToken: oauthResp.TokenInfo.RefreshToken,
 		User:                 userResp,
 	}
+	slog.Info("[OAuth ExchangeCodeForSession] After creating sessionResp",
+		"sessionRespID", sessionResp.ID,
+		"providerTokenLen", len(sessionResp.ProviderToken),
+		"providerRefreshTokenLen", len(sessionResp.ProviderRefreshToken))
 
 	// Validate redirect URL from flow state
 	redirectTo := ""
 	if flowState.RedirectTo != "" {
+		slog.Info("[OAuth ExchangeCodeForSession] Before ValidateAndGetRedirectTo", "redirectTo", flowState.RedirectTo)
 		redirectService := a.createRedirectService()
 		redirectTo = redirectService.ValidateAndGetRedirectTo(flowState.RedirectTo)
 		slog.Info("OAuth: Redirect URL validated", "original", flowState.RedirectTo, "validated", redirectTo)
 	}
 
+	slog.Info("[OAuth ExchangeCodeForSession] Before creating AuthData response")
 	resp := &AuthData{
 		User:       userResp,
 		Session:    sessionResp,
 		RedirectTo: redirectTo,
 	}
+	slog.Info("[OAuth ExchangeCodeForSession] After creating AuthData response",
+		"respUserIsNil", resp.User == nil,
+		"respSessionIsNil", resp.Session == nil)
 
-	return c.Render(resp)
+	slog.Info("[OAuth ExchangeCodeForSession] Before c.Render")
+	err = c.Render(resp)
+	if err != nil {
+		slog.Error("[OAuth ExchangeCodeForSession] c.Render failed", "error", err)
+		return err
+	}
+	slog.Info("[OAuth ExchangeCodeForSession] After c.Render - SUCCESS")
+	return nil
 }
 
 // SignInWithIdToken authenticates using OIDC ID token (Google Button way)
@@ -388,7 +478,8 @@ func (a *AuthController) SignInWithIdToken(c *pin.Context) error {
 	}
 
 	// Create or find user account
-	user, err := a.findOrCreateUserFromOAuth(c.Request.Context(), oauthUserInfo, req.Provider)
+	ctx := context.WithValue(c.Request.Context(), httpRequestContextKey, c.Request)
+	user, err := a.findOrCreateUserFromOAuth(ctx, oauthUserInfo, req.Provider)
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -591,7 +682,8 @@ func (a *AuthController) HandleSSOCallback(c *pin.Context) error {
 	}
 
 	// Create or find user account
-	user, err := a.findOrCreateUserFromOAuth(c.Request.Context(), &OAuthUserInfo{
+	ctx := context.WithValue(c.Request.Context(), httpRequestContextKey, c.Request)
+	user, err := a.findOrCreateUserFromOAuth(ctx, &OAuthUserInfo{
 		ID:       oauthResp.UserInfo.UID,
 		Email:    oauthResp.UserInfo.Email,
 		Name:     oauthResp.UserInfo.Name,

@@ -44,7 +44,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignup() {
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", requestBody)
 	response.Print()
 
-	responseData := response.Response.Data.(map[string]any)
+	responseData := response.Data.(map[string]any)
 	userInfo := responseData["user"].(map[string]any)
 	suite.Equal(email, userInfo["email"], "User email should match")
 	suite.NotEmpty(userInfo["id"], "User ID should not be empty")
@@ -128,7 +128,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignupMissingPassword() {
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", requestBody)
 
-	responseData := response.Response.Data.(map[string]any)
+	responseData := response.Data.(map[string]any)
 	userInfo := responseData["user"].(map[string]any)
 	suite.Equal(email, userInfo["email"], "User email should match")
 	suite.NotEmpty(userInfo["id"], "User ID should not be empty")
@@ -162,7 +162,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestListUsers() {
 
 	response.Print()
 
-	responseData := response.Response.Data.(map[string]any)
+	responseData := response.Data.(map[string]any)
 	usersInterface := responseData["users"].([]any)
 
 	totalCount := responseData["total"].(float64)
@@ -197,7 +197,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestListUsers() {
 		},
 	})
 
-	responseData = response.Response.Data.(map[string]any)
+	responseData = response.Data.(map[string]any)
 	suite.GreaterOrEqual(responseData["total"].(float64), float64(2), "Should have at least 2 users for pagination test")
 	suite.Equal(float64(1), responseData["page"], "Page should be 1")
 	suite.Equal(float64(2), responseData["page_size"], "Page size should be 2")
@@ -217,7 +217,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestListUsers() {
 		},
 	})
 
-	responseData = response.Response.Data.(map[string]any)
+	responseData = response.Data.(map[string]any)
 	suite.Equal(float64(1), responseData["total"], "Filtered total should be 1")
 
 	usersInterface = responseData["users"].([]any)
@@ -236,7 +236,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetUser() {
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", requestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Signup should succeed")
 
-	responseData := response.Response.Data.(map[string]any)
+	responseData := response.Data.(map[string]any)
 	userInfo := responseData["user"].(map[string]any)
 	userID := userInfo["id"].(string)
 	suite.NotEmpty(userID, "User ID should not be empty")
@@ -244,7 +244,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetUser() {
 	response = suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, response.ResponseRecorder.Code, "Get user should succeed")
 
-	responseData = response.Response.Data.(map[string]any)
+	responseData = response.Data.(map[string]any)
 	suite.Equal(userID, responseData["id"], "User ID should match")
 	suite.Equal(email, responseData["email"], "Email should match")
 	suite.Equal(false, responseData["email_confirmed"], "Email should not be confirmed")
@@ -277,7 +277,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetUserStats() {
 	response := suite.helper.MakeGETRequest(suite.T(), "/admin/stats/users")
 	suite.Equal(200, response.ResponseRecorder.Code, "Get user stats should succeed")
 
-	responseData := response.Response.Data.(map[string]any)
+	responseData := response.Data.(map[string]any)
 	count := responseData["count"]
 	suite.NotNil(count, "Count should be present")
 
@@ -309,15 +309,15 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetRecentSignups() {
 
 	suite.T().Logf("Response status: %d", response.ResponseRecorder.Code)
 	suite.T().Logf("Response body: %s", response.ResponseRecorder.Body.String())
-	suite.T().Logf("Response.Data: %+v", response.Response.Data)
+	suite.T().Logf("Response.Data: %+v", response.Data)
 
-	if response.Response.Data == nil {
+	if response.Data == nil {
 		suite.Fail("Response data is nil")
 	}
 
-	responseData, ok := response.Response.Data.(map[string]any)
+	responseData, ok := response.Data.(map[string]any)
 	if !ok {
-		suite.T().Logf("Response data type: %T", response.Response.Data)
+		suite.T().Logf("Response data type: %T", response.Data)
 		suite.Fail("Failed to cast response data to map[string]any")
 	}
 	suite.NotNil(responseData, "Response data should not be nil")
@@ -359,7 +359,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignupWithoutEmailConfirmation()
 
 	// Verify config was updated by reading it back
 	getConfigResponse := suite.helper.MakeGETRequest(suite.T(), "/admin/config")
-	suite.T().Logf("Current config after update: %+v", getConfigResponse.Response.Data)
+	suite.T().Logf("Current config after update: %+v", getConfigResponse.Data)
 
 	// Signup request with redirect parameter
 	requestBody := map[string]interface{}{
@@ -374,7 +374,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestSignupWithoutEmailConfirmation()
 	response.Print()
 
 	// Verify response structure
-	responseData := response.Response.Data.(map[string]any)
+	responseData := response.Data.(map[string]any)
 
 	// User should be created
 	userInfo := responseData["user"].(map[string]any)
@@ -449,7 +449,7 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetCurrentUser() {
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
 
 	// Get access token from signup response
-	signupData := signupResponse.Response.Data.(map[string]any)
+	signupData := signupResponse.Data.(map[string]any)
 	sessionData := signupData["session"].(map[string]any)
 	accessToken := sessionData["access_token"].(string)
 	suite.NotEmpty(accessToken, "Access token should be present")
@@ -457,9 +457,9 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetCurrentUser() {
 	// Test 1: Get current user with valid token (uses GetCurrentUser internally)
 	userResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userResponse.ResponseRecorder.Code, "Get user should succeed with valid token")
-	suite.Nil(userResponse.Response.Error, "Get user should not have error")
+	suite.Nil(userResponse.Error, "Get user should not have error")
 
-	userData := userResponse.Response.Data.(map[string]any)
+	userData := userResponse.Data.(map[string]any)
 	userInfo := userData["user"].(map[string]any)
 	suite.Equal(email, userInfo["email"], "User email should match")
 	suite.NotEmpty(userInfo["id"], "User ID should not be empty")

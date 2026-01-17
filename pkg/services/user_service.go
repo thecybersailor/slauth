@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ type UserService struct {
 	db              *gorm.DB
 	instanceId      string
 	passwordService *PasswordService
+	authService     AuthService // 用于访问middlewares
 }
 
 // NewUserService creates a new user service
@@ -55,6 +57,12 @@ func (s *UserService) SetPasswordService(passwordService *PasswordService) *User
 	return s
 }
 
+// SetAuthService sets the auth service (chainable)
+func (s *UserService) SetAuthService(authService AuthService) *UserService {
+	s.authService = authService
+	return s
+}
+
 // UserCreateOptions defines options for creating a user
 type UserCreateOptions struct {
 	Username     *string        // Optional: username for username-based authentication
@@ -70,169 +78,238 @@ func (s *UserService) Create(ctx context.Context, user *models.User) error {
 	return s.db.WithContext(ctx).Create(user).Error
 }
 
-// CreateUser creates a new user with options
+// CreateUser creates a new user with options (defaults to signup source)
 func (s *UserService) CreateUser(ctx context.Context, opts *UserCreateOptions) (*User, error) {
-	passwordService := s.passwordService
-	if passwordService == nil {
-		passwordService = NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
-	}
+	return s.CreateUserWithSource(ctx, opts, UserCreatedSourceSignup, nil, nil)
+}
 
-	validator := NewValidatorService()
+// CreateUserWithSource creates a new user with source information and hooks support
+func (s *UserService) CreateUserWithSource(
+	ctx context.Context,
+	opts *UserCreateOptions,
+	source UserCreatedSource,
+	extraContext map[string]any, // 存储Provider、Identity等额外信息
+	httpRequest *http.Request,   // HTTP请求（可选）
+) (*User, error) {
+	var createdUser *User
+	var userModel *models.User
 
-	username := ""
-	email := ""
-	phone := ""
-	if opts.Username != nil {
-		username = *opts.Username
-	}
-	if opts.Email != nil {
-		email = *opts.Email
-	}
-	if opts.Phone != nil {
-		phone = *opts.Phone
-	}
-
-	// Validate username format if provided
-	if username != "" {
-		// Username validation can be customized by business logic
-		// Here we just do basic check
-		if len(username) < 1 {
-			return nil, errors.New("username cannot be empty")
+	// 在事务中执行
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. 参数验证（现有逻辑）
+		passwordService := s.passwordService
+		if passwordService == nil {
+			passwordService = NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
 		}
-	}
 
-	// Validate email format if provided
-	if email != "" {
-		if err := validator.ValidateEmail(email); err != nil {
-			return nil, err
+		validator := NewValidatorService()
+
+		username := ""
+		email := ""
+		phone := ""
+		if opts.Username != nil {
+			username = *opts.Username
 		}
-		email = validator.SanitizeEmail(email)
-	}
-
-	// Validate phone format if provided
-	if phone != "" {
-		if err := validator.ValidatePhone(phone); err != nil {
-			return nil, err
+		if opts.Email != nil {
+			email = *opts.Email
 		}
-		phone = validator.SanitizePhone(phone)
-	}
+		if opts.Phone != nil {
+			phone = *opts.Phone
+		}
 
-	// Validate password strength if provided
-	var password string
-	if opts.Password != nil {
-		password = *opts.Password
+		// Validate username format if provided
+		if username != "" {
+			if len(username) < 1 {
+				return errors.New("username cannot be empty")
+			}
+		}
+
+		// Validate email format if provided
+		if email != "" {
+			if err := validator.ValidateEmail(email); err != nil {
+				return err
+			}
+			email = validator.SanitizeEmail(email)
+		}
+
+		// Validate phone format if provided
+		if phone != "" {
+			if err := validator.ValidatePhone(phone); err != nil {
+				return err
+			}
+			phone = validator.SanitizePhone(phone)
+		}
+
+		// Validate password strength if provided
+		var password string
+		if opts.Password != nil {
+			password = *opts.Password
+			if password != "" {
+				if err := validator.ValidatePassword(password); err != nil {
+					return err
+				}
+
+				valid := passwordService.ValidatePasswordStrength(password)
+				if !valid {
+					slog.Error("Password strength validation failed")
+					return consts.WEAK_PASSWORD
+				}
+			}
+		}
+
+		// Check for duplicate username
+		if username != "" {
+			var existingUser models.User
+			err := tx.WithContext(ctx).Where("username = ? AND instance_id = ?", username, s.instanceId).First(&existingUser).Error
+			if err == nil {
+				return consts.USER_ALREADY_EXISTS
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		// Check for duplicate email
+		if email != "" {
+			var existingUser models.User
+			err := tx.WithContext(ctx).Where("email = ? AND instance_id = ?", email, s.instanceId).First(&existingUser).Error
+			if err == nil {
+				return consts.USER_ALREADY_EXISTS
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		// Check for duplicate phone
+		if phone != "" {
+			var existingUser models.User
+			err := tx.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, s.instanceId).First(&existingUser).Error
+			if err == nil {
+				return consts.USER_ALREADY_EXISTS
+			}
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+		}
+
+		// Hash password if provided
+		var hashedPassword *string
 		if password != "" {
-			if err := validator.ValidatePassword(password); err != nil {
-				return nil, err
+			hashed, err := passwordService.HashPassword(password)
+			if err != nil {
+				return err
 			}
+			hashedPassword = &hashed
+		}
 
-			valid := passwordService.ValidatePasswordStrength(password)
-			if !valid {
-				slog.Error("Password strength validation failed")
-				return nil, consts.WEAK_PASSWORD
+		// Serialize user metadata
+		var userMetaJSON *json.RawMessage
+		if len(opts.UserMetadata) > 0 {
+			metaBytes, err := json.Marshal(opts.UserMetadata)
+			if err != nil {
+				return err
+			}
+			userMetaJSON = (*json.RawMessage)(&metaBytes)
+		}
+
+		// Serialize app metadata
+		var appMetaJSON *json.RawMessage
+		if len(opts.AppMetadata) > 0 {
+			metaBytes, err := json.Marshal(opts.AppMetadata)
+			if err != nil {
+				return err
+			}
+			appMetaJSON = (*json.RawMessage)(&metaBytes)
+		}
+
+		// 2. 构建userModel（现有逻辑）
+		now := time.Now()
+		userModel = &models.User{
+			InstanceId:        s.instanceId,
+			Username:          &username,
+			Email:             &email,
+			Phone:             &phone,
+			EncryptedPassword: hashedPassword,
+			RawUserMetaData:   (*models.JSON)(userMetaJSON),
+			RawAppMetaData:    (*models.JSON)(appMetaJSON),
+			CreatedAt:         now,
+			UpdatedAt:         now,
+			IsAnonymous:       false,
+		}
+
+		// Set username/email/phone to nil if empty
+		if username == "" {
+			userModel.Username = nil
+		}
+		if email == "" {
+			userModel.Email = nil
+		}
+		if phone == "" {
+			userModel.Phone = nil
+		}
+
+		// 3. 执行 BeforeUserCreatedUse middlewares
+		if err := s.executeBeforeUserCreatedMiddlewares(ctx, tx, userModel, source, opts, extraContext, httpRequest); err != nil {
+			return err // 事务回滚
+		}
+
+		// 4. 创建用户
+		if err := tx.WithContext(ctx).Create(userModel).Error; err != nil {
+			return err
+		}
+
+		// 5. 构建User对象
+		user, err := NewUserFromModel(userModel, passwordService, NewSessionService(tx), tx, s.instanceId)
+		if err != nil {
+			return err
+		}
+		createdUser = user
+
+		// 6. 执行 AfterUserCreatedUse middlewares
+		if err := s.executeAfterUserCreatedMiddlewares(ctx, tx, user, source, extraContext, httpRequest); err != nil {
+			return err // 事务回滚（user会被删除）
+		}
+
+		// 7. 如果有 identity，在事务中创建（用于 OAuth）
+		if identity, ok := extraContext["identity"].(*models.Identity); ok && identity != nil {
+			identity.UserID = user.ID
+			if err := tx.WithContext(ctx).Create(identity).Error; err != nil {
+				slog.Error("[CreateUserWithSource] Failed to create identity", "error", err)
+				return err // 事务回滚
+			}
+			// 直接关联到 user，避免事务外查询
+			user.Identities = []models.Identity{*identity}
+			
+			// 触发 IdentityLinkedUse middleware
+			if s.authService != nil {
+				if authServiceImpl, ok := s.authService.(*AuthServiceImpl); ok {
+					if err := authServiceImpl.ExecuteIdentityLinkedMiddlewares(
+						ctx,
+						user,
+						identity,
+						extraContext["provider"].(string),
+						true, // isNewIdentity
+						httpRequest,
+					); err != nil {
+						slog.Error("IdentityLinkedUse middleware failed", "error", err)
+						return err // 事务回滚
+					}
+				}
 			}
 		}
-	}
 
-	// Check for duplicate username
-	if username != "" {
-		var existingUser models.User
-		err := s.db.WithContext(ctx).Where("username = ? AND instance_id = ?", username, s.instanceId).First(&existingUser).Error
-		if err == nil {
-			return nil, consts.USER_ALREADY_EXISTS
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-	}
+		return nil
+	})
 
-	// Check for duplicate email
-	if email != "" {
-		var existingUser models.User
-		err := s.db.WithContext(ctx).Where("email = ? AND instance_id = ?", email, s.instanceId).First(&existingUser).Error
-		if err == nil {
-			return nil, consts.USER_ALREADY_EXISTS
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-	}
-
-	// Check for duplicate phone
-	if phone != "" {
-		var existingUser models.User
-		err := s.db.WithContext(ctx).Where("phone = ? AND instance_id = ?", phone, s.instanceId).First(&existingUser).Error
-		if err == nil {
-			return nil, consts.USER_ALREADY_EXISTS
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, err
-		}
-	}
-
-	// Hash password if provided
-	var hashedPassword *string
-	if password != "" {
-		hashed, err := passwordService.HashPassword(password)
-		if err != nil {
-			return nil, err
-		}
-		hashedPassword = &hashed
-	}
-
-	// Serialize user metadata
-	var userMetaJSON *json.RawMessage
-	if len(opts.UserMetadata) > 0 {
-		metaBytes, err := json.Marshal(opts.UserMetadata)
-		if err != nil {
-			return nil, err
-		}
-		userMetaJSON = (*json.RawMessage)(&metaBytes)
-	}
-
-	// Serialize app metadata
-	var appMetaJSON *json.RawMessage
-	if len(opts.AppMetadata) > 0 {
-		metaBytes, err := json.Marshal(opts.AppMetadata)
-		if err != nil {
-			return nil, err
-		}
-		appMetaJSON = (*json.RawMessage)(&metaBytes)
-	}
-
-	// Create user model
-	now := time.Now()
-	userModel := &models.User{
-		InstanceId:        s.instanceId,
-		Username:          &username,
-		Email:             &email,
-		Phone:             &phone,
-		EncryptedPassword: hashedPassword,
-		RawUserMetaData:   (*models.JSON)(userMetaJSON),
-		RawAppMetaData:    (*models.JSON)(appMetaJSON),
-		CreatedAt:         now,
-		UpdatedAt:         now,
-		IsAnonymous:       false,
-	}
-
-	// Set username/email/phone to nil if empty
-	if username == "" {
-		userModel.Username = nil
-	}
-	if email == "" {
-		userModel.Email = nil
-	}
-	if phone == "" {
-		userModel.Phone = nil
-	}
-
-	// Save to database
-	if err := s.db.WithContext(ctx).Create(userModel).Error; err != nil {
+	if err != nil {
 		return nil, err
 	}
 
-	// Create User object
-	return NewUserFromModel(userModel, passwordService, NewSessionService(s.db), s.db, s.instanceId)
+	// 修复：事务提交后，将 user.db 从已提交的事务 tx 切换为正常的 db 连接
+	createdUser.db = s.db
+
+	return createdUser, nil
 }
 
 // GetByID retrieves user by ID and instance code
@@ -690,10 +767,17 @@ func CreateUser(ctx context.Context, db *gorm.DB, instanceId string, opts *UserC
 	return userService.CreateUser(ctx, opts)
 }
 
+// CreateUserWithSource creates a user with source information (for admin/internal use)
+func CreateUserWithSource(ctx context.Context, db *gorm.DB, instanceId string, opts *UserCreateOptions, source UserCreatedSource, extraContext map[string]any, httpRequest *http.Request) (*User, error) {
+	userService := NewUserServiceWithInstance(db, instanceId)
+	return userService.CreateUserWithSource(ctx, opts, source, extraContext, httpRequest)
+}
+
 // GetUserByID Get user by ID
 func GetUserByID(ctx context.Context, db *gorm.DB, instanceId string, id uint) (*User, error) {
 	var userModel models.User
-	err := db.WithContext(ctx).Where("id = ? AND instance_id = ?", id, instanceId).First(&userModel).Error
+	err := db.WithContext(ctx).Preload("Identities").
+		Where("id = ? AND instance_id = ?", id, instanceId).First(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
@@ -714,7 +798,8 @@ func GetUserByHashID(ctx context.Context, db *gorm.DB, instanceId string, hashID
 // GetUserByEmail Get user by email
 func GetUserByEmail(ctx context.Context, db *gorm.DB, instanceId string, email string) (*User, error) {
 	var userModel models.User
-	err := db.WithContext(ctx).Where("email = ? AND instance_id = ?", email, instanceId).First(&userModel).Error
+	err := db.WithContext(ctx).Preload("Identities").
+		Where("email = ? AND instance_id = ?", email, instanceId).First(&userModel).Error
 	if err != nil {
 		return nil, err
 	}
@@ -1301,4 +1386,99 @@ func GetUsersByHashIDs(ctx context.Context, db *gorm.DB, hashIDs []string) (map[
 	}
 
 	return result, nil
+}
+
+// executeBeforeUserCreatedMiddlewares 执行Before middlewares
+func (s *UserService) executeBeforeUserCreatedMiddlewares(
+	ctx context.Context,
+	tx *gorm.DB,
+	userModel *models.User,
+	source UserCreatedSource,
+	opts *UserCreateOptions,
+	extraContext map[string]any,
+	httpRequest *http.Request,
+) error {
+	// 获取AuthService实例
+	if s.authService == nil {
+		return nil // 如果没有AuthService，跳过middleware
+	}
+
+	authServiceImpl, ok := s.authService.(*AuthServiceImpl)
+	if !ok {
+		return nil
+	}
+
+	middlewares := authServiceImpl.GetBeforeUserCreatedMiddlewares()
+	if len(middlewares) == 0 {
+		return nil
+	}
+
+	// 创建Context（Before时User对象还未创建，所以user为nil）
+	userCreatedCtx := &userCreatedContextImpl{
+		Context:      ctx,
+		authService:  s.authService,
+		httpRequest:  httpRequest,
+		user:         nil, // Before时User对象还未创建
+		userModel:    userModel,
+		source:       source,
+		opts:         opts,
+		extraContext: extraContext,
+		isBeforeHook: true,
+	}
+
+	// Execute middleware chain with panic recovery
+	return executeMiddlewareChainWithRecovery(
+		len(middlewares),
+		func(index int, next func() error) error {
+			return middlewares[index](userCreatedCtx, next)
+		},
+		"BeforeUserCreatedUse",
+	)
+}
+
+// executeAfterUserCreatedMiddlewares 执行After middlewares
+func (s *UserService) executeAfterUserCreatedMiddlewares(
+	ctx context.Context,
+	tx *gorm.DB,
+	user *User,
+	source UserCreatedSource,
+	extraContext map[string]any,
+	httpRequest *http.Request,
+) error {
+	// 获取AuthService实例
+	if s.authService == nil {
+		return nil // 如果没有AuthService，跳过middleware
+	}
+
+	authServiceImpl, ok := s.authService.(*AuthServiceImpl)
+	if !ok {
+		return nil
+	}
+
+	middlewares := authServiceImpl.GetAfterUserCreatedMiddlewares()
+	if len(middlewares) == 0 {
+		return nil
+	}
+
+	// 创建Context（After时User对象已创建，ID已分配）
+	userCreatedCtx := &userCreatedContextImpl{
+		Context:      ctx,
+		authService:  s.authService,
+		httpRequest:  httpRequest,
+		user:         user,
+		userModel:    nil, // After时不需要userModel
+		source:       source,
+		opts:         nil, // After时不需要opts
+		extraContext: extraContext,
+		isBeforeHook: false,
+	}
+
+	// Execute middleware chain with panic recovery
+	return executeMiddlewareChainWithRecovery(
+		len(middlewares),
+		func(index int, next func() error) error {
+			return middlewares[index](userCreatedCtx, next)
+		},
+		"AfterUserCreatedUse",
+	)
 }

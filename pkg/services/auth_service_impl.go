@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/flaboy/pin"
@@ -63,6 +64,13 @@ type AuthServiceImpl struct {
 	signinMiddlewares   []func(ctx SigninContext, next func() error) error
 	passwordMiddlewares []func(ctx PasswordContext, next func() error) error
 	otpMiddlewares      []func(ctx OTPContext, next func() error) error
+
+	// 生命周期hooks
+	beforeUserCreatedMiddlewares []func(ctx UserCreatedContext, next func() error) error
+	afterUserCreatedMiddlewares  []func(ctx UserCreatedContext, next func() error) error
+	authenticatedMiddlewares     []func(ctx AuthenticatedContext, next func() error) error
+	sessionCreatedMiddlewares    []func(ctx SessionCreatedContext, next func() error) error
+	identityLinkedMiddlewares    []func(ctx IdentityLinkedContext, next func() error) error
 }
 
 // NewAuthServiceImpl creates a new authentication service with secrets provider
@@ -76,10 +84,10 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 
 	// Create service instance first (without jwtService)
 	s := &AuthServiceImpl{
-		db:             db,
+		db:              db,
 		secretsProvider: secretsProvider,
-		configLoader:   configLoader,
-		instanceId:     instanceId,
+		configLoader:    configLoader,
+		instanceId:      instanceId,
 	}
 
 	// Now create jwtService with closure that references secrets provider
@@ -137,6 +145,16 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 		},
 	}
 
+	// Initialize lifecycle hook middleware slices
+	s.beforeUserCreatedMiddlewares = make([]func(ctx UserCreatedContext, next func() error) error, 0)
+	s.afterUserCreatedMiddlewares = make([]func(ctx UserCreatedContext, next func() error) error, 0)
+	s.authenticatedMiddlewares = make([]func(ctx AuthenticatedContext, next func() error) error, 0)
+	s.sessionCreatedMiddlewares = make([]func(ctx SessionCreatedContext, next func() error) error, 0)
+	s.identityLinkedMiddlewares = make([]func(ctx IdentityLinkedContext, next func() error) error, 0)
+
+	// 关键：让UserService能访问middlewares
+	userService.SetAuthService(s)
+
 	// Initialize builtin template resolver as fallback
 	s.messageTemplateResolvers = []types.MessageTemplateResolver{
 		NewBuiltinTemplateResolver(),
@@ -156,10 +174,10 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 
 	// Create service instance first (without jwtService)
 	s := &AuthServiceImpl{
-		db:             db,
+		db:              db,
 		secretsProvider: secretsProvider,
-		configLoader:   configLoader,
-		instanceId:     instanceId,
+		configLoader:    configLoader,
+		instanceId:      instanceId,
 	}
 
 	// Now create jwtService with closure that references secrets provider
@@ -215,6 +233,16 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 			return checkSMSRateLimitWrapper(ctx, next)
 		},
 	}
+
+	// Initialize lifecycle hook middleware slices
+	s.beforeUserCreatedMiddlewares = make([]func(ctx UserCreatedContext, next func() error) error, 0)
+	s.afterUserCreatedMiddlewares = make([]func(ctx UserCreatedContext, next func() error) error, 0)
+	s.authenticatedMiddlewares = make([]func(ctx AuthenticatedContext, next func() error) error, 0)
+	s.sessionCreatedMiddlewares = make([]func(ctx SessionCreatedContext, next func() error) error, 0)
+	s.identityLinkedMiddlewares = make([]func(ctx IdentityLinkedContext, next func() error) error, 0)
+
+	// 关键：让UserService能访问middlewares
+	userService.SetAuthService(s)
 
 	// Initialize builtin template resolver as fallback
 	s.messageTemplateResolvers = []types.MessageTemplateResolver{
@@ -381,13 +409,22 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 		phone = *user.Phone
 	}
 
+	slog.Info("[CreateSession] Before GenerateAccessTokenWithExpiry",
+		"userHashID", user.HashID,
+		"userHashIDEmpty", user.HashID == "",
+		"instanceId", s.instanceId,
+		"email", email,
+		"phone", phone,
+		"sessionID", session.ID)
 	accessToken, expiresAt, err := s.jwtService.GenerateAccessTokenWithExpiry(
 		user.HashID, s.instanceId, email, phone, "authenticated",
 		aal, amr, session.ID, userMeta, appMeta,
 	)
 	if err != nil {
+		slog.Error("[CreateSession] GenerateAccessTokenWithExpiry failed", "error", err, "userHashID", user.HashID)
 		return nil, "", "", 0, err
 	}
+	slog.Info("[CreateSession] GenerateAccessTokenWithExpiry succeeded", "tokenLen", len(accessToken), "expiresAt", expiresAt)
 
 	// Generate refresh token
 	refreshToken, err := s.jwtService.GenerateRefreshToken()
@@ -412,6 +449,12 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	sessionObj, err := NewSession(session)
 	if err != nil {
 		return nil, "", "", 0, consts.UNEXPECTED_FAILURE
+	}
+
+	// Trigger SessionCreatedUse middleware
+	if err := s.executeSessionCreatedMiddlewares(ctx, user, sessionObj, accessToken, refreshToken, nil); err != nil {
+		// Log error but don't fail session creation
+		slog.Error("SessionCreatedUse middleware failed", "error", err)
 	}
 
 	return sessionObj, accessToken, refreshToken, expiresAt, nil
@@ -981,6 +1024,61 @@ func (s *AuthServiceImpl) GetOTPMiddlewares() []func(ctx OTPContext, next func()
 	return s.otpMiddlewares
 }
 
+// BeforeUserCreatedUse adds before user created lifecycle middleware
+func (s *AuthServiceImpl) BeforeUserCreatedUse(middleware func(ctx UserCreatedContext, next func() error) error) AuthService {
+	s.beforeUserCreatedMiddlewares = append(s.beforeUserCreatedMiddlewares, middleware)
+	return s
+}
+
+// AfterUserCreatedUse adds after user created lifecycle middleware
+func (s *AuthServiceImpl) AfterUserCreatedUse(middleware func(ctx UserCreatedContext, next func() error) error) AuthService {
+	s.afterUserCreatedMiddlewares = append(s.afterUserCreatedMiddlewares, middleware)
+	return s
+}
+
+// AuthenticatedUse adds authenticated lifecycle middleware
+func (s *AuthServiceImpl) AuthenticatedUse(middleware func(ctx AuthenticatedContext, next func() error) error) AuthService {
+	s.authenticatedMiddlewares = append(s.authenticatedMiddlewares, middleware)
+	return s
+}
+
+// SessionCreatedUse adds session created lifecycle middleware
+func (s *AuthServiceImpl) SessionCreatedUse(middleware func(ctx SessionCreatedContext, next func() error) error) AuthService {
+	s.sessionCreatedMiddlewares = append(s.sessionCreatedMiddlewares, middleware)
+	return s
+}
+
+// IdentityLinkedUse adds identity linked lifecycle middleware
+func (s *AuthServiceImpl) IdentityLinkedUse(middleware func(ctx IdentityLinkedContext, next func() error) error) AuthService {
+	s.identityLinkedMiddlewares = append(s.identityLinkedMiddlewares, middleware)
+	return s
+}
+
+// GetBeforeUserCreatedMiddlewares gets before user created middlewares
+func (s *AuthServiceImpl) GetBeforeUserCreatedMiddlewares() []func(ctx UserCreatedContext, next func() error) error {
+	return s.beforeUserCreatedMiddlewares
+}
+
+// GetAfterUserCreatedMiddlewares gets after user created middlewares
+func (s *AuthServiceImpl) GetAfterUserCreatedMiddlewares() []func(ctx UserCreatedContext, next func() error) error {
+	return s.afterUserCreatedMiddlewares
+}
+
+// GetAuthenticatedMiddlewares gets authenticated middlewares
+func (s *AuthServiceImpl) GetAuthenticatedMiddlewares() []func(ctx AuthenticatedContext, next func() error) error {
+	return s.authenticatedMiddlewares
+}
+
+// GetSessionCreatedMiddlewares gets session created middlewares
+func (s *AuthServiceImpl) GetSessionCreatedMiddlewares() []func(ctx SessionCreatedContext, next func() error) error {
+	return s.sessionCreatedMiddlewares
+}
+
+// GetIdentityLinkedMiddlewares gets identity linked middlewares
+func (s *AuthServiceImpl) GetIdentityLinkedMiddlewares() []func(ctx IdentityLinkedContext, next func() error) error {
+	return s.identityLinkedMiddlewares
+}
+
 func (s *AuthServiceImpl) GetMFAProvider(name string) (types.MFAProvider, bool) {
 	if _, ok := s.mfaProviders[name]; !ok {
 		return nil, false
@@ -1058,4 +1156,146 @@ func checkSMSRateLimitWrapper(ctx OTPContext, next func() error) error {
 	}
 
 	return next()
+}
+
+// executeSessionCreatedMiddlewares executes SessionCreatedUse middlewares
+func (s *AuthServiceImpl) executeSessionCreatedMiddlewares(
+	ctx context.Context,
+	user *User,
+	session *Session,
+	accessToken string,
+	refreshToken string,
+	httpRequest *http.Request,
+) error {
+	middlewares := s.GetSessionCreatedMiddlewares()
+	if len(middlewares) == 0 {
+		return nil
+	}
+
+	// Create Context
+	sessionCreatedCtx := &sessionCreatedContextImpl{
+		Context:      ctx,
+		authService:  s,
+		httpRequest:  httpRequest,
+		user:         user,
+		session:      session,
+		accessToken:  accessToken,
+		refreshToken: refreshToken,
+	}
+
+	// Execute middleware chain with panic recovery
+	return executeMiddlewareChainWithRecovery(
+		len(middlewares),
+		func(index int, next func() error) error {
+			return middlewares[index](sessionCreatedCtx, next)
+		},
+		"SessionCreatedUse",
+	)
+}
+
+// executeMiddlewareChainWithRecovery 统一执行中间件链，并处理 panic
+// executeFunc 是一个函数，接受 index 和 next 函数，执行对应的中间件
+func executeMiddlewareChainWithRecovery(
+	middlewareCount int,
+	executeFunc func(index int, next func() error) error,
+	middlewareType string,
+) error {
+	if middlewareCount == 0 {
+		return nil
+	}
+
+	var executeMiddleware func(index int) error
+	executeMiddleware = func(index int) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("Middleware panicked",
+					"panic", r,
+					"middleware_type", middlewareType,
+					"index", index)
+				err = errors.New("middleware panic")
+			}
+		}()
+
+		if index >= middlewareCount {
+			return nil
+		}
+		return executeFunc(index, func() error {
+			return executeMiddleware(index + 1)
+		})
+	}
+
+	return executeMiddleware(0)
+}
+
+// ExecuteAuthenticatedMiddlewares executes AuthenticatedUse middlewares (public for controller use)
+func (s *AuthServiceImpl) ExecuteAuthenticatedMiddlewares(
+	ctx context.Context,
+	user *User,
+	session *Session,
+	method AuthMethod,
+	provider string,
+	httpRequest *http.Request,
+) error {
+	middlewares := s.GetAuthenticatedMiddlewares()
+	if len(middlewares) == 0 {
+		return nil
+	}
+
+	// Create Context
+	authenticatedCtx := &authenticatedContextImpl{
+		Context:     ctx,
+		authService: s,
+		httpRequest: httpRequest,
+		user:        user,
+		method:      method,
+		provider:    provider,
+	}
+	authenticatedCtx.response = &AuthenticatedResponse{
+		User:    user,
+		Session: session,
+	}
+
+	// Execute middleware chain with panic recovery
+	return executeMiddlewareChainWithRecovery(
+		len(middlewares),
+		func(index int, next func() error) error {
+			return middlewares[index](authenticatedCtx, next)
+		},
+		"AuthenticatedUse",
+	)
+}
+
+// ExecuteIdentityLinkedMiddlewares executes IdentityLinkedUse middlewares (public for controller use)
+func (s *AuthServiceImpl) ExecuteIdentityLinkedMiddlewares(
+	ctx context.Context,
+	user *User,
+	identity *models.Identity,
+	provider string,
+	isNewIdentity bool,
+	httpRequest *http.Request,
+) error {
+	middlewares := s.GetIdentityLinkedMiddlewares()
+	if len(middlewares) == 0 {
+		return nil
+	}
+
+	// Create Context
+	identityLinkedCtx := &identityLinkedContextImpl{
+		Context:       ctx,
+		authService:   s,
+		httpRequest:   httpRequest,
+		user:          user,
+		provider:      provider,
+		identity:      identity,
+		isNewIdentity: isNewIdentity,
+	}
+
+	// Execute middleware chain with panic recovery
+	return executeMiddlewareChainWithRecovery(
+		len(middlewares),
+		func(index int, next func() error) error {
+			return middlewares[index](identityLinkedCtx, next)
+		},
+		"IdentityLinkedUse",
+	)
 }

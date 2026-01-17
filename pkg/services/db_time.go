@@ -10,7 +10,7 @@ import (
 // This ensures consistent time across all operations and avoids timezone issues
 func GetDatabaseNow(db *gorm.DB) time.Time {
 	var now time.Time
-	dialect := db.Dialector.Name()
+	dialect := db.Name()
 
 	switch dialect {
 	case "postgres":
@@ -32,7 +32,7 @@ func GetDatabaseNow(db *gorm.DB) time.Time {
 // This is done entirely in the database to avoid timezone conversion issues
 func CalculateTimeDifference(db *gorm.DB, fromTime time.Time) float64 {
 	var diffSeconds float64
-	dialect := db.Dialector.Name()
+	dialect := db.Name()
 
 	// Convert fromTime to UTC to ensure consistent comparison
 	fromTimeUTC := fromTime.UTC()

@@ -90,10 +90,10 @@ func (suite *SignupIPFilterTestSuite) TestSignupWithAllowedIP() {
 	response.Print()
 
 	suite.Equal(200, response.ResponseRecorder.Code, "Allowed IP should be able to signup successfully")
-	suite.Nil(response.Response.Error, "Should not have error")
+	suite.Nil(response.Error, "Should not have error")
 
-	suite.NotNil(response.Response.Data, "Should return data")
-	responseData := response.Response.Data.(map[string]any)
+	suite.NotNil(response.Data, "Should return data")
+	responseData := response.Data.(map[string]any)
 	suite.Contains(responseData, "user", "Response should contain user")
 
 	userData := responseData["user"].(map[string]any)

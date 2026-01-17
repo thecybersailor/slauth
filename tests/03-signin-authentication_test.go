@@ -1,10 +1,18 @@
 package tests
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 	"github.com/thecybersailor/slauth/pkg/models"
+	"github.com/thecybersailor/slauth/pkg/services"
+	"github.com/thecybersailor/slauth/pkg/types"
 )
 
 type SigninAuthenticationTestSuite struct {
@@ -36,7 +44,7 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLogin() {
 
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	loginRequestBody := S{
 		"grant_type": "password",
@@ -46,10 +54,10 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLogin() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Password login should succeed")
-	suite.Nil(loginResponse.Response.Error, "Password login should not have error")
+	suite.Nil(loginResponse.Error, "Password login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 
 	suite.T().Logf("Login response data: %+v", responseData)
 
@@ -87,8 +95,8 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithInvalidCredenti
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(loginResponse.Response.Error, "Should have error for invalid credentials")
-	suite.Equal("auth.invalid_credentials", loginResponse.Response.Error.Key, "Should return invalid_credentials error")
+	suite.NotNil(loginResponse.Error, "Should have error for invalid credentials")
+	suite.Equal("auth.invalid_credentials", loginResponse.Error.Key, "Should return invalid_credentials error")
 }
 
 func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithNonexistentUser() {
@@ -100,8 +108,8 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithNonexistentUser
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(loginResponse.Response.Error, "Should have error for nonexistent user")
-	suite.Equal("auth.invalid_credentials", loginResponse.Response.Error.Key, "Should return invalid_credentials error")
+	suite.NotNil(loginResponse.Error, "Should have error for nonexistent user")
+	suite.Equal("auth.invalid_credentials", loginResponse.Error.Key, "Should return invalid_credentials error")
 }
 
 func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithMissingFields() {
@@ -113,7 +121,7 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithMissingFields()
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(loginResponse.Response.Error, "Should have error for missing email")
+	suite.NotNil(loginResponse.Error, "Should have error for missing email")
 
 	loginRequestBody = S{
 		"grant_type": "password",
@@ -122,7 +130,7 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithMissingFields()
 
 	loginResponse = suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(loginResponse.Response.Error, "Should have error for missing password")
+	suite.NotNil(loginResponse.Error, "Should have error for missing password")
 }
 
 func (suite *SigninAuthenticationTestSuite) TestIDTokenLogin() {
@@ -139,10 +147,10 @@ func (suite *SigninAuthenticationTestSuite) TestIDTokenLogin() {
 
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=id_token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "ID Token login should succeed")
-	suite.Nil(loginResponse.Response.Error, "ID Token login should not have error")
+	suite.Nil(loginResponse.Error, "ID Token login should not have error")
 
-	suite.NotNil(loginResponse.Response.Data, "Login response should have data")
-	responseData := loginResponse.Response.Data.(map[string]any)
+	suite.NotNil(loginResponse.Data, "Login response should have data")
+	responseData := loginResponse.Data.(map[string]any)
 
 	suite.T().Logf("ID Token login response data: %+v", responseData)
 
@@ -178,10 +186,10 @@ func (suite *SigninAuthenticationTestSuite) testOAuthIDTokenFlow() {
 
 	oauthResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/authorize", oauthRequestBody)
 	suite.Equal(200, oauthResponse.ResponseRecorder.Code, "OAuth authorize should succeed")
-	suite.Nil(oauthResponse.Response.Error, "OAuth authorize should not have error")
+	suite.Nil(oauthResponse.Error, "OAuth authorize should not have error")
 
-	suite.NotNil(oauthResponse.Response.Data, "OAuth response should have data")
-	responseData := oauthResponse.Response.Data.(map[string]any)
+	suite.NotNil(oauthResponse.Data, "OAuth response should have data")
+	responseData := oauthResponse.Data.(map[string]any)
 
 	suite.T().Logf("OAuth ID Token flow response data: %+v", responseData)
 
@@ -204,10 +212,10 @@ func (suite *SigninAuthenticationTestSuite) testOAuthAuthCodeFlow() {
 
 	oauthResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/authorize", oauthRequestBody)
 	suite.Equal(200, oauthResponse.ResponseRecorder.Code, "OAuth authorize should succeed")
-	suite.Nil(oauthResponse.Response.Error, "OAuth authorize should not have error")
+	suite.Nil(oauthResponse.Error, "OAuth authorize should not have error")
 
-	suite.NotNil(oauthResponse.Response.Data, "OAuth response should have data")
-	responseData := oauthResponse.Response.Data.(map[string]any)
+	suite.NotNil(oauthResponse.Data, "OAuth response should have data")
+	responseData := oauthResponse.Data.(map[string]any)
 
 	suite.T().Logf("OAuth AuthCode flow response data: %+v", responseData)
 
@@ -225,24 +233,24 @@ func (suite *SigninAuthenticationTestSuite) TestSSOLogin() {
 	ssoRequestBody := S{}
 	ssoResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO request should return 200")
-	suite.NotNil(ssoResponse.Response.Error, "SSO request without instance should have error")
-	suite.Equal("auth.validation_failed", ssoResponse.Response.Error.Key, "Should return validation_failed error")
+	suite.NotNil(ssoResponse.Error, "SSO request without instance should have error")
+	suite.Equal("auth.validation_failed", ssoResponse.Error.Key, "Should return validation_failed error")
 
 	ssoRequestBody = S{
 		"instance": "nonexistent.com",
 	}
 	ssoResponse = suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO request should return 200")
-	suite.NotNil(ssoResponse.Response.Error, "SSO request with nonexistent instance should have error")
-	suite.Equal("auth.sso_provider_not_found", ssoResponse.Response.Error.Key, "Should return sso_provider_not_found error")
+	suite.NotNil(ssoResponse.Error, "SSO request with nonexistent instance should have error")
+	suite.Equal("auth.sso_provider_not_found", ssoResponse.Error.Key, "Should return sso_provider_not_found error")
 
 	ssoRequestBody = S{
 		"providerId": "nonexistent-provider-id",
 	}
 	ssoResponse = suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO request should return 200")
-	suite.NotNil(ssoResponse.Response.Error, "SSO request with nonexistent providerId should have error")
-	suite.Equal("auth.sso_provider_not_found", ssoResponse.Response.Error.Key, "Should return sso_provider_not_found error")
+	suite.NotNil(ssoResponse.Error, "SSO request with nonexistent providerId should have error")
+	suite.Equal("auth.sso_provider_not_found", ssoResponse.Error.Key, "Should return sso_provider_not_found error")
 
 	suite.T().Log("✅ SSO API endpoint validation tests completed successfully")
 
@@ -254,7 +262,7 @@ func (suite *SigninAuthenticationTestSuite) TestSSOLogin() {
 	callbackResponse := suite.helper.MakePOSTFormRequest(suite.T(), "/auth/sso/callback", callbackData)
 
 	suite.Equal(200, callbackResponse.ResponseRecorder.Code, "All endpoints should return 200")
-	suite.NotNil(callbackResponse.Response.Error, "Invalid SAML callback should have error")
+	suite.NotNil(callbackResponse.Error, "Invalid SAML callback should have error")
 	suite.T().Log("✅ SSO callback endpoint validation test completed successfully")
 
 	suite.T().Log("✅ SSO login basic functionality tests completed")
@@ -337,8 +345,8 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 	ssoResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/sso", ssoRequestBody)
 	suite.Equal(200, ssoResponse.ResponseRecorder.Code, "SSO initiation should succeed")
 
-	if ssoResponse.Response.Error != nil {
-		suite.T().Logf("⚠️  SSO initiation failed - Key: %s, Message: %s", ssoResponse.Response.Error.Key, ssoResponse.Response.Error.Message)
+	if ssoResponse.Error != nil {
+		suite.T().Logf("⚠️  SSO initiation failed - Key: %s, Message: %s", ssoResponse.Error.Key, ssoResponse.Error.Message)
 
 		suite.T().Log("🔄 Testing SAML response processing directly...")
 
@@ -366,13 +374,13 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 		callbackResponse := suite.helper.MakePOSTFormRequest(suite.T(), "/auth/sso/callback", callbackData)
 		suite.Equal(200, callbackResponse.ResponseRecorder.Code, "SAML callback should return 200")
 
-		if callbackResponse.Response.Error != nil {
-			suite.T().Logf("⚠️  SAML callback processing failed - Key: %s, Message: %s", callbackResponse.Response.Error.Key, callbackResponse.Response.Error.Message)
+		if callbackResponse.Error != nil {
+			suite.T().Logf("⚠️  SAML callback processing failed - Key: %s, Message: %s", callbackResponse.Error.Key, callbackResponse.Error.Message)
 			suite.T().Log("✅ SAML integration test completed with expected limitations")
 		} else {
 
-			suite.NotNil(callbackResponse.Response.Data, "SAML callback should have data")
-			responseData := callbackResponse.Response.Data.(map[string]any)
+			suite.NotNil(callbackResponse.Data, "SAML callback should have data")
+			responseData := callbackResponse.Data.(map[string]any)
 
 			suite.Contains(responseData, "user", "Should contain user")
 			suite.Contains(responseData, "session", "Should contain session")
@@ -407,9 +415,9 @@ func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 
 	oauthResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/authorize", oauthRequestBody)
 	suite.Equal(200, oauthResponse.ResponseRecorder.Code, "OAuth authorize should succeed")
-	suite.Nil(oauthResponse.Response.Error, "OAuth authorize should not have error")
+	suite.Nil(oauthResponse.Error, "OAuth authorize should not have error")
 
-	responseData := oauthResponse.Response.Data.(map[string]any)
+	responseData := oauthResponse.Data.(map[string]any)
 	flowID := responseData["flow_id"].(string)
 	suite.NotEmpty(flowID, "Should have flow_id")
 
@@ -423,10 +431,10 @@ func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 
 	exchangeResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=pkce", exchangeRequestBody)
 	suite.Equal(200, exchangeResponse.ResponseRecorder.Code, "PKCE code exchange should succeed")
-	suite.Nil(exchangeResponse.Response.Error, "PKCE code exchange should not have error")
+	suite.Nil(exchangeResponse.Error, "PKCE code exchange should not have error")
 
-	suite.NotNil(exchangeResponse.Response.Data, "Exchange response should have data")
-	exchangeData := exchangeResponse.Response.Data.(map[string]any)
+	suite.NotNil(exchangeResponse.Data, "Exchange response should have data")
+	exchangeData := exchangeResponse.Data.(map[string]any)
 
 	suite.T().Logf("PKCE code exchange response data: %+v", exchangeData)
 
@@ -461,6 +469,82 @@ func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 	suite.NoError(err, "Should find the identity record")
 	suite.Equal("mock-oauth-pkce", identity.Provider, "Provider should match")
 	suite.Equal("mock-user-123", identity.ProviderID, "Provider ID should match")
+}
+
+// TestPKCECodeExchangeWithPKCS8Key tests PKCE flow with PKCS#8 format private key
+// This test reproduces the issue where parsePrivateKey fails with PKCS#8 format
+// The issue: parsePrivateKey uses x509.ParseECPrivateKey which only works with SEC1 format,
+// but many systems generate PKCS#8 format keys (PRIVATE KEY instead of EC PRIVATE KEY)
+func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchangeWithPKCS8Key() {
+	// Generate PKCS#8 format ES256 key pair (not SEC1 format)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	suite.Require().NoError(err, "Failed to generate EC key")
+
+	// Marshal as PKCS#8 format (not SEC1)
+	privateKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	suite.Require().NoError(err, "Failed to marshal PKCS#8 private key")
+
+	privateKeyBlock := &pem.Block{
+		Type:  "PRIVATE KEY", // PKCS#8 format, not "EC PRIVATE KEY" (SEC1 format)
+		Bytes: privateKeyDER,
+	}
+	privateKeyPEM := string(pem.EncodeToMemory(privateKeyBlock))
+
+	publicKeyDER, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+	suite.Require().NoError(err, "Failed to marshal public key")
+
+	publicKeyBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyDER,
+	}
+	publicKeyPEM := string(pem.EncodeToMemory(publicKeyBlock))
+
+	// Create secrets with PKCS#8 format key
+	secrets := &types.InstanceSecrets{
+		PrimaryKeyId: "pkcs8-key-2024",
+		Keys: map[string]*types.SigningKey{
+			"pkcs8-key-2024": {
+				Kid:        "pkcs8-key-2024",
+				Algorithm:  types.SignAlgES256,
+				PrivateKey: privateKeyPEM,
+				PublicKey:  publicKeyPEM,
+			},
+		},
+		AppSecret: "test-app-secret",
+	}
+
+	// Create secrets provider with PKCS#8 key
+	provider := services.NewStaticSecretsProvider(secrets)
+	getSecrets := func() *types.InstanceSecrets {
+		s, _ := provider.GetSecrets(suite.TestInstance)
+		return s
+	}
+
+	// Create new JWT service with PKCS#8 key
+	jwtService := services.NewJWTService(
+		getSecrets,
+		func() time.Duration { return time.Hour },
+		func() time.Duration { return 24 * time.Hour },
+		"https://test.example.com",
+	)
+
+	// Generate token - this should now succeed after the fix
+	// The fix allows parsePrivateKey to handle both SEC1 and PKCS#8 formats
+	token, err := jwtService.GenerateAccessToken(
+		"user123", suite.TestInstance, "test@example.com", "", "authenticated",
+		types.AALLevel1, []string{"pwd"}, 1, nil, nil,
+	)
+
+	// After the fix, PKCS#8 format keys should work correctly
+	suite.NoError(err, "GenerateAccessToken should succeed with PKCS#8 format key after the fix")
+	suite.NotEmpty(token, "Generated token should not be empty")
+
+	// Verify the token can be validated
+	claims, err := jwtService.ValidateAccessToken(token)
+	suite.NoError(err, "Token validation should succeed")
+	suite.NotNil(claims, "Claims should not be nil")
+	suite.Equal("user123", claims.UserID, "User ID should match")
+	suite.Equal(suite.TestInstance, claims.InstanceId, "Instance ID should match")
 }
 
 func TestSigninAuthenticationTestSuite(t *testing.T) {

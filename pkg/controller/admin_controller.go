@@ -298,11 +298,15 @@ func (c *AdminController) CreateUser(ctx *pin.Context) error {
 		opts.Password = &req.Password
 	}
 
-	user, err := services.CreateUser(
+	// Use CreateUserWithSource to trigger hooks
+	// Use authService.GetUserService() to ensure hooks are available
+	userService := c.authService.GetUserService()
+	user, err := userService.CreateUserWithSource(
 		ctx.Request.Context(),
-		c.authService.GetDB(),
-		c.authService.GetInstanceId(),
 		opts,
+		services.UserCreatedSourceAdmin,
+		nil, // no extra context for admin
+		ctx.Request,
 	)
 	if err != nil {
 		return err

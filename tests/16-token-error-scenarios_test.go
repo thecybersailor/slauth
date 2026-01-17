@@ -92,7 +92,7 @@ func (suite *TokenErrorScenariosTestSuite) TestAccessTokenExpired() {
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]any)
+	responseData := loginResponse.Data.(map[string]any)
 	session := responseData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 
@@ -143,7 +143,7 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenInvalid() {
 	suite.Equal(401, refreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), refreshResponse, "refresh_token_not_found", "Should fail with invalid refresh token")
 
-	suite.T().Logf("Parsed Response: %+v", refreshResponse.Response.Error)
+	suite.T().Logf("Parsed Response: %+v", refreshResponse.Error)
 }
 
 // Scenario 5: Refresh Token Expired (used after revoked)
@@ -171,7 +171,7 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenExpired() {
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	responseData := loginResponse.Response.Data.(map[string]any)
+	responseData := loginResponse.Data.(map[string]any)
 	session := responseData["session"].(map[string]any)
 	refreshToken := session["refresh_token"].(string)
 	accessToken := session["access_token"].(string)
@@ -206,7 +206,7 @@ func (suite *TokenErrorScenariosTestSuite) TestRefreshTokenExpired() {
 	suite.Equal(401, expiredRefreshResponse.ResponseRecorder.Code, "Refresh request returns 401")
 	suite.helper.HasError(suite.T(), expiredRefreshResponse, "refresh_token_not_found", "Should fail with expired refresh token")
 
-	suite.T().Logf("Parsed Response: %+v", expiredRefreshResponse.Response.Error)
+	suite.T().Logf("Parsed Response: %+v", expiredRefreshResponse.Error)
 }
 
 func TestTokenErrorScenariosTestSuite(t *testing.T) {

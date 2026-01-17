@@ -203,3 +203,10 @@ export function isExpired(timestamp: number, bufferSeconds: number = 60): boolea
   const now = getCurrentTimestamp()
   return timestamp <= (now + bufferSeconds)
 }
+
+/** Debug logger - only logs when debug is enabled */
+export function debugLog(debug: boolean, ...args: any[]): void {
+  if (debug) {
+    console.log(...args)
+  }
+}

@@ -59,8 +59,8 @@ func (suite *ServiceConfigTestSuite) TestAnonymousSignInConfiguration() {
 
 	// Anonymous sign-in should succeed when enabled
 	suite.Equal(200, enabledAnonymousResponse.ResponseRecorder.Code, "Anonymous sign-in should succeed when enabled")
-	if enabledAnonymousResponse.Response.Data != nil {
-		responseData := enabledAnonymousResponse.Response.Data.(map[string]interface{})
+	if enabledAnonymousResponse.Data != nil {
+		responseData := enabledAnonymousResponse.Data.(map[string]interface{})
 		sessionData, sessionExists := responseData["session"].(map[string]interface{})
 		suite.True(sessionExists, "Session should be present for anonymous sign-in")
 		if sessionExists {
@@ -157,8 +157,8 @@ func (suite *ServiceConfigTestSuite) TestConfirmEmailConfiguration() {
 	})
 
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.NotNil(signupResponse.Response.Data, "Response data should not be nil")
-	responseData := signupResponse.Response.Data.(map[string]interface{})
+	suite.NotNil(signupResponse.Data, "Response data should not be nil")
+	responseData := signupResponse.Data.(map[string]interface{})
 	userInfo := responseData["user"].(map[string]interface{})
 	suite.Equal(email, userInfo["email"], "Email should match")
 	suite.Nil(responseData["session"], "Session should be nil when email confirmation is required")
@@ -189,7 +189,7 @@ func (suite *ServiceConfigTestSuite) TestConfirmEmailConfiguration() {
 	})
 
 	suite.Equal(200, noConfirmSignupResponse.ResponseRecorder.Code, "Signup should succeed")
-	responseData2 := noConfirmSignupResponse.Response.Data.(map[string]interface{})
+	responseData2 := noConfirmSignupResponse.Data.(map[string]interface{})
 	userInfo2 := responseData2["user"].(map[string]interface{})
 	suite.Equal(newEmail, userInfo2["email"], "Email should match")
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
 )
 
@@ -127,4 +128,81 @@ func (fc *flowChainImpl) Execute(ctx OTPContext) error {
 	}
 
 	return next()
+}
+
+// UserCreatedSource 用户创建来源
+type UserCreatedSource string
+
+const (
+	UserCreatedSourceSignup    UserCreatedSource = "signup"
+	UserCreatedSourceOAuth     UserCreatedSource = "oauth"
+	UserCreatedSourceAdmin     UserCreatedSource = "admin"
+	UserCreatedSourceInvite    UserCreatedSource = "invite"
+	UserCreatedSourceMagicLink UserCreatedSource = "magic_link"
+)
+
+type UserCreatedResponse struct {
+	User *User
+}
+
+type UserCreatedContext interface {
+	FlowInterface
+	User() *User                     // 用户对象（Before时ID=0，After时ID已分配）
+	Source() UserCreatedSource       // 创建来源
+	Provider() string                // OAuth provider（仅OAuth场景）
+	Identity() *models.Identity      // OAuth identity（仅OAuth场景）
+	Response() *UserCreatedResponse
+
+	// 用于Before hook修改用户数据
+	UserMetadata() map[string]any
+	SetUserMetadata(map[string]any)
+}
+
+// AuthMethod 认证方法
+type AuthMethod string
+
+const (
+	AuthMethodPassword  AuthMethod = "password"
+	AuthMethodOAuth     AuthMethod = "oauth"
+	AuthMethodMagicLink AuthMethod = "magic_link"
+	AuthMethodOTP       AuthMethod = "otp"
+)
+
+type AuthenticatedResponse struct {
+	User    *User
+	Session *Session
+}
+
+type AuthenticatedContext interface {
+	FlowInterface
+	User() *User
+	Method() AuthMethod
+	Provider() string // OAuth/MFA provider名称
+	Response() *AuthenticatedResponse
+}
+
+type SessionCreatedResponse struct {
+	Session      *Session
+	AccessToken  string
+	RefreshToken string
+}
+
+type SessionCreatedContext interface {
+	FlowInterface
+	User() *User
+	Session() *Session
+	Response() *SessionCreatedResponse
+}
+
+type IdentityLinkedResponse struct {
+	Identity *models.Identity
+}
+
+type IdentityLinkedContext interface {
+	FlowInterface
+	User() *User
+	Provider() string
+	Identity() *models.Identity
+	IsNewIdentity() bool // true=新创建，false=已存在
+	Response() *IdentityLinkedResponse
 }

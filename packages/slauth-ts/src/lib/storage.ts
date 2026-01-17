@@ -1,4 +1,4 @@
-import { isBrowser, supportsLocalStorage } from './helpers'
+import { isBrowser, supportsLocalStorage, debugLog } from './helpers'
 
 /** Storage interface */
 export interface SupportedStorage {
@@ -43,11 +43,13 @@ export function getStorage(): SupportedStorage {
 export class StorageManager {
   private storage: SupportedStorage
   private storageKey: string
+  private debug: boolean
 
-  constructor(storage?: SupportedStorage, storageKey: string = 'aira.auth.token') {
+  constructor(storage?: SupportedStorage, storageKey: string = 'aira.auth.token', debug: boolean = false) {
     this.storage = storage || getStorage()
     this.storageKey = storageKey
-    console.log('[slauth:storage] StorageManager created', {
+    this.debug = debug
+    debugLog(this.debug, '[slauth:storage] StorageManager created', {
       storageKey: this.storageKey,
       storageType: this.storage.constructor.name,
       customStorage: !!storage,
@@ -59,7 +61,7 @@ export class StorageManager {
   async getSession(options: { checkExpiry?: boolean } = {}): Promise<any | null> {
     const { checkExpiry = true } = options
     
-    console.log('[slauth:storage] getSession - checking storage', {
+    debugLog(this.debug, '[slauth:storage] getSession - checking storage', {
       storageKey: this.storageKey,
       storageType: this.storage.constructor.name,
       checkExpiry,
@@ -67,7 +69,7 @@ export class StorageManager {
     })
     
     const data = this.storage.getItem(this.storageKey)
-    console.log('[slauth:storage] getSession - data retrieved', { 
+    debugLog(this.debug, '[slauth:storage] getSession - data retrieved', { 
       storageKey: this.storageKey,
       hasData: !!data,
       dataLength: data?.length,
@@ -76,14 +78,14 @@ export class StorageManager {
     if (!data) return null
     
     const session = JSON.parse(data)
-    console.log('[slauth:storage] Session parsed', {
+    debugLog(this.debug, '[slauth:storage] Session parsed', {
       hasAccessToken: !!session.access_token,
       hasExpiresAt: !!session.expires_at,
       expiresAt: session.expires_at
     })
     
     if (checkExpiry && session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)) {
-      console.log('[slauth:storage] Session expired, removing')
+      debugLog(this.debug, '[slauth:storage] Session expired, removing')
       await this.removeSession()
       return null
     }
@@ -94,7 +96,7 @@ export class StorageManager {
   /** Save session to storage */
   async saveSession(session: any): Promise<void> {
     const data = JSON.stringify(session)
-    console.log('[slauth:storage] saveSession - before setItem', {
+    debugLog(this.debug, '[slauth:storage] saveSession - before setItem', {
       storageKey: this.storageKey,
       hasAccessToken: !!session.access_token,
       tokenPreview: session.access_token ? `${session.access_token.substring(0, 20)}...` : null,
@@ -105,7 +107,7 @@ export class StorageManager {
     this.storage.setItem(this.storageKey, data)
     
     const verification = this.storage.getItem(this.storageKey)
-    console.log('[slauth:storage] saveSession - after setItem verification', {
+    debugLog(this.debug, '[slauth:storage] saveSession - after setItem verification', {
       storageKey: this.storageKey,
       saved: !!verification,
       dataMatch: verification === data,

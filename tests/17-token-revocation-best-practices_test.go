@@ -64,7 +64,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLogoutRevokesAllDevicesR
 	deviceALoginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, deviceALoginResponse.ResponseRecorder.Code, "Device A login should succeed")
 
-	deviceAData := deviceALoginResponse.Response.Data.(map[string]any)
+	deviceAData := deviceALoginResponse.Data.(map[string]any)
 	deviceASession := deviceAData["session"].(map[string]any)
 	deviceAAccessToken := deviceASession["access_token"].(string)
 	deviceARefreshToken := deviceASession["refresh_token"].(string)
@@ -73,7 +73,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLogoutRevokesAllDevicesR
 	deviceBLoginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, deviceBLoginResponse.ResponseRecorder.Code, "Device B login should succeed")
 
-	deviceBData := deviceBLoginResponse.Response.Data.(map[string]any)
+	deviceBData := deviceBLoginResponse.Data.(map[string]any)
 	deviceBSession := deviceBData["session"].(map[string]any)
 	deviceBAccessToken := deviceBSession["access_token"].(string)
 	deviceBRefreshToken := deviceBSession["refresh_token"].(string)
@@ -146,7 +146,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestSessionRevokeInvalidates
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	loginData := loginResponse.Response.Data.(map[string]any)
+	loginData := loginResponse.Data.(map[string]any)
 	session := loginData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 	refreshToken := session["refresh_token"].(string)
@@ -161,7 +161,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestSessionRevokeInvalidates
 	suite.Equal(200, firstRefreshResponse.ResponseRecorder.Code, "Refresh should succeed before session revoke")
 
 	// Get new refresh token from first refresh
-	firstRefreshData := firstRefreshResponse.Response.Data.(map[string]any)
+	firstRefreshData := firstRefreshResponse.Data.(map[string]any)
 	newSession := firstRefreshData["session"].(map[string]any)
 	newRefreshToken := newSession["refresh_token"].(string)
 
@@ -220,7 +220,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestTokenRefreshReusesSessio
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	loginData := loginResponse.Response.Data.(map[string]any)
+	loginData := loginResponse.Data.(map[string]any)
 	originalSession := loginData["session"].(map[string]any)
 	originalSessionId := originalSession["id"].(string)
 	originalRefreshToken := originalSession["refresh_token"].(string)
@@ -235,7 +235,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestTokenRefreshReusesSessio
 		refreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", refreshRequest)
 		suite.Equal(200, refreshResponse.ResponseRecorder.Code, "Refresh #%d should succeed", i)
 
-		refreshData := refreshResponse.Response.Data.(map[string]any)
+		refreshData := refreshResponse.Data.(map[string]any)
 		newSession := refreshData["session"].(map[string]any)
 		newSessionId := newSession["id"].(string)
 
@@ -275,7 +275,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestAccessTokenRemainsValidA
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	loginData := loginResponse.Response.Data.(map[string]any)
+	loginData := loginResponse.Data.(map[string]any)
 	session := loginData["session"].(map[string]any)
 	accessToken := session["access_token"].(string)
 	sessionId := session["id"].(string)
@@ -324,13 +324,13 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLocalVsGlobalLogout() {
 	}
 
 	device1Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	device1Data := device1Response.Response.Data.(map[string]any)
+	device1Data := device1Response.Data.(map[string]any)
 	device1Session := device1Data["session"].(map[string]any)
 	device1AccessToken := device1Session["access_token"].(string)
 	device1RefreshToken := device1Session["refresh_token"].(string)
 
 	device2Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	device2Data := device2Response.Response.Data.(map[string]any)
+	device2Data := device2Response.Data.(map[string]any)
 	device2Session := device2Data["session"].(map[string]any)
 	device2RefreshToken := device2Session["refresh_token"].(string)
 
@@ -359,8 +359,8 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLocalVsGlobalLogout() {
 		"refresh_token": device2RefreshToken,
 	}
 	device2RefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", device2RefreshRequest)
-	suite.Nil(device2RefreshResponse.Response.Error, "Device 2 refresh should succeed")
-	suite.Nil(device2RefreshResponse.Response.Error, "Device 2 refresh token should still work after Device 1 local logout")
+	suite.Nil(device2RefreshResponse.Error, "Device 2 refresh should succeed")
+	suite.Nil(device2RefreshResponse.Error, "Device 2 refresh token should still work after Device 1 local logout")
 
 	suite.T().Log("✅ Best Practice: scope=local only revokes current device, other devices remain active")
 }
@@ -388,7 +388,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 		"password":   password,
 	}
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
-	loginData := loginResponse.Response.Data.(map[string]any)
+	loginData := loginResponse.Data.(map[string]any)
 	session := loginData["session"].(map[string]any)
 	oldRefreshToken := session["refresh_token"].(string)
 
@@ -400,7 +400,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 	refreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", refreshRequest)
 	suite.Equal(200, refreshResponse.ResponseRecorder.Code, "First refresh should succeed")
 
-	refreshData := refreshResponse.Response.Data.(map[string]any)
+	refreshData := refreshResponse.Data.(map[string]any)
 	newSession := refreshData["session"].(map[string]any)
 	newRefreshToken := newSession["refresh_token"].(string)
 

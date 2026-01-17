@@ -111,10 +111,10 @@ func (suite *AdminQueryTestSuite) createOAuthUser() {
 
 	oauthResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=id_token", loginData)
 	suite.Require().Equal(200, oauthResp.ResponseRecorder.Code, "OAuth user creation should succeed")
-	suite.Require().Nil(oauthResp.Response.Error, "OAuth user creation should not have error")
+	suite.Require().Nil(oauthResp.Error, "OAuth user creation should not have error")
 
-	suite.Require().NotNil(oauthResp.Response.Data, "OAuth login should have data")
-	responseData := oauthResp.Response.Data.(map[string]interface{})
+	suite.Require().NotNil(oauthResp.Data, "OAuth login should have data")
+	responseData := oauthResp.Data.(map[string]interface{})
 	userInfo := responseData["user"].(map[string]interface{})
 	suite.Equal("mock-user@example.com", userInfo["email"], "OAuth user email should match")
 
@@ -187,7 +187,7 @@ func (suite *AdminQueryTestSuite) TestContainsQuery() {
 	suite.Equal(200, resp.ResponseRecorder.Code, "Contains query should succeed")
 	resp.Print()
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	users := data["users"].([]interface{})
 	suite.GreaterOrEqual(len(users), 4, "Should find at least 4 users with 'query' in email")
 }
@@ -263,7 +263,7 @@ func (suite *AdminQueryTestSuite) TestAndQuery() {
 	suite.Equal(200, resp.ResponseRecorder.Code, "$and query should succeed")
 	resp.Print()
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	users := data["users"].([]interface{})
 	suite.GreaterOrEqual(len(users), 3, "Should find at least 3 confirmed users")
 
@@ -355,7 +355,7 @@ func (suite *AdminQueryTestSuite) TestComplexQuery() {
 	suite.Equal(200, resp.ResponseRecorder.Code, "Complex query should succeed")
 	resp.Print()
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	users := data["users"].([]interface{})
 	suite.GreaterOrEqual(len(users), 1, "Should find at least 1 user")
 }
@@ -379,7 +379,7 @@ func (suite *AdminQueryTestSuite) TestSorting() {
 	suite.Equal(200, resp.ResponseRecorder.Code, "Sorting query should succeed")
 	resp.Print()
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	users := data["users"].([]interface{})
 
 	if len(users) >= 2 {
@@ -406,7 +406,7 @@ func (suite *AdminQueryTestSuite) TestPagination() {
 	resp1 := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", queryData1)
 	suite.Equal(200, resp1.ResponseRecorder.Code, "Page 1 should succeed")
 
-	data1 := resp1.Response.Data.(map[string]interface{})
+	data1 := resp1.Data.(map[string]interface{})
 	users1 := data1["users"].([]interface{})
 	suite.LessOrEqual(len(users1), 2, "Page 1 should have at most 2 users")
 
@@ -425,7 +425,7 @@ func (suite *AdminQueryTestSuite) TestPagination() {
 	resp2 := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", queryData2)
 	suite.Equal(200, resp2.ResponseRecorder.Code, "Page 2 should succeed")
 
-	data2 := resp2.Response.Data.(map[string]interface{})
+	data2 := resp2.Data.(map[string]interface{})
 	users2 := data2["users"].([]interface{})
 	suite.LessOrEqual(len(users2), 2, "Page 2 should have at most 2 users")
 
@@ -449,7 +449,7 @@ func (suite *AdminQueryTestSuite) TestEmptyFilters() {
 	suite.Equal(200, resp.ResponseRecorder.Code, "Empty filters should succeed")
 	resp.Print()
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	users := data["users"].([]interface{})
 	suite.GreaterOrEqual(len(users), 4, "Should return all test users")
 }
@@ -463,7 +463,7 @@ func (suite *AdminQueryTestSuite) TestDefaultPagination() {
 	suite.Equal(200, resp.ResponseRecorder.Code, "Query without pagination should succeed")
 	resp.Print()
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	suite.Equal(float64(1), data["page"], "Default page should be 1")
 	suite.Equal(float64(20), data["page_size"], "Default page_size should be 20")
 }
@@ -513,7 +513,7 @@ func (suite *AdminQueryTestSuite) TestCreatedAtRangeQuery() {
 	resp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", queryData)
 	suite.Equal(200, resp.ResponseRecorder.Code, "Time range query should succeed")
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	total := data["total"].(float64)
 	suite.GreaterOrEqual(total, float64(4), "Should find all users created today")
 }
@@ -576,7 +576,7 @@ func (suite *AdminQueryTestSuite) TestNeverSignedInQuery() {
 	resp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", queryData)
 	suite.Equal(200, resp.ResponseRecorder.Code, "Never signed in query should succeed")
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	total := data["total"].(float64)
 	suite.GreaterOrEqual(total, float64(2), "Should find at least 2 users who never signed in (Manager, Guest)")
 }
@@ -638,7 +638,7 @@ func (suite *AdminQueryTestSuite) TestLastSignInTimeRangeQuery() {
 	resp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", queryData)
 	suite.Equal(200, resp.ResponseRecorder.Code, "Last sign in time range query should succeed")
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	total := data["total"].(float64)
 	suite.Equal(float64(2), total, "Should find 2 users who signed in recently")
 
@@ -695,7 +695,7 @@ func (suite *AdminQueryTestSuite) TestNoIdentitiesQuery() {
 	resp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", queryData)
 	suite.Equal(200, resp.ResponseRecorder.Code, "No identities query should succeed")
 
-	data := resp.Response.Data.(map[string]interface{})
+	data := resp.Data.(map[string]interface{})
 	total := data["total"].(float64)
 	suite.GreaterOrEqual(total, float64(4), "Should find at least 4 users without identities")
 

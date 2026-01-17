@@ -2,6 +2,7 @@ import { createHttpClient } from './lib/fetch'
 import { createValidatedHttpClient, ValidatedApiClient } from './lib/validated-client'
 import { StorageManager } from './lib/storage'
 import { AuthError } from './lib/errors'
+import { debugLog } from './lib/helpers'
 import * as Schemas from './schemas/auth-api.schemas'
 import * as Types from './types/auth-api'
 
@@ -12,6 +13,7 @@ export class AuthApi {
   private storage: StorageManager
   private autoRefreshToken: boolean
   private persistSession: boolean
+  private debug: boolean
   private currentSession: Types.Session | null = null
   private currentUser: any = null
 
@@ -20,16 +22,17 @@ export class AuthApi {
   }
 
   constructor(baseURL: string, config: any) {
-    console.log('[slauth:AuthApi] Constructor called', {
+    this.debug = config.debug || false
+    debugLog(this.debug, '[slauth:AuthApi] Constructor called', {
       baseURL,
       autoRefreshToken: config.autoRefreshToken !== false,
       persistSession: config.persistSession !== false,
       hasCustomStorage: !!config.storage,
       storageKey: config.storageKey,
-      debug: config.debug
+      debug: this.debug
     })
     
-    this.storage = new StorageManager(config.storage, config.storageKey)
+    this.storage = new StorageManager(config.storage, config.storageKey, this.debug)
     this.autoRefreshToken = config.autoRefreshToken !== false
     this.persistSession = config.persistSession !== false
     
@@ -81,10 +84,10 @@ export class AuthApi {
   }
 
   private syncTokenState() {
-    console.log('[slauth:AuthApi] syncTokenState called')
+    debugLog(this.debug, '[slauth:AuthApi] syncTokenState called')
     const originalSetAuth = this.api.setAuth.bind(this.api)
     this.api.setAuth = (token: string | null) => {
-      console.log('[slauth:AuthApi] api.setAuth wrapper called', { 
+      debugLog(this.debug, '[slauth:AuthApi] api.setAuth wrapper called', { 
         hasToken: !!token,
         tokenPreview: token ? `${token.substring(0, 20)}...` : null 
       })
@@ -94,7 +97,7 @@ export class AuthApi {
   }
 
   private async initializeSession(): Promise<void> {
-    console.log('[slauth:AuthApi] initializeSession called', { 
+    debugLog(this.debug, '[slauth:AuthApi] initializeSession called', { 
       persistSession: this.persistSession,
       autoRefreshToken: this.autoRefreshToken 
     })
@@ -102,7 +105,7 @@ export class AuthApi {
 
     // Get session without expiry check to allow refresh attempt
     const session = await this.storage.getSession({ checkExpiry: false })
-    console.log('[slauth:AuthApi] Session from storage', { 
+    debugLog(this.debug, '[slauth:AuthApi] Session from storage', { 
       hasSession: !!session,
       hasAccessToken: !!session?.access_token,
       hasRefreshToken: !!session?.refresh_token,
@@ -111,13 +114,13 @@ export class AuthApi {
     })
     
     if (!session) {
-      console.log('[slauth:AuthApi] No session found in storage')
+      debugLog(this.debug, '[slauth:AuthApi] No session found in storage')
       return
     }
 
     // Check if session is expired
     const isExpired = session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)
-    console.log('[slauth:AuthApi] Session expiry check', {
+    debugLog(this.debug, '[slauth:AuthApi] Session expiry check', {
       isExpired,
       expiresAt: session.expires_at,
       currentTime: Math.floor(Date.now() / 1000)
@@ -126,7 +129,7 @@ export class AuthApi {
     if (isExpired) {
       // Session expired - attempt refresh if enabled and refresh token exists
       if (this.autoRefreshToken && session.refresh_token) {
-        console.log('[slauth:AuthApi] Session expired, attempting auto-refresh')
+        debugLog(this.debug, '[slauth:AuthApi] Session expired, attempting auto-refresh')
         
         // Set current session temporarily for refresh function
         this.currentSession = session
@@ -143,18 +146,18 @@ export class AuthApi {
         )
         
         if (error || !data || !data.session) {
-          console.log('[slauth:AuthApi] Auto-refresh failed, clearing session', { error })
+          debugLog(this.debug, '[slauth:AuthApi] Auto-refresh failed, clearing session', { error })
           await this.storage.removeSession()
           this.currentSession = null
           this.currentUser = null
           return
         }
         
-        console.log('[slauth:AuthApi] Auto-refresh successful')
+        debugLog(this.debug, '[slauth:AuthApi] Auto-refresh successful')
         await this.setSession(data.session as Types.Session)
         return
       } else {
-        console.log('[slauth:AuthApi] Session expired, no auto-refresh available, clearing session')
+        debugLog(this.debug, '[slauth:AuthApi] Session expired, no auto-refresh available, clearing session')
         await this.storage.removeSession()
         return
       }
@@ -164,7 +167,7 @@ export class AuthApi {
     this.currentSession = session
     this.currentUser = session.user
     this.api.setAuth(session.access_token)
-    console.log('[slauth:AuthApi] Session initialized from storage')
+    debugLog(this.debug, '[slauth:AuthApi] Session initialized from storage')
   }
 
   /**
@@ -176,7 +179,7 @@ export class AuthApi {
    * to all clients holding the reference.
    */
   private async setSession(session: Types.Session): Promise<void> {
-    console.log('[slauth:AuthApi] setSession called', {
+    debugLog(this.debug, '[slauth:AuthApi] setSession called', {
       hasCurrentSession: !!this.currentSession,
       hasAccessToken: !!session.access_token,
       tokenPreview: session.access_token ? `${session.access_token.substring(0, 20)}...` : null,
@@ -185,10 +188,10 @@ export class AuthApi {
     
     if (this.currentSession) {
       Object.assign(this.currentSession, session)
-      console.log('[slauth:AuthApi] Session updated via Object.assign')
+      debugLog(this.debug, '[slauth:AuthApi] Session updated via Object.assign')
     } else {
       this.currentSession = session
-      console.log('[slauth:AuthApi] New session created')
+      debugLog(this.debug, '[slauth:AuthApi] New session created')
     }
     
     this.currentUser = session.user
@@ -196,26 +199,26 @@ export class AuthApi {
       throw new Error('No access token in session')
     }
     this.api.setAuth(session.access_token)
-    console.log('[slauth:AuthApi] Access token set on api client')
+    debugLog(this.debug, '[slauth:AuthApi] Access token set on api client')
 
     if (this.persistSession) {
       await this.storage.saveSession(session)
       await this.storage.saveUser(session.user)
-      console.log('[slauth:AuthApi] Session persisted to storage')
+      debugLog(this.debug, '[slauth:AuthApi] Session persisted to storage')
     }
   }
 
   private async clearSession(): Promise<void> {
-    console.log('[slauth:AuthApi] clearSession called')
+    debugLog(this.debug, '[slauth:AuthApi] clearSession called')
     this.currentSession = null
     this.currentUser = null
     this.api.setAuth(null)
-    console.log('[slauth:AuthApi] Session cleared')
+    debugLog(this.debug, '[slauth:AuthApi] Session cleared')
 
     if (this.persistSession) {
       await this.storage.removeSession()
       await this.storage.removeUser()
-      console.log('[slauth:AuthApi] Session removed from storage')
+      debugLog(this.debug, '[slauth:AuthApi] Session removed from storage')
     }
   }
 

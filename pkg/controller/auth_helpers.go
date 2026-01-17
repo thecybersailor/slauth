@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"log/slog"
+	"net/http"
 	"net/mail"
 	"strconv"
 	"time"
@@ -42,10 +43,13 @@ func generateHashIDOrFallback(userID uint) string {
 
 // convertUserToResponse converts a models.User to controller.User response format
 func convertUserToResponse(user *models.User) *User {
+	slog.Info("[convertUserToResponse] Entry", "userIsNil", user == nil)
 	if user == nil {
+		slog.Info("[convertUserToResponse] User is nil, returning nil")
 		return nil
 	}
 
+	slog.Info("[convertUserToResponse] Creating userResp", "userID", user.ID)
 	userResp := &User{
 		ID:           generateHashIDOrFallback(user.ID),
 		Aud:          user.InstanceId,
@@ -57,6 +61,7 @@ func convertUserToResponse(user *models.User) *User {
 		UserMetadata: parseMetadata(user.RawUserMetaData),
 		AppMetadata:  parseMetadata(user.RawAppMetaData),
 	}
+	slog.Info("[convertUserToResponse] UserResp basic fields set")
 
 	if user.Email != nil {
 		userResp.Email = *user.Email
@@ -68,20 +73,27 @@ func convertUserToResponse(user *models.User) *User {
 		userResp.PhoneConfirmedAt = formatTime(user.PhoneConfirmedAt)
 	}
 
+	slog.Info("[convertUserToResponse] Before processing Identities", "identitiesLen", len(user.Identities))
 	if len(user.Identities) > 0 {
 		userResp.Identities = make([]UserIdentity, len(user.Identities))
 		for i, identity := range user.Identities {
+			slog.Info("[convertUserToResponse] Processing identity", "index", i, "identityID", identity.ID)
 			userResp.Identities[i] = convertIdentityToResponse(&identity)
 		}
+		slog.Info("[convertUserToResponse] Identities processed", "count", len(userResp.Identities))
 	}
 
+	slog.Info("[convertUserToResponse] Before processing MFAFactors", "mfaFactorsLen", len(user.MFAFactors))
 	if len(user.MFAFactors) > 0 {
 		userResp.Factors = make([]Factor, len(user.MFAFactors))
 		for i, factor := range user.MFAFactors {
+			slog.Info("[convertUserToResponse] Processing MFA factor", "index", i, "factorID", factor.ID)
 			userResp.Factors[i] = convertFactorToResponse(&factor)
 		}
+		slog.Info("[convertUserToResponse] MFAFactors processed", "count", len(userResp.Factors))
 	}
 
+	slog.Info("[convertUserToResponse] Returning userResp", "userRespID", userResp.ID)
 	return userResp
 }
 
@@ -227,6 +239,18 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 			// Get user by ID using global function
 			user, err := services.GetUserByID(ctx, a.authService.GetDB(), a.authService.GetInstanceId(), identity.UserID)
 			if err == nil {
+				userModel := user.GetModel()
+				identitiesLen := 0
+				mfaFactorsLen := 0
+				if userModel != nil {
+					identitiesLen = len(userModel.Identities)
+					mfaFactorsLen = len(userModel.MFAFactors)
+				}
+				slog.Info("[OAuth findOrCreate] Returning existing user from identity",
+					"userID", user.ID,
+					"userModelIsNil", userModel == nil,
+					"identitiesLen", identitiesLen,
+					"mfaFactorsLen", mfaFactorsLen)
 				return user, nil
 			}
 		}
@@ -263,11 +287,47 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 					if err := a.authService.GetDB().WithContext(ctx).Create(identity).Error; err != nil {
 						slog.Error("[OAuth findOrCreate] Failed to create identity for existing user", "error", err)
 						// Continue anyway, don't fail the login
+					} else {
+						// Trigger IdentityLinkedUse middleware
+						if authServiceImpl, ok := a.authService.(*services.AuthServiceImpl); ok {
+							var httpRequest *http.Request
+							if req := ctx.Value("http_request"); req != nil {
+								if r, ok := req.(*http.Request); ok {
+									httpRequest = r
+								}
+							}
+							if err := authServiceImpl.ExecuteIdentityLinkedMiddlewares(
+								ctx,
+								user,
+								identity,
+								provider,
+								true, // isNewIdentity
+								httpRequest,
+							); err != nil {
+								slog.Error("IdentityLinkedUse middleware failed", "error", err)
+							}
+						}
 					}
 				}
 			}
-			// Load identities for response
-			user.LoadIdentities(ctx)
+			// Load identities for response (use main DB, not transaction)
+			user, err = services.GetUserByID(ctx, a.authService.GetDB(), a.authService.GetInstanceId(), user.ID)
+			if err != nil {
+				slog.Error("[OAuth findOrCreate] Failed to reload user after identity creation", "error", err, "userID", user.ID)
+				return nil, err
+			}
+			userModel := user.GetModel()
+			identitiesLen := 0
+			mfaFactorsLen := 0
+			if userModel != nil {
+				identitiesLen = len(userModel.Identities)
+				mfaFactorsLen = len(userModel.MFAFactors)
+			}
+			slog.Info("[OAuth findOrCreate] Returning existing user from email",
+				"userID", user.ID,
+				"userModelIsNil", userModel == nil,
+				"identitiesLen", identitiesLen,
+				"mfaFactorsLen", mfaFactorsLen)
 			return user, nil
 		}
 	}
@@ -280,21 +340,13 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 	}
 
 	email := userInfo.Email
-	user, err := a.authService.GetUserService().CreateUser(ctx, &services.UserCreateOptions{
-		Email:        &email,
-		UserMetadata: userData,
-	})
-	if err != nil {
-		slog.Error("[OAuth findOrCreate] Failed to create user", "error", err)
-		return nil, err
-	}
 
-	// Create identity record linking user to OAuth provider
+	// Prepare identity for extraContext (will be created in transaction by CreateUserWithSource)
+	var identity *models.Identity
 	if userInfo.ID != "" {
 		now := time.Now()
 		identityData, _ := json.Marshal(userData)
-		identity := &models.Identity{
-			UserID:       user.ID,
+		identity = &models.Identity{
 			Provider:     provider,
 			ProviderID:   userInfo.ID,
 			Email:        &userInfo.Email,
@@ -304,13 +356,53 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
-		if err := a.authService.GetDB().WithContext(ctx).Create(identity).Error; err != nil {
-			slog.Error("[OAuth findOrCreate] Failed to create identity", "error", err)
-			// Continue anyway, don't fail the login
+	}
+
+	// Use CreateUserWithSource to trigger hooks and create identity in transaction
+	extraContext := map[string]any{
+		"provider": provider,
+	}
+	if identity != nil {
+		extraContext["identity"] = identity
+	}
+
+	// Get httpRequest from context if available
+	var httpRequest *http.Request
+	if req := ctx.Value("http_request"); req != nil {
+		if r, ok := req.(*http.Request); ok {
+			httpRequest = r
 		}
 	}
 
-	// Load identities for response
-	user.LoadIdentities(ctx)
+	// CreateUserWithSource will create user, run hooks, and create identity in a single transaction
+	slog.Info("[OAuth findOrCreate] Before CreateUserWithSource", "email", email)
+	user, err := a.authService.GetUserService().CreateUserWithSource(
+		ctx,
+		&services.UserCreateOptions{
+			Email:        &email,
+			UserMetadata: userData,
+		},
+		services.UserCreatedSourceOAuth,
+		extraContext,
+		httpRequest,
+	)
+	if err != nil {
+		slog.Error("[OAuth findOrCreate] Failed to create user", "error", err)
+		return nil, err
+	}
+
+	// Identity is already created and loaded in the transaction
+	userModel := user.GetModel()
+	identitiesLen := 0
+	mfaFactorsLen := 0
+	if userModel != nil {
+		identitiesLen = len(userModel.Identities)
+		mfaFactorsLen = len(userModel.MFAFactors)
+	}
+	slog.Info("[OAuth findOrCreate] Returning new user from CreateUserWithSource",
+		"userID", user.ID,
+		"userModelIsNil", userModel == nil,
+		"identitiesLen", identitiesLen,
+		"mfaFactorsLen", mfaFactorsLen)
 	return user, nil
 }

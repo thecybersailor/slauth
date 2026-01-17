@@ -1,6 +1,6 @@
 {
   "name": "@cybersailor/slauth-ts",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Official client library for slauth",
   "keywords": [
     "auth",
@@ -63,8 +63,12 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/src"],
-    "testMatch": ["**/__tests__/**/*.test.ts"],
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/**/*.d.ts",

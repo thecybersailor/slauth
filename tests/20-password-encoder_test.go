@@ -138,11 +138,11 @@ func (suite *PasswordEncoderTestSuite) TestEncoderCompatibility() {
 	suite.True(valid, "Argon2id service should verify Argon2id hash")
 
 	// Verify cross-verification fails gracefully
-	valid, err = sha1Service.VerifyPassword(password, argon2Hash)
+	valid, _ = sha1Service.VerifyPassword(password, argon2Hash)
 	// Should return false or error, but not panic
 	suite.False(valid, "SHA1 service should not verify Argon2id hash")
 
-	valid, err = argon2Service.VerifyPassword(password, sha1Hash)
+	valid, _ = argon2Service.VerifyPassword(password, sha1Hash)
 	// Should return false or error, but not panic
 	suite.False(valid, "Argon2id service should not verify SHA1 hash")
 }

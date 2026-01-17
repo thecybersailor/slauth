@@ -17,6 +17,7 @@ require (
 	github.com/valyala/fasthttp v1.66.0
 	google.golang.org/api v0.249.0
 	gorm.io/datatypes v1.2.7
+	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.0
 )
 
@@ -50,6 +51,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/knadh/smtppool/v2 v2.0.0 // indirect
 	github.com/mattermost/xml-roundtrip-validator v0.1.0 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/russellhaering/goxmldsig v1.4.0 // indirect

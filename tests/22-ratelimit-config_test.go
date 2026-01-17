@@ -116,14 +116,14 @@ func (suite *RatelimitConfigTestSuite) TestSignUpSignInRateLimit() {
 		"email":    testEmail,
 		"password": password,
 	})
-	suite.Nil(signup1Response.Response.Error, "First signup should succeed")
+	suite.Nil(signup1Response.Error, "First signup should succeed")
 
 	// Second attempt with same email - will fail with user_already_exists, but rate limit is recorded
 	signup2Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
 		"email":    testEmail,
 		"password": password,
 	})
-	suite.NotNil(signup2Response.Response.Error, "Second signup should fail (user exists)")
+	suite.NotNil(signup2Response.Error, "Second signup should fail (user exists)")
 
 	// Third attempt with same email - should be rate limited (3rd request exceeds limit of 2)
 	signup3Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
@@ -169,7 +169,7 @@ func (suite *RatelimitConfigTestSuite) TestTokenRefreshRateLimit() {
 	})
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
 
-	signupData := signupResponse.Response.Data.(map[string]interface{})
+	signupData := signupResponse.Data.(map[string]interface{})
 	sessionData := signupData["session"].(map[string]interface{})
 	refreshToken := sessionData["refresh_token"].(string)
 	suite.NotEmpty(refreshToken, "Should have refresh token")
@@ -193,7 +193,7 @@ func (suite *RatelimitConfigTestSuite) TestTokenRefreshRateLimit() {
 	})
 	suite.Equal(200, refresh1Response.ResponseRecorder.Code, "First refresh should succeed")
 
-	refresh1Data := refresh1Response.Response.Data.(map[string]interface{})
+	refresh1Data := refresh1Response.Data.(map[string]interface{})
 	refresh1Session := refresh1Data["session"].(map[string]interface{})
 	newRefreshToken := refresh1Session["refresh_token"].(string)
 

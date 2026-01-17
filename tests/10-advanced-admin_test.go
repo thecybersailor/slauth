@@ -42,13 +42,13 @@ func (suite *AdvancedAdminTestSuite) TestCreateAndLogin() {
 
 	createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", createUserData)
 	suite.Equal(200, createResp.ResponseRecorder.Code, "Create user should succeed")
-	suite.Nil(createResp.Response.Error, "Create user should not have error")
+	suite.Nil(createResp.Error, "Create user should not have error")
 
 	createResp.Print()
 
-	suite.NotNil(createResp.Response.Data, "Create user should return data")
+	suite.NotNil(createResp.Data, "Create user should return data")
 
-	userData := createResp.Response.Data.(map[string]interface{})
+	userData := createResp.Data.(map[string]interface{})
 	userID := userData["id"].(string)
 	suite.NotEmpty(userID, "User ID should not be empty")
 
@@ -60,12 +60,12 @@ func (suite *AdvancedAdminTestSuite) TestCreateAndLogin() {
 
 	loginResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginData)
 	suite.Equal(200, loginResp.ResponseRecorder.Code, "Login should succeed")
-	suite.Nil(loginResp.Response.Error, "Login should not have error")
+	suite.Nil(loginResp.Error, "Login should not have error")
 
 	loginResp.Print()
 
-	suite.NotNil(loginResp.Response.Data, "Login should return data")
-	loginData2 := loginResp.Response.Data.(map[string]interface{})
+	suite.NotNil(loginResp.Data, "Login should return data")
+	loginData2 := loginResp.Data.(map[string]interface{})
 	suite.Contains(loginData2, "session", "Login response should contain session")
 
 	sessionData := loginData2["session"].(map[string]interface{})
@@ -75,19 +75,19 @@ func (suite *AdvancedAdminTestSuite) TestCreateAndLogin() {
 
 	userResp := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/user", accessToken)
 	suite.Equal(200, userResp.ResponseRecorder.Code, "Get user should succeed")
-	suite.Nil(userResp.Response.Error, "Get user should not have error")
+	suite.Nil(userResp.Error, "Get user should not have error")
 
 	userResp.Print()
 
-	suite.NotNil(userResp.Response.Data, "Get user should return data")
+	suite.NotNil(userResp.Data, "Get user should return data")
 
 	sessionsResp := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/sessions", accessToken)
 	suite.Equal(200, sessionsResp.ResponseRecorder.Code, "Get sessions should succeed")
-	suite.Nil(sessionsResp.Response.Error, "Get sessions should not have error")
+	suite.Nil(sessionsResp.Error, "Get sessions should not have error")
 
 	sessionsResp.Print()
 
-	suite.NotNil(sessionsResp.Response.Data, "Get sessions should return data")
+	suite.NotNil(sessionsResp.Data, "Get sessions should return data")
 }
 
 func (suite *AdvancedAdminTestSuite) TestListUsers() {
@@ -127,15 +127,10 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 		},
 	}
 
-	var createdUserIDs []string
 	for i, userData := range users {
 		createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", userData)
 		suite.Equal(200, createResp.ResponseRecorder.Code, "Create user %d should succeed", i+1)
-		suite.Nil(createResp.Response.Error, "Create user %d should not have error", i+1)
-
-		respData := createResp.Response.Data.(map[string]interface{})
-		userID := respData["id"].(string)
-		createdUserIDs = append(createdUserIDs, userID)
+		suite.Nil(createResp.Error, "Create user %d should not have error", i+1)
 	}
 
 	listResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", S{
@@ -145,12 +140,12 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 		},
 	})
 	suite.Equal(200, listResp.ResponseRecorder.Code, "List users should succeed")
-	suite.Nil(listResp.Response.Error, "List users should not have error")
+	suite.Nil(listResp.Error, "List users should not have error")
 
 	listResp.Print()
 
-	suite.NotNil(listResp.Response.Data, "List users should return data")
-	listData := listResp.Response.Data.(map[string]interface{})
+	suite.NotNil(listResp.Data, "List users should return data")
+	listData := listResp.Data.(map[string]interface{})
 
 	suite.Contains(listData, "users", "Response should contain users array")
 	suite.Contains(listData, "page", "Response should contain page")
@@ -177,7 +172,7 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 		},
 	})
 	suite.Equal(200, listRespPage2.ResponseRecorder.Code, "List users page 2 should succeed")
-	suite.Nil(listRespPage2.Response.Error, "List users page 2 should not have error")
+	suite.Nil(listRespPage2.Error, "List users page 2 should not have error")
 
 	filterResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", S{
 		"filters": S{
@@ -191,9 +186,9 @@ func (suite *AdvancedAdminTestSuite) TestListUsers() {
 		},
 	})
 	suite.Equal(200, filterResp.ResponseRecorder.Code, "Filter users by email should succeed")
-	suite.Nil(filterResp.Response.Error, "Filter users by email should not have error")
+	suite.Nil(filterResp.Error, "Filter users by email should not have error")
 
-	filterData := filterResp.Response.Data.(map[string]interface{})
+	filterData := filterResp.Data.(map[string]interface{})
 	filteredUsers := filterData["users"].([]interface{})
 	suite.GreaterOrEqual(len(filteredUsers), 1, "Should return at least 1 user")
 
@@ -280,9 +275,9 @@ func (suite *TestSuite) TestOAuthLoginCreatesIdentity() {
 
 	oauthResponse := helper.MakePOSTRequest(suite.T(), "/auth/authorize", oauthRequestBody)
 	suite.Equal(200, oauthResponse.ResponseRecorder.Code, "OAuth authorize should succeed")
-	suite.Nil(oauthResponse.Response.Error, "OAuth authorize should not have error")
+	suite.Nil(oauthResponse.Error, "OAuth authorize should not have error")
 
-	responseData := oauthResponse.Response.Data.(map[string]any)
+	responseData := oauthResponse.Data.(map[string]any)
 	flowID := responseData["flow_id"].(string)
 	suite.NotEmpty(flowID, "Should have flow_id")
 
@@ -295,9 +290,9 @@ func (suite *TestSuite) TestOAuthLoginCreatesIdentity() {
 
 	exchangeResponse := helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=pkce", exchangeRequestBody)
 	suite.Equal(200, exchangeResponse.ResponseRecorder.Code, "PKCE code exchange should succeed")
-	suite.Nil(exchangeResponse.Response.Error, "PKCE code exchange should not have error")
+	suite.Nil(exchangeResponse.Error, "PKCE code exchange should not have error")
 
-	exchangeData := exchangeResponse.Response.Data.(map[string]any)
+	exchangeData := exchangeResponse.Data.(map[string]any)
 	userInfo := exchangeData["user"].(map[string]any)
 	userID := userInfo["id"].(string)
 	suite.NotEmpty(userID, "User should have ID")
@@ -368,12 +363,12 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 
 	createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", createUserData)
 	suite.Equal(200, createResp.ResponseRecorder.Code, "Create user with AppMetaData should succeed")
-	suite.Nil(createResp.Response.Error, "Create user should not have error")
+	suite.Nil(createResp.Error, "Create user should not have error")
 
 	createResp.Print()
 
-	suite.NotNil(createResp.Response.Data, "Create user should return data")
-	userData := createResp.Response.Data.(map[string]interface{})
+	suite.NotNil(createResp.Data, "Create user should return data")
+	userData := createResp.Data.(map[string]interface{})
 	suite.Equal("appmeta-user@example.com", userData["email"], "Email should match")
 	suite.NotEmpty(userData["id"], "User ID should not be empty")
 
@@ -414,17 +409,17 @@ func (suite *AdvancedAdminTestSuite) TestGetUserAppMetadata() {
 
 	createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", createUserData)
 	suite.Equal(200, createResp.ResponseRecorder.Code, "Create user should succeed")
-	userData := createResp.Response.Data.(map[string]interface{})
+	userData := createResp.Data.(map[string]interface{})
 	userID := userData["id"].(string)
 
 	getResp := suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+userID)
 	suite.Equal(200, getResp.ResponseRecorder.Code, "Get user should succeed")
-	suite.Nil(getResp.Response.Error, "Get user should not have error")
+	suite.Nil(getResp.Error, "Get user should not have error")
 
 	getResp.Print()
 
-	suite.NotNil(getResp.Response.Data, "Get user should return data")
-	retrievedUser := getResp.Response.Data.(map[string]interface{})
+	suite.NotNil(getResp.Data, "Get user should return data")
+	retrievedUser := getResp.Data.(map[string]interface{})
 	suite.Contains(retrievedUser, "app_metadata", "Response should contain app_metadata")
 
 	appMetadata := retrievedUser["app_metadata"].(map[string]interface{})
@@ -451,7 +446,7 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 
 	createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", createUserData)
 	suite.Equal(200, createResp.ResponseRecorder.Code, "Create user should succeed")
-	userData := createResp.Response.Data.(map[string]interface{})
+	userData := createResp.Data.(map[string]interface{})
 	userID := userData["id"].(string)
 
 	updateData := S{
@@ -469,12 +464,12 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 
 	updateResp := suite.helper.MakePUTRequest(suite.T(), "/admin/users/"+userID, updateData, nil)
 	suite.Equal(200, updateResp.ResponseRecorder.Code, "Update user AppMetaData should succeed")
-	suite.Nil(updateResp.Response.Error, "Update should not have error")
+	suite.Nil(updateResp.Error, "Update should not have error")
 
 	updateResp.Print()
 
-	suite.NotNil(updateResp.Response.Data, "Update should return data")
-	updatedUser := updateResp.Response.Data.(map[string]interface{})
+	suite.NotNil(updateResp.Data, "Update should return data")
+	updatedUser := updateResp.Data.(map[string]interface{})
 	suite.Contains(updatedUser, "app_metadata", "Response should contain app_metadata")
 
 	appMetadata := updatedUser["app_metadata"].(map[string]interface{})
@@ -545,7 +540,7 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 	for i, userData := range users {
 		createResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users", userData)
 		suite.Equal(200, createResp.ResponseRecorder.Code, "Create user %d should succeed", i+1)
-		suite.Nil(createResp.Response.Error, "Create user %d should not have error", i+1)
+		suite.Nil(createResp.Error, "Create user %d should not have error", i+1)
 	}
 
 	roleSearchResp := suite.helper.MakePOSTRequest(suite.T(), "/admin/users/query", S{
@@ -560,12 +555,12 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 		},
 	})
 	suite.Equal(200, roleSearchResp.ResponseRecorder.Code, "Search by role should succeed")
-	suite.Nil(roleSearchResp.Response.Error, "Search by role should not have error")
+	suite.Nil(roleSearchResp.Error, "Search by role should not have error")
 
 	roleSearchResp.Print()
 
-	suite.NotNil(roleSearchResp.Response.Data, "Search should return data")
-	searchData := roleSearchResp.Response.Data.(map[string]interface{})
+	suite.NotNil(roleSearchResp.Data, "Search should return data")
+	searchData := roleSearchResp.Data.(map[string]interface{})
 	suite.Contains(searchData, "users", "Response should contain users array")
 
 	usersArray := searchData["users"].([]interface{})
@@ -592,9 +587,9 @@ func (suite *AdvancedAdminTestSuite) TestSearchUsersByAppMetadata() {
 		},
 	})
 	suite.Equal(200, deptSearchResp.ResponseRecorder.Code, "Search by department should succeed")
-	suite.Nil(deptSearchResp.Response.Error, "Search by department should not have error")
+	suite.Nil(deptSearchResp.Error, "Search by department should not have error")
 
-	deptSearchData := deptSearchResp.Response.Data.(map[string]interface{})
+	deptSearchData := deptSearchResp.Data.(map[string]interface{})
 	deptUsersArray := deptSearchData["users"].([]interface{})
 	suite.GreaterOrEqual(len(deptUsersArray), 1, "Should find at least 1 IT user")
 

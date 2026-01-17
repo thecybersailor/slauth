@@ -88,7 +88,7 @@ func (suite *OTPVerificationTestSuite) TestSendOTPWithInvalidEmail() {
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", requestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(response.Response.Error, "Should have validation error for empty email")
+	suite.NotNil(response.Error, "Should have validation error for empty email")
 
 	requestBody = S{
 		"email": "invalid-email",
@@ -96,7 +96,7 @@ func (suite *OTPVerificationTestSuite) TestSendOTPWithInvalidEmail() {
 
 	response = suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", requestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(response.Response.Error, "Should have validation error for invalid email format")
+	suite.NotNil(response.Error, "Should have validation error for invalid email format")
 }
 
 func (suite *OTPVerificationTestSuite) TestSendOTPWithInvalidPhone() {
@@ -107,7 +107,7 @@ func (suite *OTPVerificationTestSuite) TestSendOTPWithInvalidPhone() {
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/sms-otp", requestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Should return 200 status code")
-	suite.NotNil(response.Response.Error, "Should have validation error for empty phone")
+	suite.NotNil(response.Error, "Should have validation error for empty phone")
 }
 
 func (suite *OTPVerificationTestSuite) TestSendOTPWithBothEmailAndPhone() {
@@ -178,9 +178,9 @@ func (suite *OTPVerificationTestSuite) TestVerifyOTP() {
 	response = suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Verify OTP should succeed")
 
-	suite.Nil(response.Response.Error, "Should not have error for valid verification")
-	if response.Response.Data != nil {
-		responseData := response.Response.Data.(map[string]any)
+	suite.Nil(response.Error, "Should not have error for valid verification")
+	if response.Data != nil {
+		responseData := response.Data.(map[string]any)
 		suite.Equal(true, responseData["success"], "Verification should be successful")
 	}
 }
@@ -197,8 +197,8 @@ func (suite *OTPVerificationTestSuite) TestVerifyOTPWithInvalidCode() {
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Should return 200 status code")
 
-	suite.NotNil(response.Response.Error, "Should have error for invalid verification code")
-	suite.Equal("auth.validation_failed", response.Response.Error.Key, "Should return auth.validation_failed error")
+	suite.NotNil(response.Error, "Should have error for invalid verification code")
+	suite.Equal("auth.validation_failed", response.Error.Key, "Should return auth.validation_failed error")
 }
 
 func (suite *OTPVerificationTestSuite) TestVerifyOTPWithExpiredCode() {

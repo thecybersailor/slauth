@@ -97,7 +97,7 @@ func (h *TestHelper) MakeGETRequest(t *testing.T, path string) *PinResponse {
 	}
 
 	// Try to parse as pin.Response, ignore error if failed (for 401 and other error responses)
-	json.Unmarshal(w.Body.Bytes(), &rsp.Response)
+	_ = json.Unmarshal(w.Body.Bytes(), &rsp.Response)
 
 	return rsp
 }
@@ -137,7 +137,7 @@ func (h *TestHelper) MakeGETRequestWithAuth(t *testing.T, path string, accessTok
 	}
 
 	// Try to parse as pin.Response, ignore error if failed (for 401 and other error responses)
-	json.Unmarshal(w.Body.Bytes(), &rsp.Response)
+	_ = json.Unmarshal(w.Body.Bytes(), &rsp.Response)
 
 	return rsp
 }
@@ -211,15 +211,15 @@ func (h *TestHelper) MakePOSTRequestWithHeaders(t *testing.T, path string, body 
 }
 
 func (h *TestHelper) HasError(t *testing.T, rsp *PinResponse, errorField string, msg string) {
-	if !assert.NotNil(t, rsp.Response.Error, msg+": Response should be an error") {
+	if !assert.NotNil(t, rsp.Error, msg+": Response should be an error") {
 		return
 	}
-	assert.Contains(t, rsp.Response.Error.Key, errorField, msg+": Error should contain: %s", errorField)
+	assert.Contains(t, rsp.Error.Key, errorField, msg+": Error should contain: %s", errorField)
 }
 
 func (h *TestHelper) IsError(t *testing.T, rsp *PinResponse, err error) {
 	// Check that response has an error
-	if !assert.NotNil(t, rsp.Response.Error, "Response should have an error") {
+	if !assert.NotNil(t, rsp.Error, "Response should have an error") {
 		return
 	}
 
@@ -232,15 +232,15 @@ func (h *TestHelper) IsError(t *testing.T, rsp *PinResponse, err error) {
 	}
 
 	// Compare error code
-	assert.Equal(t, expectedCode, rsp.Response.Error.Key, "Error code should match")
+	assert.Equal(t, expectedCode, rsp.Error.Key, "Error code should match")
 }
 
 func (h *TestHelper) MatchObject(t *testing.T, rsp *PinResponse, target S, msg string) {
-	assert.NotNil(t, rsp.Response.Data, msg+": Response should have data")
+	assert.NotNil(t, rsp.Data, msg+": Response should have data")
 
 	var responseData map[string]any
-	responseBytes, _ := json.Marshal(rsp.Response.Data)
-	json.Unmarshal(responseBytes, &responseData)
+	responseBytes, _ := json.Marshal(rsp.Data)
+	_ = json.Unmarshal(responseBytes, &responseData)
 
 	matchObjectRecursive(t, responseData, target, "", msg)
 }
@@ -369,10 +369,8 @@ func (h *TestHelper) MakePUTRequest(t *testing.T, path string, body S, headers m
 	req.Header.Set("Content-Type", "application/json")
 
 	// Add custom headers
-	if headers != nil {
-		for key, value := range headers {
-			req.Header.Set(key, value)
-		}
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	w := httptest.NewRecorder()
@@ -383,7 +381,7 @@ func (h *TestHelper) MakePUTRequest(t *testing.T, path string, body S, headers m
 	}
 
 	// Try to parse as pin.Response, ignore error if failed
-	json.Unmarshal(w.Body.Bytes(), &rsp.Response)
+	_ = json.Unmarshal(w.Body.Bytes(), &rsp.Response)
 
 	return rsp
 }
@@ -404,10 +402,8 @@ func (h *TestHelper) MakeDELETERequest(t *testing.T, path string, body S, header
 	req.Header.Set("Content-Type", "application/json")
 
 	// Add custom headers
-	if headers != nil {
-		for key, value := range headers {
-			req.Header.Set(key, value)
-		}
+	for key, value := range headers {
+		req.Header.Set(key, value)
 	}
 
 	w := httptest.NewRecorder()
@@ -418,7 +414,7 @@ func (h *TestHelper) MakeDELETERequest(t *testing.T, path string, body S, header
 	}
 
 	// Try to parse as pin.Response, ignore error if failed
-	json.Unmarshal(w.Body.Bytes(), &rsp.Response)
+	_ = json.Unmarshal(w.Body.Bytes(), &rsp.Response)
 
 	return rsp
 }

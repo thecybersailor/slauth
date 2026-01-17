@@ -29,11 +29,11 @@ func (suite *MFAAuthenticationTestSuite) loginAndUpgradeToAAL2(email, password s
 	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
 	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
 
-	if loginResponse.Response.Data == nil {
+	if loginResponse.Data == nil {
 		suite.T().Fatalf("Login response data is nil")
 	}
 
-	responseData, ok := loginResponse.Response.Data.(map[string]any)
+	responseData, ok := loginResponse.Data.(map[string]any)
 	if !ok {
 		suite.T().Fatalf("Login response data is not a map")
 	}
@@ -80,14 +80,14 @@ func (suite *MFAAuthenticationTestSuite) TestTOTPFactorEnrollment() {
 	}
 	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
 	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
-	suite.Nil(signupResponse.Response.Error, "Signup should not have error")
+	suite.Nil(signupResponse.Error, "Signup should not have error")
 
 	// Confirm email
 	confirmationToken := suite.GetConfirmationTokenFromEmail()
 	suite.Require().NotEmpty(confirmationToken, "Confirmation token should be extracted from email")
 
 	confirmResponse := suite.helper.MakeGETRequest(suite.T(), "/auth/confirm?token="+confirmationToken)
-	suite.Require().Nil(confirmResponse.Response.Error, "Email confirmation should succeed")
+	suite.Require().Nil(confirmResponse.Error, "Email confirmation should succeed")
 
 	accessToken := suite.loginAndUpgradeToAAL2(email, password)
 
@@ -102,10 +102,10 @@ func (suite *MFAAuthenticationTestSuite) TestTOTPFactorEnrollment() {
 	enrollResponse := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/factors/enroll", enrollRequestBody, enrollHeaders)
 
 	suite.Equal(200, enrollResponse.ResponseRecorder.Code, "TOTP enrollment should succeed")
-	suite.Nil(enrollResponse.Response.Error, "TOTP enrollment should not have error")
-	suite.NotNil(enrollResponse.Response.Data, "TOTP enrollment should return data")
+	suite.Nil(enrollResponse.Error, "TOTP enrollment should not have error")
+	suite.NotNil(enrollResponse.Data, "TOTP enrollment should return data")
 
-	enrollData, ok := enrollResponse.Response.Data.(map[string]any)
+	enrollData, ok := enrollResponse.Data.(map[string]any)
 	suite.True(ok, "Enrollment data should be a map")
 
 	suite.Equal("totp", enrollData["type"], "Factor type should be totp")
@@ -129,13 +129,13 @@ func (suite *MFAAuthenticationTestSuite) TestTOTPFactorEnrollment() {
 	verifyResponse := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/factors/verify", verifyRequestBody, enrollHeaders)
 
 	suite.Equal(200, verifyResponse.ResponseRecorder.Code, "TOTP verification should succeed")
-	suite.Nil(verifyResponse.Response.Error, "TOTP verification should not have error")
+	suite.Nil(verifyResponse.Error, "TOTP verification should not have error")
 
 	factorsResponse := suite.helper.MakeGETRequestWithAuth(suite.T(), "/auth/factors", accessToken)
 	suite.Equal(200, factorsResponse.ResponseRecorder.Code, "Get factors should succeed")
-	suite.NotNil(factorsResponse.Response.Data, "Factors data should not be nil")
+	suite.NotNil(factorsResponse.Data, "Factors data should not be nil")
 
-	factorsData, ok := factorsResponse.Response.Data.(map[string]any)
+	factorsData, ok := factorsResponse.Data.(map[string]any)
 	suite.True(ok, "Factors data should be a map")
 
 	allFactors, ok := factorsData["all"].([]any)
