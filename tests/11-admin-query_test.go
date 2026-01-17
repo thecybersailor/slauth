@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 type AdminQueryTestSuite struct {
@@ -118,29 +119,19 @@ func (suite *AdminQueryTestSuite) createOAuthUser() {
 	suite.Equal("mock-user@example.com", userInfo["email"], "OAuth user email should match")
 
 	var userID uint
-	err := suite.DB.Table("users").
+	err := suite.DB.Model(&models.User{}).
 		Where("email = ?", "mock-user@example.com").
 		Pluck("id", &userID).Error
 	suite.Require().NoError(err, "Should get OAuth user ID")
 	suite.Require().NotZero(userID, "OAuth user ID should not be zero")
 
-	identityData := map[string]interface{}{
-		"user_id":       userID,
-		"provider":      "mock-oauth",
-		"provider_id":   "mock-user-123",
-		"identity_data": `{"uid":"mock-user-123","email":"mock-user@example.com","name":"Mock User"}`,
-		"instance_id":   suite.TestInstance,
-	}
-
-	err = suite.DB.Table("identities").Create(identityData).Error
-	suite.Require().NoError(err, "Should create identity")
-
+	// OAuth login already creates identity automatically, so we just verify it exists
 	var identityCount int64
-	err = suite.DB.Table("identities").
+	err = suite.DB.Model(&models.Identity{}).
 		Where("provider = ? AND user_id = ?", "mock-oauth", userID).
 		Count(&identityCount).Error
 	suite.Require().NoError(err, "Should query identities")
-	suite.Require().Equal(int64(1), identityCount, "Should have 1 identity for OAuth user")
+	suite.Require().Equal(int64(1), identityCount, "Should have 1 identity for OAuth user (created automatically by OAuth login)")
 }
 
 func TestAdminQueryTestSuite(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 type AdvancedAdminTestSuite struct {
@@ -264,7 +265,80 @@ func (suite *TestSuite) TestCreateUserLoginWithWrongPassword() {
 }
 
 func (suite *TestSuite) TestOAuthLoginCreatesIdentity() {
+	// Create helper for this test
+	helper := NewTestHelper(suite.DB, suite.Router, suite.TestInstance, suite.EmailProvider, suite.SMSProvider)
 
+	// Setup: Add mock OAuth provider
+	mockProvider := NewMockOAuthProviderWithFlow("mock-oauth-identity", "auth_code")
+	suite.AuthService.AddIdentityProvider(mockProvider)
+
+	// Step 1: Initiate OAuth flow
+	oauthRequestBody := S{
+		"provider": "mock-oauth-identity",
+		"options":  S{},
+	}
+
+	oauthResponse := helper.MakePOSTRequest(suite.T(), "/auth/authorize", oauthRequestBody)
+	suite.Equal(200, oauthResponse.ResponseRecorder.Code, "OAuth authorize should succeed")
+	suite.Nil(oauthResponse.Response.Error, "OAuth authorize should not have error")
+
+	responseData := oauthResponse.Response.Data.(map[string]any)
+	flowID := responseData["flow_id"].(string)
+	suite.NotEmpty(flowID, "Should have flow_id")
+
+	// Step 2: Exchange code for token (PKCE flow)
+	exchangeRequestBody := S{
+		"auth_code":     "mock-auth-code-123",
+		"code_verifier": "mock-code-verifier-123",
+		"flow_id":       flowID,
+	}
+
+	exchangeResponse := helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=pkce", exchangeRequestBody)
+	suite.Equal(200, exchangeResponse.ResponseRecorder.Code, "PKCE code exchange should succeed")
+	suite.Nil(exchangeResponse.Response.Error, "PKCE code exchange should not have error")
+
+	exchangeData := exchangeResponse.Response.Data.(map[string]any)
+	userInfo := exchangeData["user"].(map[string]any)
+	userID := userInfo["id"].(string)
+	suite.NotEmpty(userID, "User should have ID")
+
+	// Step 3: Verify identity was created in database
+	var identityCount int64
+	err := suite.DB.Model(&models.Identity{}).
+		Where("instance_id = ? AND provider = ? AND provider_id = ?",
+			suite.TestInstance, "mock-oauth-identity", "mock-user-123").
+		Count(&identityCount).Error
+	suite.NoError(err, "Should be able to query identities table")
+	suite.Equal(int64(1), identityCount, "Should create exactly one identity record")
+
+	// Step 4: Verify identity details
+	var identity models.Identity
+	err = suite.DB.Model(&models.Identity{}).
+		Where("instance_id = ? AND provider = ? AND provider_id = ?",
+			suite.TestInstance, "mock-oauth-identity", "mock-user-123").
+		First(&identity).Error
+	suite.NoError(err, "Should find the identity record")
+	suite.Equal("mock-oauth-identity", identity.Provider, "Provider should match")
+	suite.Equal("mock-user-123", identity.ProviderID, "Provider ID should match")
+	suite.Equal("mock-user@example.com", *identity.Email, "Email should match")
+
+	// Step 5: Verify user response includes identities
+	suite.NotNil(userInfo["identities"], "User response should include identities field")
+	identities, ok := userInfo["identities"].([]any)
+	suite.True(ok, "Identities should be an array")
+	suite.Greater(len(identities), 0, "Should have at least one identity")
+	
+	// Find the identity with provider "mock-oauth-identity"
+	found := false
+	for _, id := range identities {
+		identityData := id.(map[string]any)
+		if identityData["provider"] == "mock-oauth-identity" {
+			found = true
+			suite.Equal("mock-oauth-identity", identityData["provider"], "Identity provider should match in response")
+			break
+		}
+	}
+	suite.True(found, "Should find identity with provider 'mock-oauth-identity' in response")
 }
 
 func (suite *TestSuite) TestAdminUserManagementPermissions() {
@@ -314,7 +388,7 @@ func (suite *AdvancedAdminTestSuite) TestCreateUserWithAppMetadata() {
 		RawAppMetaData *[]byte `gorm:"column:raw_app_meta_data"`
 	}
 
-	err := suite.DB.Table("users").Where("email = ?", "appmeta-user@example.com").First(&dbUser).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ?", "appmeta-user@example.com").First(&dbUser).Error
 	suite.NoError(err, "Should be able to query user from database")
 	suite.NotNil(dbUser.RawAppMetaData, "RawAppMetaData should not be NULL in database")
 
@@ -423,7 +497,7 @@ func (suite *AdvancedAdminTestSuite) TestUpdateUserAppMetadata() {
 		RawAppMetaData *[]byte `gorm:"column:raw_app_meta_data"`
 	}
 
-	err := suite.DB.Table("users").Where("email = ?", "update-appmeta@example.com").First(&dbUser).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ?", "update-appmeta@example.com").First(&dbUser).Error
 	suite.NoError(err, "Should be able to query user from database")
 	suite.NotNil(dbUser.RawAppMetaData, "RawAppMetaData should not be NULL in database")
 

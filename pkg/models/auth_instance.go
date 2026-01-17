@@ -41,5 +41,5 @@ func (a *AuthInstance) AfterFind(tx *gorm.DB) error {
 }
 
 func (AuthInstance) TableName() string {
-	return "auth_instances"
+	return getTableName("auth_instances")
 }

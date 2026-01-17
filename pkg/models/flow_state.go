@@ -25,3 +25,7 @@ type FlowState struct {
 	// Relationships
 	SAMLRelayStates []SAMLRelayState `json:"saml_relay_states,omitempty" gorm:"foreignKey:FlowStateID"`
 }
+
+func (FlowState) TableName() string {
+	return getTableName("flow_states")
+}

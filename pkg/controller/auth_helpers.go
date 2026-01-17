@@ -236,8 +236,38 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 	if userInfo.Email != "" {
 		user, err := a.authService.GetUserService().GetByEmail(ctx, userInfo.Email)
 		if err == nil {
-			// User exists, link this OAuth identity if not already linked
-			// TODO: Check if identity already exists and link if needed
+			// User exists, check if identity already exists and create if needed
+			if userInfo.ID != "" {
+				var existingIdentity models.Identity
+				err := a.authService.GetDB().Where("instance_id = ? AND provider = ? AND provider_id = ?",
+					a.authService.GetInstanceId(), provider, userInfo.ID).First(&existingIdentity).Error
+				if err != nil {
+					// Identity doesn't exist, create it
+					now := time.Now()
+					identityData, _ := json.Marshal(map[string]any{
+						"name":     userInfo.Name,
+						"picture":  userInfo.Picture,
+						"provider": provider,
+					})
+					identity := &models.Identity{
+						UserID:       user.ID,
+						Provider:     provider,
+						ProviderID:   userInfo.ID,
+						Email:        &userInfo.Email,
+						InstanceId:   a.authService.GetInstanceId(),
+						IdentityData: identityData,
+						LastSignInAt: &now,
+						CreatedAt:    now,
+						UpdatedAt:    now,
+					}
+					if err := a.authService.GetDB().WithContext(ctx).Create(identity).Error; err != nil {
+						slog.Error("[OAuth findOrCreate] Failed to create identity for existing user", "error", err)
+						// Continue anyway, don't fail the login
+					}
+				}
+			}
+			// Load identities for response
+			user.LoadIdentities(ctx)
 			return user, nil
 		}
 	}
@@ -259,7 +289,28 @@ func (a *AuthController) findOrCreateUserFromOAuth(ctx context.Context, userInfo
 		return nil, err
 	}
 
-	// TODO: Create identity record linking user to OAuth provider
+	// Create identity record linking user to OAuth provider
+	if userInfo.ID != "" {
+		now := time.Now()
+		identityData, _ := json.Marshal(userData)
+		identity := &models.Identity{
+			UserID:       user.ID,
+			Provider:     provider,
+			ProviderID:   userInfo.ID,
+			Email:        &userInfo.Email,
+			InstanceId:   a.authService.GetInstanceId(),
+			IdentityData: identityData,
+			LastSignInAt: &now,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}
+		if err := a.authService.GetDB().WithContext(ctx).Create(identity).Error; err != nil {
+			slog.Error("[OAuth findOrCreate] Failed to create identity", "error", err)
+			// Continue anyway, don't fail the login
+		}
+	}
 
+	// Load identities for response
+	user.LoadIdentities(ctx)
 	return user, nil
 }

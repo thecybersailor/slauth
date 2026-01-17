@@ -17,6 +17,10 @@ type SSOProvider struct {
 	SSOInstances  []SSOInstance  `json:"sso_instances,omitempty" gorm:"foreignKey:SSOProviderID"`
 }
 
+func (SSOProvider) TableName() string {
+	return getTableName("sso_providers")
+}
+
 type SAMLProvider struct {
 	ID               uint            `json:"id" gorm:"primaryKey;autoIncrement"`
 	SSOProviderID    uint            `json:"sso_provider_id" gorm:"not null;index"`
@@ -30,6 +34,10 @@ type SAMLProvider struct {
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
+func (SAMLProvider) TableName() string {
+	return getTableName("saml_providers")
+}
+
 type SSOInstance struct {
 	ID            uint      `json:"id" gorm:"primaryKey;autoIncrement"`
 	SSOProviderID uint      `json:"sso_provider_id" gorm:"not null;index"`
@@ -37,4 +45,8 @@ type SSOInstance struct {
 	InstanceId    string    `json:"instance_id" gorm:"type:varchar(255)"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (SSOInstance) TableName() string {
+	return getTableName("sso_instances")
 }

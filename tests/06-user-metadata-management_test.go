@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 type UserMetadataManagementTestSuite struct {
@@ -90,7 +91,7 @@ func (suite *UserMetadataManagementTestSuite) TestCreateUserWithUserMetadata() {
 		RawAppMetaData  *[]byte `gorm:"column:raw_app_meta_data"`
 	}
 
-	err := suite.DB.Table("users").Where("email = ?", "metadata-user@example.com").First(&dbUser).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ?", "metadata-user@example.com").First(&dbUser).Error
 	suite.NoError(err, "Should be able to query user from database")
 
 	suite.T().Logf("Database User ID: %d", dbUser.ID)
@@ -189,7 +190,7 @@ func (suite *UserMetadataManagementTestSuite) TestAdminCreateUserWithAppMetadata
 		RawAppMetaData  *[]byte `gorm:"column:raw_app_meta_data"`
 	}
 
-	err := suite.DB.Table("users").Where("email = ?", "admin-created-user@example.com").First(&dbUser).Error
+	err := suite.DB.Model(&models.User{}).Where("email = ?", "admin-created-user@example.com").First(&dbUser).Error
 	suite.NoError(err, "Should be able to query user from database")
 
 	suite.T().Logf("Database User ID: %d", dbUser.ID)

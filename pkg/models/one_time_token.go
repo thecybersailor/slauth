@@ -22,3 +22,7 @@ type OneTimeToken struct {
 	// Relationships
 	User *User `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`
 }
+
+func (OneTimeToken) TableName() string {
+	return getTableName("one_time_tokens")
+}

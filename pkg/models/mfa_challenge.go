@@ -18,3 +18,7 @@ type MFAChallenge struct {
 	// Relationships
 	Factor *MFAFactor `json:"factor,omitempty" gorm:"foreignKey:FactorID;references:ID"`
 }
+
+func (MFAChallenge) TableName() string {
+	return getTableName("mfa_challenges")
+}

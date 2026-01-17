@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/flaboy/envconf"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/auth"
 	"github.com/thecybersailor/slauth/pkg/controller"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/providers/mfa"
@@ -21,7 +23,6 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 )
 
 type DatabaseConfig struct {
@@ -38,20 +39,6 @@ type DatabaseConfig struct {
 	PostgresDBName   string `cfg:"POSTGRES_DBNAME" default:"auth"`
 	PostgresPassword string `cfg:"POSTGRES_PASSWORD" default:"passwd"`
 	PostgresPort     int    `cfg:"POSTGRES_PORT" default:"5432"`
-	PostgresSchema   string `cfg:"POSTGRES_SCHEMA" default:""`
-}
-
-type PostgresSchemaNameStrategy struct {
-	schema.NamingStrategy
-	Schema string
-}
-
-func (ps *PostgresSchemaNameStrategy) TableName(table string) string {
-	tableName := ps.NamingStrategy.TableName(table)
-	if ps.Schema != "" {
-		return ps.Schema + "." + tableName
-	}
-	return tableName
 }
 
 type TestAdminRouteHandler struct {
@@ -88,22 +75,25 @@ func (suite *TestSuite) SetupSuite() {
 func (suite *TestSuite) setupDatabase() {
 	dbConfig := suite.loadDatabaseConfig()
 
-	if dbConfig.Type == "postgres" || dbConfig.Type == "postgresql" {
-		if dbConfig.PostgresSchema != "" {
-			db, err := suite.connectDatabaseWithoutSchema(dbConfig)
-			suite.Require().NoError(err)
-
-			err = db.Exec(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", dbConfig.PostgresSchema)).Error
-			suite.Require().NoError(err, "Failed to create schema: %s", dbConfig.PostgresSchema)
-
-			sqlDB, err := db.DB()
-			suite.Require().NoError(err)
-			sqlDB.Close()
-		}
+	// Read TABLE_PREFIX from environment variable
+	tablePrefix := os.Getenv("TABLE_PREFIX")
+	if tablePrefix != "" {
+		// Set table prefix before any migration
+		auth.SetDefaultTablePrefix(tablePrefix)
 	}
 
 	db, err := suite.connectDatabase(dbConfig)
 	suite.Require().NoError(err)
+
+	// For PostgreSQL with schema prefix (e.g., "auth."), create schema first
+	if dbConfig.Type == "postgres" || dbConfig.Type == "postgresql" {
+		if tablePrefix != "" && strings.HasSuffix(tablePrefix, ".") {
+			schemaName := strings.TrimSuffix(tablePrefix, ".")
+			// Use double quotes to handle case-sensitive schema names and reserved words
+			err = db.Exec(fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS "%s"`, schemaName)).Error
+			suite.Require().NoError(err, "Failed to create schema: %s", schemaName)
+		}
+	}
 
 	err = models.AutoMigrate(db)
 	suite.Require().NoError(err)
@@ -127,16 +117,6 @@ func (suite *TestSuite) loadDatabaseConfig() *DatabaseConfig {
 	return config
 }
 
-func (suite *TestSuite) connectDatabaseWithoutSchema(config *DatabaseConfig) (*gorm.DB, error) {
-	if config.Type != "postgres" && config.Type != "postgresql" {
-		return nil, fmt.Errorf("connectDatabaseWithoutSchema only supports PostgreSQL")
-	}
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
-		config.PostgresHost, config.PostgresUser, config.PostgresPassword,
-		config.PostgresDBName, config.PostgresPort)
-	return gorm.Open(postgres.Open(dsn), &gorm.Config{})
-}
-
 func (suite *TestSuite) connectDatabase(config *DatabaseConfig) (*gorm.DB, error) {
 	switch config.Type {
 	case "mysql":
@@ -148,33 +128,9 @@ func (suite *TestSuite) connectDatabase(config *DatabaseConfig) (*gorm.DB, error
 		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=UTC",
 			config.PostgresHost, config.PostgresUser, config.PostgresPassword,
 			config.PostgresDBName, config.PostgresPort)
-
-		gormConfig := &gorm.Config{}
-		if config.PostgresSchema != "" {
-			gormConfig.NamingStrategy = &PostgresSchemaNameStrategy{
-				Schema: config.PostgresSchema,
-			}
-		}
-
-		db, err := gorm.Open(postgres.Open(dsn), gormConfig)
-		if err != nil {
-			return nil, err
-		}
-
-		if config.PostgresSchema != "" {
-			sqlDB, err := db.DB()
-			if err != nil {
-				return nil, err
-			}
-			_, err = sqlDB.Exec(fmt.Sprintf("SET search_path TO %s", config.PostgresSchema))
-			if err != nil {
-				return nil, fmt.Errorf("failed to set search_path: %w", err)
-			}
-		}
-		return db, nil
+		return gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	case "sqlite", "":
-
 		return gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 
 	default:

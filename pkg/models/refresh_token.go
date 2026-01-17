@@ -18,3 +18,7 @@ type RefreshToken struct {
 	// Relationships
 	Session *Session `json:"session,omitempty" gorm:"foreignKey:SessionID;references:ID"`
 }
+
+func (RefreshToken) TableName() string {
+	return getTableName("refresh_tokens")
+}

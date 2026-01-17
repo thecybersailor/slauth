@@ -26,3 +26,7 @@ type MFAFactor struct {
 	User          *User          `json:"user,omitempty" gorm:"foreignKey:UserID;references:ID"`
 	MFAChallenges []MFAChallenge `json:"mfa_challenges,omitempty" gorm:"foreignKey:FactorID"`
 }
+
+func (MFAFactor) TableName() string {
+	return getTableName("mfa_factors")
+}

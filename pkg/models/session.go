@@ -79,3 +79,7 @@ func (s *Session) AfterFind(tx *gorm.DB) error {
 
 	return nil
 }
+
+func (Session) TableName() string {
+	return getTableName("sessions")
+}

@@ -45,3 +45,7 @@ type User struct {
 	MFAFactors    []MFAFactor    `json:"mfa_factors,omitempty" gorm:"foreignKey:UserID"`
 	OneTimeTokens []OneTimeToken `json:"one_time_tokens,omitempty" gorm:"foreignKey:UserID"`
 }
+
+func (User) TableName() string {
+	return getTableName("users")
+}

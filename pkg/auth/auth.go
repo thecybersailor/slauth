@@ -103,3 +103,7 @@ func NewServiceWithPasswordServiceLegacy(instanceId, globalJWTSecret, globalAppS
 func Start() error {
 	return models.Init()
 }
+
+func SetDefaultTablePrefix(prefix string) {
+	models.SetDefaultTablePrefix(prefix)
+}

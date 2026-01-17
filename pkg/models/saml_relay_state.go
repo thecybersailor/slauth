@@ -16,3 +16,7 @@ type SAMLRelayState struct {
 	InstanceId    string     `json:"instance_id" gorm:"type:varchar(255)"`
 	FlowState     *FlowState `json:"flow_state,omitempty" gorm:"foreignKey:FlowStateID;references:ID"`
 }
+
+func (SAMLRelayState) TableName() string {
+	return getTableName("saml_relay_states")
+}

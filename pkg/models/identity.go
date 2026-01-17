@@ -31,3 +31,7 @@ func (i *Identity) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+func (Identity) TableName() string {
+	return getTableName("identities")
+}

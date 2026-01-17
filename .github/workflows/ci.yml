@@ -228,6 +228,176 @@ jobs:
         test -f packages/slauth-ui-vue/dist/index.cjs.js
         test -f packages/slauth-ui-vue/dist/index.d.ts
 
+  verify-table-prefix-sqlite:
+    name: Verify Table Prefix (SQLite)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run table structure test
+      working-directory: ./tests
+      env:
+        TABLE_PREFIX: test_
+      run: go test -v -run TestTableStructureMatchesExpected ./...
+
+  verify-table-prefix-mysql:
+    name: Verify Table Prefix (MySQL)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: slauth_test
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 3306:3306
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run table structure test
+      working-directory: ./tests
+      env:
+        CONF_FILE: mysql.conf
+        TABLE_PREFIX: test_
+      run: go test -v -run TestTableStructureMatchesExpected ./...
+
+  verify-table-prefix-postgres:
+    name: Verify Table Prefix (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: slauth_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run table structure test
+      working-directory: ./tests
+      env:
+        CONF_FILE: pgsql.conf
+        TABLE_PREFIX: test_
+      run: go test -v -run TestTableStructureMatchesExpected ./...
+
+  verify-table-schema-postgres:
+    name: Verify Table Schema (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: slauth_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Run table structure test
+      working-directory: ./tests
+      env:
+        CONF_FILE: pgsql.conf
+        TABLE_PREFIX: auth.
+      run: go test -v -run TestTableStructureMatchesExpected ./...
+
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest

@@ -15,3 +15,7 @@ type MFAAMRClaim struct {
 	// Relationships
 	Session *Session `json:"session,omitempty" gorm:"foreignKey:SessionID;references:ID"`
 }
+
+func (MFAAMRClaim) TableName() string {
+	return getTableName("mfa_amr_claims")
+}

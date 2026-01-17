@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 type SigninAuthenticationTestSuite struct {
@@ -288,10 +289,10 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 	}
 
 	var ssoProviderID uint
-	err := suite.DB.Table("sso_providers").Create(ssoProviderData).Error
+	err := suite.DB.Model(&models.SSOProvider{}).Create(ssoProviderData).Error
 	suite.Nil(err, "Should create SSO provider")
 
-	err = suite.DB.Table("sso_providers").
+	err = suite.DB.Model(&models.SSOProvider{}).
 		Where("name = ? AND instance_id = ?", "Test Company SSO", suite.TestInstance).
 		Pluck("id", &ssoProviderID).Error
 	suite.Nil(err, "Should get SSO provider ID")
@@ -314,7 +315,7 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 		"instance_id":       suite.TestInstance,
 	}
 
-	err = suite.DB.Table("saml_providers").Create(samlConfigData).Error
+	err = suite.DB.Model(&models.SAMLProvider{}).Create(samlConfigData).Error
 	suite.Nil(err, "Should create SAML configuration")
 
 	instanceMappingData := map[string]any{
@@ -323,7 +324,7 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 		"instance_id":     suite.TestInstance,
 	}
 
-	err = suite.DB.Table("sso_instances").Create(instanceMappingData).Error
+	err = suite.DB.Model(&models.SSOInstance{}).Create(instanceMappingData).Error
 	suite.Nil(err, "Should create instance mapping")
 
 	ssoRequestBody := S{
@@ -351,7 +352,7 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 			"instance_id":     suite.TestInstance,
 		}
 
-		err = suite.DB.Table("saml_relay_states").Create(relayStateData).Error
+		err = suite.DB.Model(&models.SAMLRelayState{}).Create(relayStateData).Error
 		suite.Nil(err, "Should create relay state")
 
 		samlResponse := mockSAMLServer.GenerateSAMLResponse("saml-user@testcompany.com", mockRelayState)
@@ -382,15 +383,15 @@ func (suite *SigninAuthenticationTestSuite) TestSAMLIntegration() {
 			suite.T().Log("✅ SAML integration test completed successfully!")
 		}
 
-		suite.DB.Table("saml_relay_states").Where("request_id = ?", mockRelayState).Delete(nil)
+		suite.DB.Model(&models.SAMLRelayState{}).Where("request_id = ?", mockRelayState).Delete(nil)
 	} else {
 		suite.T().Log("✅ SSO initiation succeeded - full integration test possible")
 
 	}
 
-	suite.DB.Table("sso_instances").Where("instance = ?", testInstance).Delete(nil)
-	suite.DB.Table("saml_providers").Where("sso_provider_id = ?", ssoProviderID).Delete(nil)
-	suite.DB.Table("sso_providers").Where("id = ?", ssoProviderID).Delete(nil)
+	suite.DB.Model(&models.SSOInstance{}).Where("instance = ?", testInstance).Delete(nil)
+	suite.DB.Model(&models.SAMLProvider{}).Where("sso_provider_id = ?", ssoProviderID).Delete(nil)
+	suite.DB.Model(&models.SSOProvider{}).Where("id = ?", ssoProviderID).Delete(nil)
 
 	suite.T().Log("✅ SAML integration test with MockSAMLServer completed")
 }
@@ -441,6 +442,25 @@ func (suite *SigninAuthenticationTestSuite) TestPKCECodeExchange() {
 	userInfo := exchangeData["user"].(map[string]any)
 	suite.Equal("mock-user@example.com", userInfo["email"], "User email should match mock provider")
 	suite.NotEmpty(userInfo["id"], "User should have ID")
+
+	// Verify identity was created in database
+	var identityCount int64
+	err := suite.DB.Model(&models.Identity{}).
+		Where("instance_id = ? AND provider = ? AND provider_id = ?",
+			suite.TestInstance, "mock-oauth-pkce", "mock-user-123").
+		Count(&identityCount).Error
+	suite.NoError(err, "Should be able to query identities table")
+	suite.Equal(int64(1), identityCount, "Should create exactly one identity record after OAuth login")
+
+	// Verify identity details
+	var identity models.Identity
+	err = suite.DB.Model(&models.Identity{}).
+		Where("instance_id = ? AND provider = ? AND provider_id = ?",
+			suite.TestInstance, "mock-oauth-pkce", "mock-user-123").
+		First(&identity).Error
+	suite.NoError(err, "Should find the identity record")
+	suite.Equal("mock-oauth-pkce", identity.Provider, "Provider should match")
+	suite.Equal("mock-user-123", identity.ProviderID, "Provider ID should match")
 }
 
 func TestSigninAuthenticationTestSuite(t *testing.T) {
