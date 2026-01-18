@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/models"
 )
 
 // TokenRevocationBestPracticesTestSuite tests industry best practices for token revocation
@@ -34,6 +35,15 @@ func (suite *TokenRevocationBestPracticesTestSuite) SetupSuite() {
 		},
 	}
 	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) SetupTest() {
+	// Ensure database tables exist before each test
+	// This is a safety check in case SetupSuite didn't run properly
+	if suite.DB != nil {
+		err := models.AutoMigrate(suite.DB)
+		suite.Require().NoError(err, "Failed to migrate database in SetupTest")
+	}
 }
 
 // TestLogoutRevokesAllDevicesRefreshTokens verifies that POST /logout revokes
