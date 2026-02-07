@@ -16,7 +16,7 @@ reset-test-db:
 test:
 	@echo "Running tests in tests/ directory..."
 	@cd tests && go test -v ./...
-	@touch .checks-passed
+	@touch .checks-passed .test-passed
 	@echo "Tests completed and marked as passed!"
 
 # Run tests with MySQL configuration
@@ -27,7 +27,7 @@ test-mysql:
 	fi
 	@echo "Running tests with MySQL configuration..."
 	@cd tests && CONF_FILE=mysql.conf go test -v ./...
-	@touch .checks-passed
+	@touch .checks-passed .test-passed
 	@echo "MySQL tests completed and marked as passed!"
 
 # Run tests with PostgreSQL configuration  
@@ -38,7 +38,7 @@ test-pgsql:
 	fi
 	@echo "Running tests with PostgreSQL configuration..."
 	@cd tests && CONF_FILE=pgsql.conf go test -v ./...
-	@touch .checks-passed
+	@touch .checks-passed .test-passed
 	@echo "PostgreSQL tests completed and marked as passed!"
 
 # Run tests with custom configuration file
@@ -56,6 +56,5 @@ test-custom:
 	fi
 	@echo "Running tests with custom configuration: $(CONF_FILE)..."
 	@cd tests && CONF_FILE=$(CONF_FILE) go test -v ./...
-	@touch .checks-passed
+	@touch .checks-passed .test-passed
 	@echo "Custom configuration tests completed and marked as passed!"
-
