@@ -3,6 +3,7 @@ import { createValidatedHttpClient, ValidatedApiClient } from './lib/validated-c
 import { StorageManager } from './lib/storage'
 import { AuthError } from './lib/errors'
 import { debugLog } from './lib/helpers'
+import { withBestEffortExclusiveLock } from './lib/locks'
 import * as Schemas from './schemas/auth-api.schemas'
 import * as Types from './types/auth-api'
 
@@ -16,6 +17,7 @@ export class AuthApi {
   private debug: boolean
   private currentSession: Types.Session | null = null
   private currentUser: any = null
+  private refreshTokenFn?: () => Promise<boolean>
 
   private createAuthError(message: string): AuthError {
     return { message, key: 'UNAUTHORIZED' }
@@ -49,36 +51,78 @@ export class AuthApi {
     
     // Create refresh token function that uses this.api
     const refreshTokenFn = async (): Promise<boolean> => {
-      if (!this.currentSession?.refresh_token) {
-        return false
+      const now = Math.floor(Date.now() / 1000)
+      const crossTabRefreshLockEnabled =
+        this.persistSession &&
+        this.autoRefreshToken &&
+        config.crossTabRefreshLock !== false
+
+      const lockKey =
+        config.refreshLockKey ||
+        `slauth:refresh:${config.storageKey || 'aira.auth.token'}:${baseURL}`
+
+      const refreshImpl = async (): Promise<boolean> => {
+        // If another tab already refreshed and persisted the latest session,
+        // adopt it and skip calling refresh endpoint with a potentially stale refresh_token.
+        if (this.persistSession) {
+          const latestSession = await this.storage.getSession({ checkExpiry: false })
+          const latestNotExpired =
+            latestSession &&
+            (!latestSession.expires_at || latestSession.expires_at > now)
+
+          const refreshTokenChanged =
+            latestSession?.refresh_token &&
+            latestSession.refresh_token !== this.currentSession?.refresh_token
+
+          const accessTokenChanged =
+            latestSession?.access_token &&
+            latestSession.access_token !== this.currentSession?.access_token
+
+          if (latestNotExpired && (refreshTokenChanged || accessTokenChanged)) {
+            await this.setSession(latestSession as Types.Session)
+            config.onSessionRefreshed?.(latestSession as Types.Session)
+            return true
+          }
+        }
+
+        if (!this.currentSession?.refresh_token) {
+          return false
+        }
+
+        const requestBody = {
+          refresh_token: this.currentSession.refresh_token
+        }
+
+        // Mark this request to skip auto refresh to prevent infinite loop
+        const { data, error } = await this.api.postWithValidation<Types.AuthData>(
+          '/token?grant_type=refresh_token',
+          requestBody,
+          Schemas.RefreshTokenRequestSchema,
+          Schemas.AuthDataSchema,
+          { _skipAutoRefresh: true } as any
+        )
+
+        if (error || !data || !data.session) {
+          return false
+        }
+
+        await this.setSession(data.session as Types.Session)
+        config.onSessionRefreshed?.(data.session)
+        return true
       }
-      
-      const requestBody = {
-        refresh_token: this.currentSession.refresh_token
+
+      if (!crossTabRefreshLockEnabled) {
+        return refreshImpl()
       }
-      
-      // Mark this request to skip auto refresh to prevent infinite loop
-      const { data, error } = await this.api.postWithValidation<Types.AuthData>(
-        '/token?grant_type=refresh_token',
-        requestBody,
-        Schemas.RefreshTokenRequestSchema,
-        Schemas.AuthDataSchema,
-        { _skipAutoRefresh: true } as any
-      )
-      
-      if (error || !data || !data.session) {
-        return false
-      }
-      
-      await this.setSession(data.session as Types.Session)
-      config.onSessionRefreshed?.(data.session)
-      return true
+
+      return withBestEffortExclusiveLock(lockKey, refreshImpl)
     }
+    this.refreshTokenFn = refreshTokenFn
     
     // Set refresh function if auto refresh is enabled
     if (this.autoRefreshToken) {
-      (this.api as any).config.refreshTokenFn = refreshTokenFn;
-      (this.request as any).config.refreshTokenFn = refreshTokenFn
+      ;(this.api as any).config.refreshTokenFn = refreshTokenFn
+      ;(this.request as any).config.refreshTokenFn = refreshTokenFn
     }
     
     this.syncTokenState()
@@ -135,28 +179,17 @@ export class AuthApi {
         
         // Set current session temporarily for refresh function
         this.currentSession = session
-        
-        const requestBody = {
-          refresh_token: session.refresh_token
-        }
-        
-        const { data, error } = await this.api.postWithValidation<Types.AuthData>(
-          '/token?grant_type=refresh_token',
-          requestBody,
-          Schemas.RefreshTokenRequestSchema,
-          Schemas.AuthDataSchema
-        )
-        
-        if (error || !data || !data.session) {
-          debugLog(this.debug, '[slauth:AuthApi] Auto-refresh failed, clearing session', { error })
+
+        const refreshSuccess = await (this.refreshTokenFn?.() ?? Promise.resolve(false))
+        if (!refreshSuccess) {
+          debugLog(this.debug, '[slauth:AuthApi] Auto-refresh failed, clearing session')
           await this.storage.removeSession()
           this.currentSession = null
           this.currentUser = null
           return
         }
-        
+
         debugLog(this.debug, '[slauth:AuthApi] Auto-refresh successful')
-        await this.setSession(data.session as Types.Session)
         return
       } else {
         debugLog(this.debug, '[slauth:AuthApi] Session expired, no auto-refresh available, clearing session')

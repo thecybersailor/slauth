@@ -12,6 +12,8 @@ export function createClients(config: ClientsConfig) {
     persistSession: config.persistSession,
     storage: config.storage,
     storageKey: config.storageKey,
+    crossTabRefreshLock: config.crossTabRefreshLock,
+    refreshLockKey: config.refreshLockKey,
     debug: config.debug,
     timeout: config.timeout,
     // Pass callbacks

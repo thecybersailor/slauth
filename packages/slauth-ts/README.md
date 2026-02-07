@@ -91,6 +91,11 @@ const { authClient } = createClients({
   auth: { url: 'http://localhost:8080/auth' },
   autoRefreshToken: true, // Enable automatic token refresh
   persistSession: true,
+  // Optional: coordinate refresh automatically
+  // - Browser: uses navigator.locks when available
+  // - Node/Bun: falls back to an in-process async mutex (not cross-process)
+  // crossTabRefreshLock: false,
+  // refreshLockKey: 'slauth:refresh:my-app',
 })
 
 // After user signs in

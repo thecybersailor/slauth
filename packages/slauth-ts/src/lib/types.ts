@@ -51,6 +51,10 @@ export interface ClientsConfig {
   storage?: Storage
   /** Storage key for session persistence */
   storageKey?: string
+  /** Coordinate refresh across tabs/pages (uses navigator.locks when available). Defaults to enabled when persistSession+autoRefreshToken are enabled; set false to opt out. */
+  crossTabRefreshLock?: boolean
+  /** Optional lock name override; default is derived from storageKey */
+  refreshLockKey?: string
   /** Debug mode */
   debug?: boolean
   /** Request timeout */
