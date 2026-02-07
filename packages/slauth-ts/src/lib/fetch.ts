@@ -36,6 +36,7 @@ export class HttpClient {
   private client: AxiosInstance
   private debug: boolean
   protected config: HttpClientConfig
+  private refreshInFlight: Promise<boolean> | null = null
 
   constructor(config: HttpClientConfig) {
     this.config = config
@@ -61,6 +62,28 @@ export class HttpClient {
 
     // Setup interceptors
     this.setupInterceptors()
+  }
+
+  private async refreshTokenSingleflight(): Promise<boolean> {
+    if (!this.config.refreshTokenFn) return false
+
+    if (this.refreshInFlight) {
+      debugLog(this.debug, '[slauth] Refresh already in-flight, waiting')
+      return this.refreshInFlight
+    }
+
+    debugLog(this.debug, '[slauth] Starting refresh (singleflight)')
+    this.refreshInFlight = (async () => {
+      try {
+        return await this.config.refreshTokenFn!()
+      } catch {
+        return false
+      } finally {
+        this.refreshInFlight = null
+      }
+    })()
+
+    return this.refreshInFlight
   }
 
   /** Setup interceptors */
@@ -124,7 +147,7 @@ export class HttpClient {
             debugLog(this.debug, '[slauth] Attempting to refresh token')
             
             // Attempt to refresh token
-            const refreshSuccess = await this.config.refreshTokenFn().catch(() => false)
+            const refreshSuccess = await this.refreshTokenSingleflight()
             
             if (refreshSuccess) {
               debugLog(this.debug, '[slauth] Token refresh successful, retrying request')

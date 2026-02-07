@@ -55,15 +55,8 @@ func (v *ValidatorService) ValidatePhone(phone string) error {
 		return consts.VALIDATION_FAILED
 	}
 
-	// Remove common formatting characters
-	cleaned := strings.ReplaceAll(phone, " ", "")
-	cleaned = strings.ReplaceAll(cleaned, "-", "")
-	cleaned = strings.ReplaceAll(cleaned, "(", "")
-	cleaned = strings.ReplaceAll(cleaned, ")", "")
-	cleaned = strings.ReplaceAll(cleaned, ".", "")
-
-	// Must start with + for international format
-	if !strings.HasPrefix(cleaned, "+") {
+	cleaned := normalizePhone(phone)
+	if cleaned == "" || !strings.HasPrefix(cleaned, "+") {
 		return consts.VALIDATION_FAILED
 	}
 
@@ -308,12 +301,29 @@ func (v *ValidatorService) SanitizeEmail(email string) string {
 
 // SanitizePhone sanitizes phone input
 func (v *ValidatorService) SanitizePhone(phone string) string {
+	return normalizePhone(phone)
+}
+
+func normalizePhone(phone string) string {
 	// Remove common formatting
 	cleaned := strings.ReplaceAll(phone, " ", "")
 	cleaned = strings.ReplaceAll(cleaned, "-", "")
 	cleaned = strings.ReplaceAll(cleaned, "(", "")
 	cleaned = strings.ReplaceAll(cleaned, ")", "")
 	cleaned = strings.ReplaceAll(cleaned, ".", "")
+	cleaned = strings.TrimSpace(cleaned)
 
-	return strings.TrimSpace(cleaned)
+	if cleaned == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(cleaned, "+") {
+		return cleaned
+	}
+
+	if strings.HasPrefix(cleaned, "1") {
+		return "+" + cleaned
+	}
+
+	return "+1" + cleaned
 }

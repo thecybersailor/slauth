@@ -228,6 +228,53 @@ describe('Auto Token Refresh', () => {
     expect(response.data.data).toHaveProperty('user')
   })
 
+  it('should de-duplicate concurrent refresh attempts (singleflight)', async () => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+    refreshCallCount = 0
+
+    const refreshTokenFn = async (): Promise<boolean> => {
+      refreshCallCount++
+      // Keep refresh in-flight briefly to increase overlap across concurrent 401s
+      await sleep(20)
+      client.setAuth('new-access-token')
+      onSessionRefreshedMock({ access_token: 'new-access-token' })
+      return true
+    }
+
+    client = new HttpClient({
+      baseURL: 'http://localhost:3000',
+      autoRefreshToken: true,
+      refreshTokenFn,
+      onUnauthorized: onUnauthorizedMock,
+      onSessionRefreshed: onSessionRefreshedMock,
+      debug: false
+    })
+
+    mock.restore()
+    mock = new MockAdapter((client as any).client)
+
+    // Two concurrent initial requests both get 401
+    mock.onGet('/user').replyOnce(401, {
+      error: { message: 'Token expired', key: 'auth.unauthorized', type: 'user' }
+    })
+    mock.onGet('/user').replyOnce(401, {
+      error: { message: 'Token expired', key: 'auth.unauthorized', type: 'user' }
+    })
+
+    // Retries after refresh should succeed
+    mock.onGet('/user').reply(200, {
+      data: { user: { id: '1', email: 'test@example.com' } }
+    })
+
+    const [r1, r2] = await Promise.all([client.get('/user'), client.get('/user')])
+
+    expect(r1.status).toBe(200)
+    expect(r2.status).toBe(200)
+    expect(refreshCallCount).toBe(1)
+    expect(onUnauthorizedMock).not.toHaveBeenCalled()
+  })
+
   it('should trigger onUnauthorized if refresh fails', async () => {
     const failingRefreshFn = async (): Promise<boolean> => {
       return false
@@ -264,4 +311,3 @@ describe('Auto Token Refresh', () => {
     failMock.restore()
   })
 })
-

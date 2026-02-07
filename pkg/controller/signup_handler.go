@@ -230,8 +230,12 @@ func (a *AuthController) SendVerificationCode(c *pin.Context) error {
 		return consts.VALIDATION_FAILED
 	}
 
-	if req.Phone != "" && !isValidPhone(req.Phone) {
-		return consts.VALIDATION_FAILED
+	if req.Phone != "" {
+		normalizedPhone, ok := normalizePhone(req.Phone)
+		if !ok {
+			return consts.VALIDATION_FAILED
+		}
+		req.Phone = normalizedPhone
 	}
 
 	otpReq := &types.SendOTPRequest{
@@ -274,15 +278,16 @@ func (a *AuthController) SendSMSVerificationCode(c *pin.Context) error {
 	slog.Info("SendSMSVerificationCode request received", "phone", req.Phone)
 
 	if req.Phone == "" {
-		return consts.INVALID_CREDENTIALS
+		return consts.VALIDATION_FAILED
 	}
 
-	if !isValidPhone(req.Phone) {
-		return consts.INVALID_CREDENTIALS
+	normalizedPhone, ok := normalizePhone(req.Phone)
+	if !ok {
+		return consts.VALIDATION_FAILED
 	}
 
 	otpReq := &types.SendOTPRequest{
-		Phone: req.Phone,
+		Phone: normalizedPhone,
 	}
 
 	otpCtx := otp.NewOTPContext(c.Request.Context(), a.authService, c.Request, otpReq)
@@ -418,13 +423,32 @@ func isValidEmail(email string) bool {
 
 // isValidPhone validates phone format (simple validation)
 func isValidPhone(phone string) bool {
-	// Remove spaces and special characters except + at the beginning
+	_, ok := normalizePhone(phone)
+	return ok
+}
+
+func normalizePhone(phone string) (string, bool) {
+	// Remove spaces and common separators
 	phone = strings.ReplaceAll(phone, " ", "")
 	phone = strings.ReplaceAll(phone, "-", "")
 	phone = strings.ReplaceAll(phone, "(", "")
 	phone = strings.ReplaceAll(phone, ")", "")
 
-	// Should start with + and have at least 10 digits
-	phoneRegex := regexp.MustCompile(`^\+[1-9]\d{9,14}$`)
-	return phoneRegex.MatchString(phone)
+	if phone == "" {
+		return "", false
+	}
+
+	// Accept E.164 directly
+	e164Regex := regexp.MustCompile(`^\+[1-9]\d{9,14}$`)
+	if e164Regex.MatchString(phone) {
+		return phone, true
+	}
+
+	// Auto-prefix China mobile numbers without "+"
+	cnRegex := regexp.MustCompile(`^1\d{10}$`)
+	if cnRegex.MatchString(phone) {
+		return "+1" + phone, true
+	}
+
+	return "", false
 }
