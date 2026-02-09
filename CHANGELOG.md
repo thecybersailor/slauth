@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-02-09
+
+### Added
+
+- WebAuthn/Passkey enrollment and sign-in via `/factors/enroll`, `/factors/challenge`, `/factors/verify`.
+
+### Changed
+
+- Allow anonymous requests to `/factors/challenge` and `/factors/verify` to support WebAuthn sign-in (non-WebAuthn flows still require Authorization at the controller level).
+
 ## [0.8.0] - 2025-09-30
 
 ### Initial Open Source Release
@@ -110,7 +120,6 @@ Initial database schema includes:
 
 ### Known Limitations
 
-- WebAuthn/Passkey support not yet implemented
 - Phone number authentication is SMS-based only
 - No built-in GraphQL API (REST only)
 - Account linking requires manual implementation

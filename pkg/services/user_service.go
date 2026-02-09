@@ -89,7 +89,7 @@ func (s *UserService) CreateUserWithSource(
 	opts *UserCreateOptions,
 	source UserCreatedSource,
 	extraContext map[string]any, // 存储Provider、Identity等额外信息
-	httpRequest *http.Request,   // HTTP请求（可选）
+	httpRequest *http.Request, // HTTP请求（可选）
 ) (*User, error) {
 	var createdUser *User
 	var userModel *models.User
@@ -280,7 +280,7 @@ func (s *UserService) CreateUserWithSource(
 			}
 			// 直接关联到 user，避免事务外查询
 			user.Identities = []models.Identity{*identity}
-			
+
 			// 触发 IdentityLinkedUse middleware
 			if s.authService != nil {
 				if authServiceImpl, ok := s.authService.(*AuthServiceImpl); ok {

@@ -57,4 +57,3 @@ func (e *SHA1SaltEncoder) VerifyPassword(password, encodedHash string) (bool, er
 	// Compare hashes
 	return bytes.Equal(computedHash, expectedHash), nil
 }
-

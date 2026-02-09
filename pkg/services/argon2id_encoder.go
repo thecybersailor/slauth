@@ -102,4 +102,3 @@ func (e *Argon2idEncoder) VerifyPassword(password, encodedHash string) (bool, er
 	// Compare hashes using constant-time comparison
 	return subtle.ConstantTimeCompare(hash, comparisonHash) == 1, nil
 }
-

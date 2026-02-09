@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -33,6 +35,7 @@ type MFAEnrollData struct {
 	FriendlyName string           `json:"friendly_name,omitempty" example:"My Phone" description:"User-friendly name"`
 	Phone        string           `json:"phone,omitempty" example:"+1234567890" description:"Phone number (for phone factors)"`
 	TOTP         *TOTPEnrollData  `json:"totp,omitempty" description:"TOTP enrollment data (for TOTP factors)"`
+	WebAuthn     *WebAuthnEnroll  `json:"webauthn,omitempty" description:"WebAuthn enrollment data (for WebAuthn factors)"`
 }
 
 type TOTPEnrollData struct {
@@ -41,9 +44,16 @@ type TOTPEnrollData struct {
 	URI    string `json:"uri"`
 }
 
+type WebAuthnEnroll struct {
+	ChallengeID     string          `json:"challenge_id"`
+	CreationOptions json.RawMessage `json:"creation_options"`
+}
+
 type MFAChallengeRequest struct {
-	FactorID string `json:"factorId"`
-	Channel  string `json:"channel,omitempty"` // sms, whatsapp (for phone factors)
+	FactorID   string           `json:"factorId,omitempty"`
+	FactorType types.FactorType `json:"factorType,omitempty"`
+	Identifier string           `json:"identifier,omitempty"` // phone/email/username
+	Channel    string           `json:"channel,omitempty"`    // sms, whatsapp (for phone factors)
 }
 
 type MFAChallengeData struct {
@@ -55,9 +65,10 @@ type MFAChallengeData struct {
 // MFAVerifyRequest represents MFA verification request
 // @Description Request to verify MFA challenge
 type MFAVerifyRequest struct {
-	FactorID    string `json:"factorId" example:"factor_123" description:"MFA factor identifier"`
-	ChallengeID string `json:"challengeId" example:"challenge_456" description:"Challenge identifier"`
-	Code        string `json:"code" example:"123456" description:"Verification code"`
+	FactorID    string          `json:"factorId" example:"factor_123" description:"MFA factor identifier"`
+	ChallengeID string          `json:"challengeId" example:"challenge_456" description:"Challenge identifier"`
+	Code        string          `json:"code" example:"123456" description:"Verification code"`
+	Credential  json.RawMessage `json:"credential,omitempty" swaggertype:"object,string"`
 }
 
 type MFAVerifyData struct {
@@ -114,6 +125,44 @@ func (m *MFAController) Enroll(c *pin.Context) error {
 	var req MFAEnrollRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return c.RenderError(err)
+	}
+
+	if req.FactorType == types.FactorTypeWebAuthn {
+		user, err := m.getCurrentUser(c)
+		if err != nil {
+			return c.RenderError(err)
+		}
+
+		rp, err := m.getWebAuthnRPConfig()
+		if err != nil {
+			return c.RenderError(err)
+		}
+
+		engine, err := services.NewGoWebAuthnEngine(rp)
+		if err != nil {
+			return c.RenderError(err)
+		}
+		webauthnSvc := services.NewWebAuthnService(m.authService, engine)
+
+		ip := ""
+		if c.Context != nil {
+			ip = c.Context.ClientIP()
+		}
+
+		begin, err := webauthnSvc.BeginRegistration(c.Request.Context(), rp, user, req.FriendlyName, ip)
+		if err != nil {
+			return c.RenderError(err)
+		}
+
+		return c.Render(&MFAEnrollData{
+			ID:           begin.FactorID,
+			Type:         types.FactorTypeWebAuthn,
+			FriendlyName: req.FriendlyName,
+			WebAuthn: &WebAuthnEnroll{
+				ChallengeID:     begin.ChallengeID,
+				CreationOptions: begin.CreationOptions,
+			},
+		})
 	}
 
 	// Get current user
@@ -189,6 +238,40 @@ func (m *MFAController) Enroll(c *pin.Context) error {
 // @Success 200 {object} MFAChallengeData "Challenge created successfully"
 // @Router /factors/challenge [post]
 func (m *MFAController) Challenge(c *pin.Context) error {
+	var req MFAChallengeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return c.RenderError(err)
+	}
+
+	// WebAuthn login is anonymous: identifier -> allowCredentials -> requestOptions
+	if req.FactorType == types.FactorTypeWebAuthn || req.Identifier != "" {
+		if req.Identifier == "" {
+			return c.RenderError(consts.VALIDATION_FAILED)
+		}
+
+		rp, err := m.getWebAuthnRPConfig()
+		if err != nil {
+			return c.RenderError(err)
+		}
+
+		engine, err := services.NewGoWebAuthnEngine(rp)
+		if err != nil {
+			return c.RenderError(err)
+		}
+		webauthnSvc := services.NewWebAuthnService(m.authService, engine)
+
+		ip := ""
+		if c.Context != nil {
+			ip = c.Context.ClientIP()
+		}
+
+		res, err := webauthnSvc.BeginAuthentication(c.Request.Context(), rp, req.Identifier, ip)
+		if err != nil {
+			return c.RenderError(err)
+		}
+		return c.Render(res)
+	}
+
 	return c.Render(&MFAChallengeData{})
 }
 
@@ -207,6 +290,70 @@ func (m *MFAController) Verify(c *pin.Context) error {
 	var req MFAVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		return c.RenderError(err)
+	}
+
+	// WebAuthn verify can be anonymous (login) or authenticated (finish enrollment).
+	if len(req.Credential) > 0 {
+		rp, err := m.getWebAuthnRPConfig()
+		if err != nil {
+			return c.RenderError(err)
+		}
+
+		engine, err := services.NewGoWebAuthnEngine(rp)
+		if err != nil {
+			return c.RenderError(err)
+		}
+		webauthnSvc := services.NewWebAuthnService(m.authService, engine)
+
+		hasAuth := c.GetHeader("Authorization") != ""
+
+		if hasAuth {
+			_, err := m.getCurrentUser(c)
+			if err != nil {
+				return c.RenderError(err)
+			}
+
+			res, err := webauthnSvc.FinishRegistration(c.Request.Context(), rp, req.ChallengeID, req.Credential)
+			if err != nil {
+				return c.RenderError(err)
+			}
+			return c.Render(res)
+		}
+
+		ip := ""
+		if c.Context != nil {
+			ip = c.Context.ClientIP()
+		}
+		ua := ""
+		if c.Request != nil {
+			ua = c.Request.UserAgent()
+		}
+
+		res, err := webauthnSvc.FinishAuthentication(c.Request.Context(), rp, req.ChallengeID, req.Credential, ua, ip)
+		if err != nil {
+			return c.RenderError(err)
+		}
+
+		userObj, err := m.authService.GetUserService().GetByHashID(c.Request.Context(), res.UserID)
+		if err != nil {
+			return c.RenderError(err)
+		}
+		userData := convertUserToResponse(userObj.User)
+
+		sessionData := &Session{
+			ID:           res.SessionID,
+			AccessToken:  res.AccessToken,
+			RefreshToken: res.RefreshToken,
+			ExpiresIn:    res.ExpiresIn,
+			ExpiresAt:    res.ExpiresAt,
+			TokenType:    res.TokenType,
+			User:         userData,
+		}
+
+		return c.Render(&AuthData{
+			User:    userData,
+			Session: sessionData,
+		})
 	}
 
 	// Get current user
@@ -386,4 +533,21 @@ func (m *MFAController) getCurrentUser(c *pin.Context) (*services.User, error) {
 	}
 
 	return user, nil
+}
+
+func (m *MFAController) getWebAuthnRPConfig() (services.WebAuthnRPConfig, error) {
+	cfg := m.authService.GetConfig()
+	if cfg == nil || cfg.SiteURL == "" {
+		return services.WebAuthnRPConfig{}, consts.VALIDATION_FAILED
+	}
+	u, err := url.Parse(cfg.SiteURL)
+	if err != nil || u.Hostname() == "" {
+		return services.WebAuthnRPConfig{}, consts.VALIDATION_FAILED
+	}
+	origin := u.Scheme + "://" + u.Host
+	return services.WebAuthnRPConfig{
+		RPID:          u.Hostname(),
+		RPDisplayName: "slauth",
+		RPOrigins:     []string{origin},
+	}, nil
 }

@@ -44,7 +44,7 @@ func (s *SAMLService) FindSSOProviderByInstance(ctx context.Context, instance st
 
 	// Find SSO provider by instance
 	err := s.db.WithContext(ctx).
-		Table(ssoProviderTable + " AS sp").
+		Table(ssoProviderTable+" AS sp").
 		Joins("JOIN ? AS si ON si.sso_provider_id = sp.id",
 			gorm.Expr(ssoInstanceTable)).
 		Where("si.instance = ? AND sp.instance_id = ? AND sp.enabled = ?",

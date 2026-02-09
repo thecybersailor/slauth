@@ -889,6 +889,18 @@ func (s *AuthServiceImpl) RequestValidator() gin.HandlerFunc {
 		// Extract JWT token
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
+			// Allow anonymous access for WebAuthn factor endpoints.
+			//
+			// NOTE: These endpoints are used for passkey login, so they must be callable
+			// without a prior session. Controllers must still enforce that non-WebAuthn
+			// flows require authentication.
+			if c.Request.Method == "POST" {
+				switch c.Request.URL.Path {
+				case "/factors/challenge", "/factors/verify":
+					c.Next()
+					return
+				}
+			}
 			_ = pinCtx.RenderError(consts.NO_AUTHORIZATION)
 			c.Abort()
 			return

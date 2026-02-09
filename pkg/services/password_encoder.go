@@ -9,4 +9,3 @@ type PasswordEncoder interface {
 	// VerifyPassword verifies a password against its encoded hash
 	VerifyPassword(password, encodedHash string) (bool, error)
 }
-

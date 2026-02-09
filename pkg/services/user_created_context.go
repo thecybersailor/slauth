@@ -9,11 +9,11 @@ import (
 
 type userCreatedContextImpl struct {
 	context.Context
-	authService  AuthService
-	httpRequest  *http.Request
+	authService AuthService
+	httpRequest *http.Request
 
-	user         *User              // After hook时有值
-	userModel    *models.User       // Before hook时使用
+	user         *User        // After hook时有值
+	userModel    *models.User // Before hook时使用
 	source       UserCreatedSource
 	opts         *UserCreateOptions
 	extraContext map[string]any // 存储Provider、Identity等

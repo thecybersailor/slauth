@@ -667,12 +667,28 @@ Key points:
 
 ## Roadmap
 
-- WebAuthn/Passkey support
+- WebAuthn/Passkey support (Implemented)
 - Additional OAuth providers
 - Phone authentication enhancements
 - GraphQL API
 - Account linking
 - Anonymous users
+
+## WebAuthn / Passkeys
+
+WebAuthn is exposed via the existing MFA factor routes so integrators can choose their own UX and fallback strategy (e.g. OTP).
+
+Requirements:
+- Your instance `site_url` must match the frontend origin (scheme + host) used for WebAuthn.
+
+Endpoints:
+- **Enroll (requires Authorization)**: `POST /factors/enroll` with `{ "factorType": "webauthn", "friendlyName": "My Passkey" }`
+  - Response includes `webauthn.creation_options` + `webauthn.challenge_id`
+- **Finish enroll (requires Authorization)**: `POST /factors/verify` with `{ "challengeId": "...", "credential": <create() response> }`
+- **Begin login (anonymous)**: `POST /factors/challenge` with `{ "factorType": "webauthn", "identifier": "+123..." }`
+  - Response includes `webauthn_available`, `challenge_id`, `request_options` (use with `navigator.credentials.get`)
+- **Finish login (anonymous)**: `POST /factors/verify` with `{ "challengeId": "...", "credential": <get() response> }`
+  - Response returns a session (access/refresh tokens) on success
 
 ## Community
 

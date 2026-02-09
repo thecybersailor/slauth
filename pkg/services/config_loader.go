@@ -11,9 +11,9 @@ import (
 )
 
 type ConfigLoader struct {
-	db             *gorm.DB
+	db              *gorm.DB
 	secretsProvider types.InstanceSecretsProvider
-	instanceId     string
+	instanceId      string
 
 	cachedConfig *config.AuthServiceConfig
 	cacheMutex   sync.RWMutex
@@ -23,10 +23,10 @@ type ConfigLoader struct {
 
 func NewConfigLoader(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string) *ConfigLoader {
 	return &ConfigLoader{
-		db:             db,
+		db:              db,
 		secretsProvider: secretsProvider,
-		instanceId:     instanceId,
-		cacheTTL:       30 * time.Second,
+		instanceId:      instanceId,
+		cacheTTL:        30 * time.Second,
 	}
 }
 
