@@ -9,8 +9,10 @@ import (
 	"encoding/base32"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -23,16 +25,59 @@ import (
 // OTPService handles OTP operations
 type OTPService struct {
 	issuer string
+	provider otpProvider
+}
+
+type otpProvider interface {
+	GenerateCode(svc *OTPService, ctx OTPContext) (string, error)
+}
+
+type randomOTPProviderImpl struct{}
+
+func (p *randomOTPProviderImpl) GenerateCode(svc *OTPService, ctx OTPContext) (string, error) {
+	return svc.GenerateRandomOTP(6)
+}
+
+// mockOTPProviderImpl is for local/dev/e2e only. It makes OTP deterministic so UI-only e2e can work
+// without calling any internal APIs to fetch OTP codes.
+type mockOTPProviderImpl struct {
+	code string
+}
+
+func (p *mockOTPProviderImpl) GenerateCode(svc *OTPService, ctx OTPContext) (string, error) {
+	return p.code, nil
 }
 
 // NewOTPService creates a new OTP service
 func NewOTPService(issuer string) *OTPService {
-	return &OTPService{issuer: issuer}
+	svc := &OTPService{
+		issuer:   issuer,
+		provider: &randomOTPProviderImpl{},
+	}
+
+	// If explicitly enabled, use deterministic OTP for UI-only e2e flows.
+	if strings.EqualFold(os.Getenv("SLAUTH_OTP_PROVIDER"), "mock") {
+		code := os.Getenv("SLAUTH_MOCK_OTP_CODE")
+		if code == "" {
+			code = "000000"
+		}
+		if !svc.ValidateOTPFormat(code) {
+			slog.Warn("slauth otp provider mock enabled but code is invalid; falling back to random", "code_len", len(code))
+		} else {
+			svc.provider = &mockOTPProviderImpl{code: code}
+			slog.Info("slauth otp provider set to mock", "code_len", len(code))
+		}
+	}
+
+	return svc
 }
 
 // GenerateCode generates an OTP code for the given context
 func (o *OTPService) GenerateCode(ctx OTPContext) (string, error) {
-	return o.GenerateRandomOTP(6) // Default to 6-digit code
+	if o.provider == nil {
+		return o.GenerateRandomOTP(6) // Default to 6-digit code
+	}
+	return o.provider.GenerateCode(o, ctx)
 }
 
 // GenerateRandomOTP generates a random numeric OTP
