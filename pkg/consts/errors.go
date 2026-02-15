@@ -247,7 +247,7 @@ var (
 	USER_BANNED = usererrors.New("auth.user_banned", "Account temporarily suspended. Please try again later.")
 
 	// User to which the API request relates no longer exists.
-	USER_NOT_FOUND = usererrors.New("auth.user_not_found", "Account not found. Please check your credentials.")
+	USER_NOT_FOUND = usererrors.New("auth.user_not_found", "Account not found. Please check your credentials.").SetHttpStatus(401)
 
 	// When a user comes from SSO, certain fields of the user cannot be updated (like email).
 	USER_SSO_MANAGED = usererrors.New("auth.user_sso_managed", "Account managed by SSO. Please contact your IT administrator.")
