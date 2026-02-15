@@ -19,8 +19,8 @@ import (
 
 // getAppSecret Get global AppSecret
 func getAppSecret() string {
-	if globalHashIDService != nil {
-		return globalHashIDService.appSecret
+	if s := getGlobalHashIDServiceMaybeNil(); s != nil {
+		return s.appSecret
 	}
 	return ""
 }
@@ -36,6 +36,7 @@ type UserService struct {
 	instanceId      string
 	passwordService *PasswordService
 	authService     AuthService // 用于访问middlewares
+	hashIDService   *HashIDService
 }
 
 // NewUserService creates a new user service
@@ -60,6 +61,13 @@ func (s *UserService) SetPasswordService(passwordService *PasswordService) *User
 // SetAuthService sets the auth service (chainable)
 func (s *UserService) SetAuthService(authService AuthService) *UserService {
 	s.authService = authService
+	return s
+}
+
+// SetHashIDService sets the hashid service (chainable).
+// When set, all hashid parse/generate in this service will use it instead of the global.
+func (s *UserService) SetHashIDService(hashIDService *HashIDService) *UserService {
+	s.hashIDService = hashIDService
 	return s
 }
 
@@ -260,7 +268,7 @@ func (s *UserService) CreateUserWithSource(
 		}
 
 		// 5. 构建User对象
-		user, err := NewUserFromModel(userModel, passwordService, NewSessionService(tx), tx, s.instanceId)
+		user, err := NewUserFromModelWithHashIDService(userModel, passwordService, NewSessionService(tx), tx, s.instanceId, s.hashIDService)
 		if err != nil {
 			return err
 		}
@@ -366,12 +374,47 @@ func (s *UserService) GetByIdentifier(ctx context.Context, identifier, instanceI
 
 // GetByHashID retrieves user by hashid and instance code
 func (s *UserService) GetByHashID(ctx context.Context, hashID string) (*User, error) {
-	return GetUserByHashID(ctx, s.db, s.instanceId, hashID)
+	realUserID, err := GetUserIDFromHashIDWithHashIDService(s.hashIDService, hashID)
+	if err != nil {
+		return nil, err
+	}
+
+	var userModel models.User
+	err = s.db.WithContext(ctx).Preload("Identities").
+		Where("id = ? AND instance_id = ?", realUserID, s.instanceId).First(&userModel).Error
+	if err != nil {
+		return nil, err
+	}
+
+	passwordService := s.passwordService
+	if passwordService == nil {
+		appSecret := getAppSecret()
+		if s.hashIDService != nil {
+			appSecret = s.hashIDService.appSecret
+		}
+		passwordService = NewPasswordService(nil, appSecret, getDefaultPasswordStrengthScore())
+	}
+	return NewUserFromModelWithHashIDService(&userModel, passwordService, NewSessionService(s.db), s.db, s.instanceId, s.hashIDService)
 }
 
 // GetByEmail retrieves user by email and instance code
 func (s *UserService) GetByEmail(ctx context.Context, email string) (*User, error) {
-	return GetUserByEmail(ctx, s.db, s.instanceId, email)
+	var userModel models.User
+	err := s.db.WithContext(ctx).Preload("Identities").
+		Where("email = ? AND instance_id = ?", email, s.instanceId).First(&userModel).Error
+	if err != nil {
+		return nil, err
+	}
+
+	passwordService := s.passwordService
+	if passwordService == nil {
+		appSecret := getAppSecret()
+		if s.hashIDService != nil {
+			appSecret = s.hashIDService.appSecret
+		}
+		passwordService = NewPasswordService(nil, appSecret, getDefaultPasswordStrengthScore())
+	}
+	return NewUserFromModelWithHashIDService(&userModel, passwordService, NewSessionService(s.db), s.db, s.instanceId, s.hashIDService)
 }
 
 // Update updates user fields
@@ -582,6 +625,7 @@ type User struct {
 	sessionService  *SessionService  `json:"-"`
 	db              *gorm.DB         `json:"-"`
 	instanceId      string           `json:"-"`
+	hashIDService   *HashIDService   `json:"-"`
 }
 
 // GetModel Return underlying models.User
@@ -611,7 +655,7 @@ func (u *User) GetActiveSessions(ctx context.Context) ([]*Session, error) {
 	// Convert to Session objects
 	sessionObjects := make([]*Session, len(sessions))
 	for i, session := range sessions {
-		sessionObj, err := NewSession(&session)
+		sessionObj, err := NewSessionWithHashIDService(u.hashIDService, &session)
 		if err != nil {
 			return nil, err
 		}
@@ -715,7 +759,7 @@ func (u *User) ListSessions(ctx context.Context, page, pageSize int) ([]*Session
 	// Convert to Session
 	sessionObjects := make([]*Session, len(sessions))
 	for i, session := range sessions {
-		sessionObj, err := NewSession(&session)
+		sessionObj, err := NewSessionWithHashIDService(u.hashIDService, &session)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -751,7 +795,7 @@ func (u *User) ListIdentities(ctx context.Context) ([]*UserIdentity, error) {
 // DeleteIdentity Delete user identity record
 func (u *User) DeleteIdentity(ctx context.Context, identityID string) error {
 	// Parse identityID to get real ID
-	realIdentityID, err := GetUserIDFromHashID(identityID)
+	realIdentityID, err := GetUserIDFromHashIDWithHashIDService(u.hashIDService, identityID)
 	if err != nil {
 		return fmt.Errorf("invalid identity ID format: %w", err)
 	}
@@ -919,7 +963,12 @@ func UserExistsByPhone(ctx context.Context, db *gorm.DB, instanceId string, phon
 
 // NewUserFromModel Create User object from model
 func NewUserFromModel(userModel *models.User, passwordService *PasswordService, sessionService *SessionService, db *gorm.DB, instanceId string) (*User, error) {
-	hashid, err := generateHashID(userModel.ID)
+	return NewUserFromModelWithHashIDService(userModel, passwordService, sessionService, db, instanceId, nil)
+}
+
+func NewUserFromModelWithHashIDService(userModel *models.User, passwordService *PasswordService, sessionService *SessionService, db *gorm.DB, instanceId string, hashIDService *HashIDService) (*User, error) {
+	svc := resolveHashIDService(hashIDService)
+	hashid, err := svc.GenerateHashID(userModel.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -931,6 +980,7 @@ func NewUserFromModel(userModel *models.User, passwordService *PasswordService, 
 		sessionService:  sessionService,
 		db:              db,
 		instanceId:      instanceId,
+		hashIDService:   svc,
 	}, nil
 }
 

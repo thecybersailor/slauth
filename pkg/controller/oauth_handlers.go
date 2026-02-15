@@ -357,7 +357,7 @@ func (a *AuthController) ExchangeCodeForSession(c *pin.Context) error {
 		"userModelID", userModelID,
 		"identitiesLen", identitiesLen,
 		"mfaFactorsLen", mfaFactorsLen)
-	userResp := convertUserToResponse(userModel)
+	userResp := convertUserToResponse(a.authService, userModel)
 	userRespID := "nil"
 	if userResp != nil {
 		userRespID = userResp.ID
@@ -494,7 +494,7 @@ func (a *AuthController) SignInWithIdToken(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	// Calculate expires_in from expires_at
 	expiresIn := int(expiresAt - time.Now().Unix())
@@ -709,7 +709,7 @@ func (a *AuthController) HandleSSOCallback(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	// Calculate expires_in from expires_at
 	expiresIn := int(expiresAt - time.Now().Unix())
@@ -839,7 +839,7 @@ func (a *AuthController) UnlinkIdentity(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	resp := &UserResponse{
 		User: userResp,

@@ -78,7 +78,14 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 
 	// Create user object with hashid
 	appSecret := a.authService.GetConfig().AppSecret
-	userObj, err := services.NewUser(user, a.authService.GetUserService(), services.NewPasswordService(nil, appSecret, 2), services.NewSessionService(a.authService.GetDB()), a.authService.GetDB(), a.authService.GetInstanceId())
+	hashIDService := (*services.HashIDService)(nil)
+	if impl, ok := a.authService.(*services.AuthServiceImpl); ok {
+		hashIDService = impl.GetHashIDService()
+	}
+	if hashIDService == nil {
+		hashIDService = services.NewHashIDService(a.authService.GetConfig())
+	}
+	userObj, err := services.NewUserWithHashIDService(hashIDService, user, a.authService.GetUserService(), services.NewPasswordService(nil, appSecret, 2), services.NewSessionService(a.authService.GetDB()), a.authService.GetDB(), a.authService.GetInstanceId())
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -106,7 +113,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(userObj.GetModel())
+	userResp := convertUserToResponse(a.authService, userObj.GetModel())
 
 	// Calculate expires_in from expires_at
 	expiresIn := int(expiresAt - time.Now().Unix())
@@ -200,8 +207,16 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 		return consts.BAD_JWT
 	}
 
+	hashIDService := (*services.HashIDService)(nil)
+	if impl, ok := a.authService.(*services.AuthServiceImpl); ok {
+		hashIDService = impl.GetHashIDService()
+	}
+	if hashIDService == nil {
+		hashIDService = services.NewHashIDService(a.authService.GetConfig())
+	}
+
 	// Generate session hash ID from numeric ID
-	sessionHashID, err := services.GenerateSessionHashID(sessionID)
+	sessionHashID, err := services.GenerateSessionHashIDWithHashIDService(hashIDService, sessionID)
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
@@ -395,7 +410,7 @@ func (a *AuthController) GetSession(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	// Create session response (without refresh token for security)
 	sessionResp := &Session{
@@ -459,7 +474,7 @@ func (a *AuthController) RefreshSession(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	// Calculate expires_in from expires_at
 	expiresIn := int(expiresAt - time.Now().Unix())

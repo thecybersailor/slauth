@@ -93,7 +93,7 @@ func (c *AdminController) QueryUsers(ctx *pin.Context) error {
 	// Convert to response
 	adminUsers := make([]*AdminUserResponse, 0, len(users))
 	for i := range users {
-		adminUser := convertModelUserToAdminResponse(&users[i])
+		adminUser := convertModelUserToAdminResponse(c.authService, &users[i])
 		if adminUser != nil {
 			adminUsers = append(adminUsers, adminUser)
 		}
@@ -129,7 +129,7 @@ func (c *AdminController) GetUser(ctx *pin.Context) error {
 		return consts.USER_NOT_FOUND
 	}
 
-	response := convertUserToAdminResponse(user)
+	response := convertUserToAdminResponse(c.authService, user)
 	return ctx.Render(response)
 }
 
@@ -213,7 +213,7 @@ func (c *AdminController) UpdateUser(ctx *pin.Context) error {
 		return err
 	}
 
-	response := convertUserToAdminResponse(user)
+	response := convertUserToAdminResponse(c.authService, user)
 	return ctx.Render(response)
 }
 
@@ -328,7 +328,7 @@ func (c *AdminController) CreateUser(ctx *pin.Context) error {
 		}
 	}
 
-	response := convertUserToAdminResponse(user)
+	response := convertUserToAdminResponse(c.authService, user)
 	return ctx.Render(response)
 }
 
@@ -515,7 +515,7 @@ func (c *AdminController) ListUserSessions(ctx *pin.Context) error {
 	}
 
 	response := ListSessionsResponse{
-		Sessions: convertSessionsToResponse(sessions),
+		Sessions: convertSessionsToResponse(c.authService, sessions),
 		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
@@ -606,7 +606,7 @@ func (c *AdminController) ListAllSessions(ctx *pin.Context) error {
 	}
 
 	response := ListSessionsResponse{
-		Sessions: convertSessionsToResponse(sessions),
+		Sessions: convertSessionsToResponse(c.authService, sessions),
 		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,
@@ -749,7 +749,7 @@ func (c *AdminController) GetRecentSignups(ctx *pin.Context) error {
 	}
 
 	response := ListUsersResponse{
-		Users:    convertUsersToResponse(users),
+		Users:    convertUsersToResponse(c.authService, users),
 		Total:    int64(len(users)),
 		Page:     1,
 		PageSize: len(users),
@@ -845,16 +845,16 @@ func generateUserHashID(userID uint) string {
 	return hashid
 }
 
-func convertUsersToResponse(users []*services.User) []*AdminUserResponse {
+func convertUsersToResponse(authService services.AuthService, users []*services.User) []*AdminUserResponse {
 	result := make([]*AdminUserResponse, len(users))
 	for i, user := range users {
-		result[i] = convertUserToAdminResponse(user)
+		result[i] = convertUserToAdminResponse(authService, user)
 	}
 	return result
 }
 
-func convertUserToAdminResponse(user *services.User) *AdminUserResponse {
-	userResp := convertUserToResponse(user.GetModel())
+func convertUserToAdminResponse(authService services.AuthService, user *services.User) *AdminUserResponse {
+	userResp := convertUserToResponse(authService, user.GetModel())
 	response := &AdminUserResponse{
 		User:           *userResp,
 		EmailConfirmed: user.EmailConfirmedAt != nil,
@@ -867,17 +867,17 @@ func convertUserToAdminResponse(user *services.User) *AdminUserResponse {
 	return response
 }
 
-func convertSessionsToResponse(sessions []*services.Session) []*SessionResponse {
+func convertSessionsToResponse(authService services.AuthService, sessions []*services.Session) []*SessionResponse {
 	result := make([]*SessionResponse, len(sessions))
 	for i, session := range sessions {
-		result[i] = convertSessionToResponse(session)
+		result[i] = convertSessionToResponse(authService, session)
 	}
 	return result
 }
 
-func convertSessionToResponse(session *services.Session) *SessionResponse {
-	// Generate user hashid
-	userHashID, err := services.GenerateUserHashID(session.UserID)
+func convertSessionToResponse(authService services.AuthService, session *services.Session) *SessionResponse {
+	hashIDService := resolveHashIDService(authService)
+	userHashID, err := services.GenerateUserHashIDWithHashIDService(hashIDService, session.UserID)
 	if err != nil {
 		// Fallback to raw ID if hashid generation fails
 		userHashID = strconv.FormatUint(uint64(session.UserID), 10)
@@ -1447,8 +1447,8 @@ func applySorting(query *gorm.DB, sort []string) *gorm.DB {
 }
 
 // convertModelUserToAdminResponse converts models.User directly to AdminUserResponse
-func convertModelUserToAdminResponse(user *models.User) *AdminUserResponse {
-	userResp := convertUserToResponse(user)
+func convertModelUserToAdminResponse(authService services.AuthService, user *models.User) *AdminUserResponse {
+	userResp := convertUserToResponse(authService, user)
 	if userResp == nil {
 		return nil
 	}

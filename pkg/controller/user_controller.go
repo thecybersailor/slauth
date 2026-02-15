@@ -72,7 +72,7 @@ func (u *UserController) GetUser(c *pin.Context) error {
 	}
 
 	// Convert to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(u.authService, user.GetModel())
 
 	resp := &UserData{
 		User: userResp,
@@ -130,7 +130,7 @@ func (u *UserController) UpdateUser(c *pin.Context) error {
 	}
 
 	// Convert to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(u.authService, user.GetModel())
 
 	resp := &UserData{
 		User: userResp,
@@ -490,7 +490,7 @@ func (u *UserController) UpdatePasswordWithFlow(c *pin.Context) error {
 		return c.Render(resp)
 	}
 
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(u.authService, user.GetModel())
 
 	resp := &UserResponse{
 		User: userResp,
@@ -782,7 +782,7 @@ func (u *UserController) GetUserSessions(c *pin.Context) error {
 
 	// Convert to response format
 	response := ListSessionsResponse{
-		Sessions: convertSessionsToResponse(sessions),
+		Sessions: convertSessionsToResponse(u.authService, sessions),
 		Total:    total,
 		Page:     req.Page,
 		PageSize: req.PageSize,

@@ -32,9 +32,22 @@ func parseMetadata(rawData *models.JSON) map[string]any {
 	return result
 }
 
+func resolveHashIDService(authService services.AuthService) *services.HashIDService {
+	if authService == nil {
+		return nil
+	}
+	if impl, ok := authService.(*services.AuthServiceImpl); ok {
+		if svc := impl.GetHashIDService(); svc != nil {
+			return svc
+		}
+	}
+	// Fallback: derive from current instance config.
+	return services.NewHashIDService(authService.GetConfig())
+}
+
 // generateHashIDOrFallback generates hashID or returns string ID as fallback
-func generateHashIDOrFallback(userID uint) string {
-	hashid, err := services.GenerateUserHashID(userID)
+func generateHashIDOrFallback(hashIDService *services.HashIDService, userID uint) string {
+	hashid, err := services.GenerateUserHashIDWithHashIDService(hashIDService, userID)
 	if err != nil {
 		return strconv.FormatUint(uint64(userID), 10)
 	}
@@ -42,16 +55,18 @@ func generateHashIDOrFallback(userID uint) string {
 }
 
 // convertUserToResponse converts a models.User to controller.User response format
-func convertUserToResponse(user *models.User) *User {
+func convertUserToResponse(authService services.AuthService, user *models.User) *User {
 	slog.Info("[convertUserToResponse] Entry", "userIsNil", user == nil)
 	if user == nil {
 		slog.Info("[convertUserToResponse] User is nil, returning nil")
 		return nil
 	}
 
+	hashIDService := resolveHashIDService(authService)
+
 	slog.Info("[convertUserToResponse] Creating userResp", "userID", user.ID)
 	userResp := &User{
-		ID:           generateHashIDOrFallback(user.ID),
+		ID:           generateHashIDOrFallback(hashIDService, user.ID),
 		Aud:          user.InstanceId,
 		CreatedAt:    formatTime(&user.CreatedAt),
 		UpdatedAt:    formatTime(&user.UpdatedAt),

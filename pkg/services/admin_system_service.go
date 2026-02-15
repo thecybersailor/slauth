@@ -58,7 +58,7 @@ func (s *AdminSystemService) GetRecentSignups(ctx context.Context, instanceId st
 	// Convert to User
 	userObjects := make([]*User, len(users))
 	for i, user := range users {
-		userObj, err := NewUser(&user, s.userService, s.passwordService, NewSessionService(s.db), s.db, s.instanceId)
+		userObj, err := NewUserWithHashIDService(s.userService.hashIDService, &user, s.userService, s.passwordService, NewSessionService(s.db), s.db, s.instanceId)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +82,7 @@ func (s *AdminSystemService) GetRecentSignins(ctx context.Context, instanceId st
 	// Convert to Session
 	sessionObjects := make([]*Session, len(sessions))
 	for i, session := range sessions {
-		sessionObj, err := NewSession(&session)
+		sessionObj, err := NewSessionWithHashIDService(s.userService.hashIDService, &session)
 		if err != nil {
 			return nil, err
 		}

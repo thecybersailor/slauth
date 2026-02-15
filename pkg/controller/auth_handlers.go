@@ -136,7 +136,7 @@ func (a *AuthController) UpdateUser(c *pin.Context) error {
 	// 4. Hash new password if provided
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	resp := &UserResponse{
 		User: userResp,
@@ -195,7 +195,7 @@ func (a *AuthController) GetUser(c *pin.Context) error {
 	}
 
 	// Convert user to response format
-	userResp := convertUserToResponse(user.GetModel())
+	userResp := convertUserToResponse(a.authService, user.GetModel())
 
 	// Add AAL information from claims to the response
 	if aal, exists := claims["aal"]; exists {

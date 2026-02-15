@@ -13,6 +13,7 @@ import (
 type AdminSessionService struct {
 	db             *gorm.DB
 	sessionService *SessionService
+	hashIDService  *HashIDService
 }
 
 // NewAdminSessionService creates a new admin session service
@@ -20,6 +21,14 @@ func NewAdminSessionService(db *gorm.DB, sessionService *SessionService) *AdminS
 	return &AdminSessionService{
 		db:             db,
 		sessionService: sessionService,
+	}
+}
+
+func NewAdminSessionServiceWithHashIDService(db *gorm.DB, sessionService *SessionService, hashIDService *HashIDService) *AdminSessionService {
+	return &AdminSessionService{
+		db:             db,
+		sessionService: sessionService,
+		hashIDService:  hashIDService,
 	}
 }
 
@@ -66,7 +75,7 @@ func (s *AdminSessionService) RevokeSession(ctx context.Context, instanceId, ses
 // RevokeUserSession revokes a specific session and its refresh tokens
 func (s *AdminSessionService) RevokeUserSession(ctx context.Context, instanceId, sessionID string) error {
 	// Parse sessionID to get real ID
-	realSessionID, err := GetSessionIDFromHashID(sessionID)
+	realSessionID, err := GetSessionIDFromHashIDWithHashIDService(s.hashIDService, sessionID)
 	if err != nil {
 		return fmt.Errorf("invalid session ID format: %w", err)
 	}
@@ -120,7 +129,7 @@ func (s *AdminSessionService) ListAllSessions(ctx context.Context, instanceId st
 	// Apply filters
 	if userID, ok := filters["user_id"]; ok {
 		if userIDStr, ok := userID.(string); ok {
-			realUserID, err := GetUserIDFromHashID(userIDStr)
+			realUserID, err := GetUserIDFromHashIDWithHashIDService(s.hashIDService, userIDStr)
 			if err == nil {
 				query = query.Where("user_id = ?", realUserID)
 			}
@@ -158,7 +167,7 @@ func (s *AdminSessionService) ListAllSessions(ctx context.Context, instanceId st
 	// Convert to Session
 	sessionObjects := make([]*Session, len(sessions))
 	for i, session := range sessions {
-		sessionObj, err := NewSession(&session)
+		sessionObj, err := NewSessionWithHashIDService(s.hashIDService, &session)
 		if err != nil {
 			return nil, 0, err
 		}

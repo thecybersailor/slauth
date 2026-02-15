@@ -312,8 +312,16 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 						}
 
 						if sessionID > 0 {
+							hashIDService := (*services.HashIDService)(nil)
+							if impl, ok := passwordCtx.Service().(*services.AuthServiceImpl); ok {
+								hashIDService = impl.GetHashIDService()
+							}
+							if hashIDService == nil {
+								hashIDService = services.NewHashIDService(passwordCtx.Service().GetConfig())
+							}
+
 							// Generate session HashID
-							sessionHashID, err := services.GenerateSessionHashID(sessionID)
+							sessionHashID, err := services.GenerateSessionHashIDWithHashIDService(hashIDService, sessionID)
 							if err != nil {
 								slog.Warn("Flow: UpdatePassword - Failed to generate session hash ID", "error", err)
 								// Fallback to revoking all sessions

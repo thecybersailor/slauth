@@ -49,6 +49,7 @@ type AuthServiceImpl struct {
 	refreshTokenService *RefreshTokenService
 	otTokenService      *OneTimeTokenService
 	rateLimitService    *RateLimitService
+	hashIDService       *HashIDService
 
 	// Admin service layers
 	adminSessionService  *AdminSessionService
@@ -113,7 +114,7 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 	SetGlobalHashIDService(hashIDService)
 
 	passwordService := NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore)
-	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService)
+	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService).SetHashIDService(hashIDService)
 	sessionService := NewSessionService(db)
 
 	// Set all fields
@@ -126,9 +127,10 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 	s.refreshTokenService = NewRefreshTokenService(db)
 	s.otTokenService = NewOneTimeTokenService(db)
 	s.rateLimitService = NewRateLimitService(cfg.AppSecret)
+	s.hashIDService = hashIDService
 
 	// Initialize admin service layers
-	s.adminSessionService = NewAdminSessionService(db, sessionService)
+	s.adminSessionService = NewAdminSessionServiceWithHashIDService(db, sessionService, hashIDService)
 	s.adminIdentityService = NewAdminIdentityService(db)
 	s.adminSystemService = NewAdminSystemService(db, userService, NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore), instanceId)
 
@@ -202,7 +204,7 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 	hashIDService := NewHashIDService(cfg)
 	SetGlobalHashIDService(hashIDService)
 
-	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService)
+	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService).SetHashIDService(hashIDService)
 	sessionService := NewSessionService(db)
 
 	// Set all fields
@@ -215,9 +217,10 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 	s.refreshTokenService = NewRefreshTokenService(db)
 	s.otTokenService = NewOneTimeTokenService(db)
 	s.rateLimitService = NewRateLimitService(cfg.AppSecret)
+	s.hashIDService = hashIDService
 
 	// Initialize admin service layers
-	s.adminSessionService = NewAdminSessionService(db, sessionService)
+	s.adminSessionService = NewAdminSessionServiceWithHashIDService(db, sessionService, hashIDService)
 	s.adminIdentityService = NewAdminIdentityService(db)
 	s.adminSystemService = NewAdminSystemService(db, userService, passwordService, instanceId)
 
@@ -334,7 +337,7 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	slog.Info("Authentication successful", "userID", user.ID, "email", user.Email)
 
 	// Wrap as User
-	userObj, err := NewUserFromModel(&user, s.passwordService, s.sessionService, s.db, s.instanceId)
+	userObj, err := NewUserFromModelWithHashIDService(&user, s.passwordService, s.sessionService, s.db, s.instanceId, s.hashIDService)
 	if err != nil {
 		slog.Error("Failed to create user object", "error", err, "userID", user.ID)
 		return nil, consts.UNEXPECTED_FAILURE
@@ -446,7 +449,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 	}
 
 	// Wrap as Session
-	sessionObj, err := NewSession(session)
+	sessionObj, err := NewSessionWithHashIDService(s.hashIDService, session)
 	if err != nil {
 		return nil, "", "", 0, consts.UNEXPECTED_FAILURE
 	}
@@ -534,7 +537,7 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 	}
 
 	// Wrap as Session
-	sessionObj, err := NewSession(&session)
+	sessionObj, err := NewSessionWithHashIDService(s.hashIDService, &session)
 	if err != nil {
 		return nil, "", "", 0, consts.UNEXPECTED_FAILURE
 	}
@@ -943,7 +946,7 @@ func (s *AuthServiceImpl) GetCurrentUser(c *gin.Context) (*User, error) {
 	if authCtx.User == nil {
 		return nil, consts.NO_AUTHORIZATION
 	}
-	return NewUserFromModel(authCtx.User, s.passwordService, s.sessionService, s.db, s.instanceId)
+	return NewUserFromModelWithHashIDService(authCtx.User, s.passwordService, s.sessionService, s.db, s.instanceId, s.hashIDService)
 }
 
 // InternalMessageTemplate internal template implementation, unified rendering logic

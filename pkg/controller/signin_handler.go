@@ -73,7 +73,7 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 
 	if signinCtx.Response().User != nil {
 		// Use convertUserToResponse to properly build response, including metadata
-		userData = convertUserToResponse(signinCtx.Response().User.User)
+		userData = convertUserToResponse(signinCtx.Service(), signinCtx.Response().User.User)
 	} else {
 		// If no response data, use original logic
 		userData = &User{

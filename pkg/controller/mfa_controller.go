@@ -141,7 +141,8 @@ func (m *MFAController) Enroll(c *pin.Context) error {
 	}
 
 	// Generate hashid
-	factorHashID, err := services.GenerateUserHashID(factor.ID)
+	hashIDService := resolveHashIDService(m.authService)
+	factorHashID, err := services.GenerateUserHashIDWithHashIDService(hashIDService, factor.ID)
 	if err != nil {
 		return c.RenderError(err)
 	}
@@ -217,7 +218,8 @@ func (m *MFAController) Verify(c *pin.Context) error {
 
 	// Parse factorID (hashid)
 	factorID := req.FactorID
-	realFactorID, err := services.GetUserIDFromHashID(factorID)
+	hashIDService := resolveHashIDService(m.authService)
+	realFactorID, err := services.GetUserIDFromHashIDWithHashIDService(hashIDService, factorID)
 	if err != nil {
 		return c.RenderError(consts.INVALID_CREDENTIALS)
 	}
@@ -304,7 +306,8 @@ func (m *MFAController) ListFactors(c *pin.Context) error {
 
 	for _, factor := range factors {
 		// Generate hashid
-		factorHashID, err := services.GenerateUserHashID(factor.ID)
+		hashIDService := resolveHashIDService(m.authService)
+		factorHashID, err := services.GenerateUserHashIDWithHashIDService(hashIDService, factor.ID)
 		if err != nil {
 			return c.RenderError(err)
 		}

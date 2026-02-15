@@ -140,7 +140,7 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 
 	var userData *User
 	if signupCtx.Response().User != nil {
-		userData = convertUserToResponse(signupCtx.Response().User.User)
+		userData = convertUserToResponse(signupCtx.Service(), signupCtx.Response().User.User)
 	} else {
 		userData = &User{
 			ID:    ctx.Data.UserID,
