@@ -255,11 +255,11 @@ func (suite *SignupAndUserQueriesTestSuite) TestGetUser() {
 
 	nonExistentHashID := "xdJqG1Dl4EgZvzPa9Y"
 	response = suite.helper.MakeGETRequest(suite.T(), "/admin/users/"+nonExistentHashID)
-	suite.Equal(200, response.ResponseRecorder.Code, "Should return 200 with error in body")
+	suite.Equal(401, response.ResponseRecorder.Code, "Should return 401 when user is not found")
 	suite.helper.HasError(suite.T(), response, "user_not_found", "Should return user_not_found error for non-existent user")
 
 	response = suite.helper.MakeGETRequest(suite.T(), "/admin/users/invalid-id-format")
-	suite.Equal(200, response.ResponseRecorder.Code, "Should return 200 with error in body")
+	suite.Equal(401, response.ResponseRecorder.Code, "Should return 401 when user is not found")
 	suite.helper.HasError(suite.T(), response, "user_not_found", "Should return user_not_found error for invalid ID format")
 }
 

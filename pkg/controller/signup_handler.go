@@ -432,12 +432,6 @@ func isValidEmail(email string) bool {
 	return emailRegex.MatchString(email)
 }
 
-// isValidPhone validates phone format (simple validation)
-func isValidPhone(phone string) bool {
-	_, ok := normalizePhone(phone)
-	return ok
-}
-
 func normalizePhone(phone string) (string, bool) {
 	// Remove spaces and common separators
 	phone = strings.ReplaceAll(phone, " ", "")
