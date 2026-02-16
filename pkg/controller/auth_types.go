@@ -189,13 +189,15 @@ type UserResponse struct {
 
 // SendOTPResponse represents send OTP response
 type SendOTPResponse struct {
-	MessageID string `json:"messageId"`
+	MessageID   string `json:"messageId"`
+	SessionCode string `json:"session_code"`
 }
 
 // VerifyOTPRequest represents the verify OTP request
 type VerifyOTPRequest struct {
-	Email string `json:"email"`
-	Code  string `json:"code"`
+	Email       string `json:"email"`
+	Code        string `json:"code"`
+	SessionCode string `json:"session_code"`
 }
 
 // SendSMSOTPRequest represents the send SMS OTP request
@@ -206,7 +208,8 @@ type SendSMSOTPRequest struct {
 
 // SendSMSOTPResponse represents send SMS OTP response
 type SendSMSOTPResponse struct {
-	MessageID string `json:"messageId"`
+	MessageID   string `json:"messageId"`
+	SessionCode string `json:"session_code"`
 }
 
 // UpdatePasswordResponse represents password update response

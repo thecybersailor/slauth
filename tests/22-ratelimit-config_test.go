@@ -301,25 +301,28 @@ func (suite *RatelimitConfigTestSuite) TestTokenVerificationRateLimit() {
 
 	// First verification attempt (with wrong code) should succeed
 	verify1Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", S{
-		"email": email,
-		"token": "000000",
-		"type":  "signup",
+		"email":        email,
+		"token":        "000000",
+		"session_code": "session_rate_limit_1",
+		"type":         "signup",
 	})
 	suite.Equal(200, verify1Response.ResponseRecorder.Code, "First verification attempt should be processed")
 
 	// Second verification attempt should succeed
 	verify2Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", S{
-		"email": email,
-		"token": "111111",
-		"type":  "signup",
+		"email":        email,
+		"token":        "111111",
+		"session_code": "session_rate_limit_2",
+		"type":         "signup",
 	})
 	suite.Equal(200, verify2Response.ResponseRecorder.Code, "Second verification attempt should be processed")
 
 	// Third verification attempt should be rate limited
 	verify3Response := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", S{
-		"email": email,
-		"token": "222222",
-		"type":  "signup",
+		"email":        email,
+		"token":        "222222",
+		"session_code": "session_rate_limit_3",
+		"type":         "signup",
 	})
 
 	suite.helper.HasError(suite.T(), verify3Response, "over_request_rate_limit", "Third verification attempt should be rate limited")

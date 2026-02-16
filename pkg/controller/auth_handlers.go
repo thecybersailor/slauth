@@ -53,7 +53,7 @@ func (a *AuthController) VerifyOtp(c *pin.Context) error {
 	db := authServiceImpl.GetDB()
 	instanceId := a.authService.GetInstanceId()
 
-	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, req.Phone, req.Token, types.OneTimeTokenTypeConfirmation, instanceId, db)
+	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, req.Phone, req.Token, req.SessionCode, types.OneTimeTokenTypeConfirmation, instanceId, db)
 	if err != nil {
 		slog.Warn("OTP verification failed", "error", err, "email", req.Email)
 		return consts.VALIDATION_FAILED

@@ -53,11 +53,13 @@ func (suite *MFAAuthenticationTestSuite) loginAndUpgradeToAAL2(email, password s
 	}
 	otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 	suite.Equal(200, otpResponse.ResponseRecorder.Code, "OTP sending should succeed")
+	sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyHeaders := map[string]string{

@@ -255,7 +255,8 @@ func (a *AuthController) SendVerificationCode(c *pin.Context) error {
 	slog.Info("Verification code sent successfully", "email", req.Email, "phone", req.Phone)
 
 	resp := &SendOTPResponse{
-		MessageID: otpCtx.Response().MessageID,
+		MessageID:   otpCtx.Response().MessageID,
+		SessionCode: otpCtx.Response().SessionCode,
 	}
 
 	return c.Render(resp)
@@ -302,7 +303,8 @@ func (a *AuthController) SendSMSVerificationCode(c *pin.Context) error {
 	slog.Info("SMS verification code sent successfully", "phone", req.Phone)
 
 	resp := &SendSMSOTPResponse{
-		MessageID: otpCtx.Response().MessageID,
+		MessageID:   otpCtx.Response().MessageID,
+		SessionCode: otpCtx.Response().SessionCode,
 	}
 
 	return c.Render(resp)
@@ -365,12 +367,21 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 		}
 	}
 
-	if req.Token == "123456" {
-		slog.Warn("Test verification code rejected", "email", req.Email, "token", req.Token)
+	if strings.TrimSpace(req.SessionCode) == "" {
+		slog.Warn("Missing session code for OTP verification", "email", req.Email, "phone", req.Phone)
 		return consts.VALIDATION_FAILED
 	}
 
-	slog.Info("Email verification successful", "email", req.Email, "token", req.Token)
+	db := a.authService.GetDB()
+	instanceId := a.authService.GetInstanceId()
+	otpService := authServiceImpl.GetOTPService()
+	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, req.Phone, req.Token, req.SessionCode, types.OneTimeTokenTypeConfirmation, instanceId, db)
+	if err != nil || !valid {
+		slog.Warn("OTP verification failed", "error", err, "email", req.Email, "phone", req.Phone)
+		return consts.VALIDATION_FAILED
+	}
+
+	slog.Info("Email verification successful", "email", req.Email, "phone", req.Phone)
 
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {

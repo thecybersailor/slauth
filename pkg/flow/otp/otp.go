@@ -77,13 +77,14 @@ func GenerateOTPFlow(ctx services.OTPContext, next func() error) error {
 
 	tokenType := types.OneTimeTokenTypeConfirmation
 
-	err = otpService.StoreOTP(ctx, req.Email, req.Phone, code, tokenType, instanceId, db)
+	sessionCode, err := otpService.StoreOTP(ctx, req.Email, req.Phone, code, tokenType, instanceId, db)
 	if err != nil {
 		return fmt.Errorf("failed to store OTP: %w", err)
 	}
 
 	ctx.Response().Code = code
 	ctx.Response().MessageID = "otp-generated"
+	ctx.Response().SessionCode = sessionCode
 
 	return next()
 }

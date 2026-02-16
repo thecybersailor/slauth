@@ -201,6 +201,7 @@ func (u *UserController) Resend(c *pin.Context) error {
 
 	// Implement resend logic using flow chains
 	var messageID string
+	var sessionCode string
 
 	switch req.Type {
 	case "signup", "email_change":
@@ -223,6 +224,7 @@ func (u *UserController) Resend(c *pin.Context) error {
 		}
 
 		messageID = otpCtx.Response().MessageID
+		sessionCode = otpCtx.Response().SessionCode
 
 	case "sms", "phone_change":
 		// Resend SMS verification using OTP flow
@@ -244,6 +246,7 @@ func (u *UserController) Resend(c *pin.Context) error {
 		}
 
 		messageID = otpCtx.Response().MessageID
+		sessionCode = otpCtx.Response().SessionCode
 
 	default:
 		return consts.VALIDATION_FAILED
@@ -252,15 +255,17 @@ func (u *UserController) Resend(c *pin.Context) error {
 	slog.Info("Resend request processed successfully", "type", req.Type, "email", req.Email, "phone", req.Phone, "messageID", messageID)
 
 	type ResendData struct {
-		User      *User  `json:"user"`
-		Session   *User  `json:"session"`
-		MessageID string `json:"messageId,omitempty"`
+		User        *User  `json:"user"`
+		Session     *User  `json:"session"`
+		MessageID   string `json:"messageId,omitempty"`
+		SessionCode string `json:"session_code,omitempty"`
 	}
 
 	resp := &ResendData{
-		User:      nil,
-		Session:   nil,
-		MessageID: messageID,
+		User:        nil,
+		Session:     nil,
+		MessageID:   messageID,
+		SessionCode: sessionCode,
 	}
 
 	return c.Render(resp)
@@ -538,8 +543,9 @@ func (u *UserController) UpdateEmail(c *pin.Context) error {
 
 	slog.Info("Email change verification code sent successfully", "email", req.Email)
 
-	resp := &UserData{
-		User: nil,
+	resp := map[string]any{
+		"user":         nil,
+		"session_code": otpCtx.Response().SessionCode,
 	}
 
 	return c.Render(resp)
@@ -557,8 +563,9 @@ func (u *UserController) UpdateEmail(c *pin.Context) error {
 // @Router /email/verify [post]
 func (u *UserController) VerifyEmailChange(c *pin.Context) error {
 	req := &struct {
-		Email string `json:"email" binding:"required,email"`
-		Token string `json:"token" binding:"required"`
+		Email       string `json:"email" binding:"required,email"`
+		Token       string `json:"token" binding:"required"`
+		SessionCode string `json:"session_code" binding:"required"`
 	}{}
 	if err := c.BindJSON(req); err != nil {
 		return consts.BAD_JSON
@@ -580,7 +587,7 @@ func (u *UserController) VerifyEmailChange(c *pin.Context) error {
 	db := authServiceImpl.GetDB()
 	instanceId := u.authService.GetInstanceId()
 
-	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, "", req.Token, types.OneTimeTokenTypeConfirmation, instanceId, db)
+	valid, err := otpService.VerifyOTP(c.Request.Context(), req.Email, "", req.Token, req.SessionCode, types.OneTimeTokenTypeConfirmation, instanceId, db)
 	if err != nil {
 		slog.Warn("Email change OTP verification failed", "error", err, "email", req.Email)
 		return consts.VALIDATION_FAILED
@@ -650,8 +657,9 @@ func (u *UserController) UpdatePhone(c *pin.Context) error {
 
 	slog.Info("Phone change verification code sent successfully", "phone", req.Phone)
 
-	resp := &UserData{
-		User: nil,
+	resp := map[string]any{
+		"user":         nil,
+		"session_code": otpCtx.Response().SessionCode,
 	}
 
 	return c.Render(resp)
@@ -669,8 +677,9 @@ func (u *UserController) UpdatePhone(c *pin.Context) error {
 // @Router /phone/verify [post]
 func (u *UserController) VerifyPhoneChange(c *pin.Context) error {
 	req := &struct {
-		Phone string `json:"phone" binding:"required"`
-		Token string `json:"token" binding:"required"`
+		Phone       string `json:"phone" binding:"required"`
+		Token       string `json:"token" binding:"required"`
+		SessionCode string `json:"session_code" binding:"required"`
 	}{}
 	if err := c.BindJSON(req); err != nil {
 		return consts.BAD_JSON
@@ -692,7 +701,7 @@ func (u *UserController) VerifyPhoneChange(c *pin.Context) error {
 	db := authServiceImpl.GetDB()
 	instanceId := u.authService.GetInstanceId()
 
-	valid, err := otpService.VerifyOTP(c.Request.Context(), "", req.Phone, req.Token, types.OneTimeTokenTypeConfirmation, instanceId, db)
+	valid, err := otpService.VerifyOTP(c.Request.Context(), "", req.Phone, req.Token, req.SessionCode, types.OneTimeTokenTypeConfirmation, instanceId, db)
 	if err != nil {
 		slog.Warn("Phone change OTP verification failed", "error", err, "phone", req.Phone)
 		return consts.VALIDATION_FAILED

@@ -67,11 +67,33 @@ func (s *OneTimeTokenService) GetByEmailAndType(ctx context.Context, email strin
 	return &token, nil
 }
 
+// GetByEmailAndTypeAndSessionCode retrieves one-time token by email, type and session code
+func (s *OneTimeTokenService) GetByEmailAndTypeAndSessionCode(ctx context.Context, email string, tokenType types.OneTimeTokenType, sessionCode, instanceId string) (*models.OneTimeToken, error) {
+	var token models.OneTimeToken
+	err := s.db.WithContext(ctx).Where("email = ? AND token_type = ? AND session_code = ? AND instance_id = ?",
+		email, tokenType, sessionCode, instanceId).First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
 // GetByPhoneAndType retrieves one-time token by phone and type
 func (s *OneTimeTokenService) GetByPhoneAndType(ctx context.Context, phone string, tokenType types.OneTimeTokenType, instanceId string) (*models.OneTimeToken, error) {
 	var token models.OneTimeToken
 	err := s.db.WithContext(ctx).Where("phone = ? AND token_type = ? AND instance_id = ?",
 		phone, tokenType, instanceId).First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+// GetByPhoneAndTypeAndSessionCode retrieves one-time token by phone, type and session code
+func (s *OneTimeTokenService) GetByPhoneAndTypeAndSessionCode(ctx context.Context, phone string, tokenType types.OneTimeTokenType, sessionCode, instanceId string) (*models.OneTimeToken, error) {
+	var token models.OneTimeToken
+	err := s.db.WithContext(ctx).Where("phone = ? AND token_type = ? AND session_code = ? AND instance_id = ?",
+		phone, tokenType, sessionCode, instanceId).First(&token).Error
 	if err != nil {
 		return nil, err
 	}

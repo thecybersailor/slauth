@@ -83,10 +83,11 @@ type PasswordUpdateContext interface {
 }
 
 type OTPResponse struct {
-	Code      string
-	Success   bool
-	Message   string
-	MessageID string
+	Code        string
+	Success     bool
+	Message     string
+	MessageID   string
+	SessionCode string
 }
 
 type OTPContext interface {
@@ -147,10 +148,10 @@ type UserCreatedResponse struct {
 
 type UserCreatedContext interface {
 	FlowInterface
-	User() *User                     // 用户对象（Before时ID=0，After时ID已分配）
-	Source() UserCreatedSource       // 创建来源
-	Provider() string                // OAuth provider（仅OAuth场景）
-	Identity() *models.Identity      // OAuth identity（仅OAuth场景）
+	User() *User                // 用户对象（Before时ID=0，After时ID已分配）
+	Source() UserCreatedSource  // 创建来源
+	Provider() string           // OAuth provider（仅OAuth场景）
+	Identity() *models.Identity // OAuth identity（仅OAuth场景）
 	Response() *UserCreatedResponse
 
 	// 用于Before hook修改用户数据

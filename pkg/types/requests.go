@@ -61,12 +61,13 @@ type SendOTPRequest struct {
 
 // VerifyOtpRequest represents the OTP verification request
 type VerifyOtpRequest struct {
-	Email     string            `json:"email,omitempty"`
-	Phone     string            `json:"phone,omitempty"`
-	Token     string            `json:"token,omitempty"`
-	TokenHash string            `json:"token_hash,omitempty"`
-	Type      string            `json:"type"` // signup, invite, magiclink, recovery, email_change, sms, phone_change
-	Options   *VerifyOtpOptions `json:"options,omitempty"`
+	Email       string            `json:"email,omitempty"`
+	Phone       string            `json:"phone,omitempty"`
+	Token       string            `json:"token,omitempty"`
+	SessionCode string            `json:"session_code,omitempty"`
+	TokenHash   string            `json:"token_hash,omitempty"`
+	Type        string            `json:"type"` // signup, invite, magiclink, recovery, email_change, sms, phone_change
+	Options     *VerifyOtpOptions `json:"options,omitempty"`
 }
 
 type VerifyOtpOptions struct {

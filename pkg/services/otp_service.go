@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"math"
@@ -24,7 +25,7 @@ import (
 
 // OTPService handles OTP operations
 type OTPService struct {
-	issuer string
+	issuer   string
 	provider otpProvider
 }
 
@@ -245,9 +246,13 @@ func (o *OTPService) ValidateOTPFormat(otp string) bool {
 }
 
 // StoreOTP stores an OTP code for verification
-func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, instanceId string, db *gorm.DB) error {
+func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, instanceId string, db *gorm.DB) (string, error) {
 	// Hash the OTP code for security
 	codeHash := o.HashOTP(code)
+	sessionCode, err := o.generateSessionCode()
+	if err != nil {
+		return "", consts.UNEXPECTED_FAILURE
+	}
 
 	otTokenService := NewOneTimeTokenService(db)
 
@@ -255,24 +260,25 @@ func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, to
 	if email != "" {
 		err := otTokenService.DeleteByEmailAndType(ctx, email, tokenType, instanceId)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			return consts.UNEXPECTED_FAILURE
+			return "", consts.UNEXPECTED_FAILURE
 		}
 	}
 	if phone != "" {
 		err := otTokenService.DeleteByPhoneAndType(ctx, phone, tokenType, instanceId)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			return consts.UNEXPECTED_FAILURE
+			return "", consts.UNEXPECTED_FAILURE
 		}
 	}
 
 	// Create new OneTimeToken record
 	expiresAt := time.Now().Add(10 * time.Minute) // 10 minutes expiry
 	token := &models.OneTimeToken{
-		TokenHash:  codeHash,
-		TokenType:  tokenType,
-		InstanceId: instanceId,
-		ExpiresAt:  &expiresAt,
-		RelatesTo:  "otp_verification", // Default relates_to for OTP scenarios
+		TokenHash:   codeHash,
+		SessionCode: sessionCode,
+		TokenType:   tokenType,
+		InstanceId:  instanceId,
+		ExpiresAt:   &expiresAt,
+		RelatesTo:   "otp_verification", // Default relates_to for OTP scenarios
 	}
 
 	// Set email or phone based on what's provided
@@ -284,13 +290,19 @@ func (o *OTPService) StoreOTP(ctx context.Context, email, phone, code string, to
 	}
 
 	// Store in database
-	return otTokenService.Create(ctx, token)
+	if err := otTokenService.Create(ctx, token); err != nil {
+		return "", err
+	}
+	return sessionCode, nil
 }
 
 // VerifyOTP verifies an OTP code
-func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, tokenType types.OneTimeTokenType, instanceId string, db *gorm.DB) (bool, error) {
+func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code, sessionCode string, tokenType types.OneTimeTokenType, instanceId string, db *gorm.DB) (bool, error) {
 	// Validate OTP format first
 	if !o.ValidateOTPFormat(code) {
+		return false, consts.VALIDATION_FAILED
+	}
+	if strings.TrimSpace(sessionCode) == "" {
 		return false, consts.VALIDATION_FAILED
 	}
 
@@ -303,9 +315,9 @@ func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, t
 	var err error
 
 	if email != "" {
-		token, err = otTokenService.GetByEmailAndType(ctx, email, tokenType, instanceId)
+		token, err = otTokenService.GetByEmailAndTypeAndSessionCode(ctx, email, tokenType, sessionCode, instanceId)
 	} else if phone != "" {
-		token, err = otTokenService.GetByPhoneAndType(ctx, phone, tokenType, instanceId)
+		token, err = otTokenService.GetByPhoneAndTypeAndSessionCode(ctx, phone, tokenType, sessionCode, instanceId)
 	} else {
 		return false, consts.VALIDATION_FAILED
 	}
@@ -337,4 +349,12 @@ func (o *OTPService) VerifyOTP(ctx context.Context, email, phone, code string, t
 // IsOTPExpired checks if OTP is expired
 func (o *OTPService) IsOTPExpired(createdAt time.Time, ttl time.Duration) bool {
 	return time.Now().After(createdAt.Add(ttl))
+}
+
+func (o *OTPService) generateSessionCode() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }

@@ -245,6 +245,29 @@ func (h *TestHelper) MatchObject(t *testing.T, rsp *PinResponse, target S, msg s
 	matchObjectRecursive(t, responseData, target, "", msg)
 }
 
+func (h *TestHelper) MustDataString(t *testing.T, rsp *PinResponse, key string) string {
+	t.Helper()
+	if !assert.NotNil(t, rsp, "Response should not be nil") {
+		return ""
+	}
+	if !assert.NotNil(t, rsp.Data, "Response should have data") {
+		return ""
+	}
+	data, ok := rsp.Data.(map[string]any)
+	if !assert.True(t, ok, "Response data should be an object") {
+		return ""
+	}
+	raw, exists := data[key]
+	if !assert.True(t, exists, "Response data should contain key: %s", key) {
+		return ""
+	}
+	value, ok := raw.(string)
+	if !assert.True(t, ok, "Response data key %s should be string", key) {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
+
 func matchObjectRecursive(t *testing.T, actual map[string]any, expected S, path string, msg string) {
 	for key, expectedValue := range expected {
 		currentPath := key

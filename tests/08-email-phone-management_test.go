@@ -190,6 +190,7 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 	updateEmailResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/email", updateEmailRequestBody, updateEmailHeaders)
 	suite.Equal(200, updateEmailResponse.ResponseRecorder.Code, "Update email should succeed")
 	suite.Nil(updateEmailResponse.Error, "Update email should not have error")
+	sessionCode := suite.helper.MustDataString(suite.T(), updateEmailResponse, "session_code")
 
 	mockEmailProvider := suite.helper.GetMockEmailProvider()
 	lastEmail := mockEmailProvider.GetLastEmail()
@@ -201,8 +202,9 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdateEmail() {
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
 
 	verifyEmailRequestBody := S{
-		"email": newEmail,
-		"token": actualOTPCode,
+		"email":        newEmail,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyEmailHeaders := map[string]string{
@@ -287,6 +289,7 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
 	updatePhoneResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/phone", updatePhoneRequestBody, updatePhoneHeaders)
 	suite.Equal(200, updatePhoneResponse.ResponseRecorder.Code, "Update phone should succeed")
 	suite.Nil(updatePhoneResponse.Error, "Update phone should not have error")
+	sessionCode := suite.helper.MustDataString(suite.T(), updatePhoneResponse, "session_code")
 
 	mockSMSProvider := suite.helper.GetMockSMSProvider()
 	lastSMS := mockSMSProvider.GetLastSMS()
@@ -297,8 +300,9 @@ func (suite *EmailPhoneManagementTestSuite) TestUpdatePhone() {
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
 
 	verifyPhoneRequestBody := S{
-		"phone": newPhone,
-		"token": actualOTPCode,
+		"phone":        newPhone,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyPhoneHeaders := map[string]string{

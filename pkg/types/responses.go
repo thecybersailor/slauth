@@ -79,7 +79,8 @@ type UserResponse struct {
 
 // SendOTPResponse represents send OTP response
 type SendOTPResponse struct {
-	MessageID string `json:"messageId"`
+	MessageID   string `json:"messageId"`
+	SessionCode string `json:"session_code"`
 }
 
 // VerifyOTPResponse represents verify OTP response
@@ -95,7 +96,8 @@ type SuccessResponse struct {
 
 // SendSMSOTPResponse represents send SMS OTP response
 type SendSMSOTPResponse struct {
-	MessageID string `json:"messageId"`
+	MessageID   string `json:"messageId"`
+	SessionCode string `json:"session_code"`
 }
 
 type APIError struct {

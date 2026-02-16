@@ -222,13 +222,15 @@ func (suite *PasswordManagementTestSuite) TestUpdatePasswordUserAAL2() {
 	otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 	suite.Equal(200, otpResponse.ResponseRecorder.Code, "OTP sending should succeed")
 	suite.Nil(otpResponse.Error, "OTP sending should not have error")
+	sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
 
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyHeaders := map[string]string{
@@ -270,6 +272,7 @@ func (suite *PasswordManagementTestSuite) TestAdminResetUserPassword() {
 	otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 	suite.Equal(200, otpResponse.ResponseRecorder.Code, "Admin sending OTP should succeed")
 	suite.Nil(otpResponse.Error, "Admin sending OTP should not have error")
+	sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
@@ -285,8 +288,9 @@ func (suite *PasswordManagementTestSuite) TestAdminResetUserPassword() {
 	suite.T().Logf("Email body: %s", lastEmail.Body)
 
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)
@@ -378,13 +382,15 @@ func (suite *PasswordManagementTestSuite) TestAALTimeoutAutoDowngrade() {
 
 	otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 	suite.Equal(200, otpResponse.ResponseRecorder.Code, "OTP sending should succeed")
+	sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
 
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyHeaders := map[string]string{
@@ -511,11 +517,13 @@ func (suite *PasswordManagementTestSuite) TestPasswordUpdateRevokesOtherSessions
 	}
 	otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 	suite.Equal(200, otpResponse.ResponseRecorder.Code, "OTP sending should succeed")
+	sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyHeaders := map[string]string{
@@ -617,11 +625,13 @@ func (suite *PasswordManagementTestSuite) TestPasswordUpdateRateLimit() {
 		}
 		otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 		suite.Equal(200, otpResponse.ResponseRecorder.Code, "OTP sending should succeed")
+		sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 		actualOTPCode := suite.GetLastCapturedOTP()
 		verifyRequestBody := S{
-			"email": email,
-			"token": actualOTPCode,
+			"email":        email,
+			"token":        actualOTPCode,
+			"session_code": sessionCode,
 		}
 
 		verifyHeaders := map[string]string{
@@ -1191,13 +1201,15 @@ func (suite *PasswordManagementTestSuite) TestAdvancedSecurityScenarios() {
 
 	otpResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", otpRequestBody)
 	suite.Equal(200, otpResponse.ResponseRecorder.Code, "OTP request should succeed")
+	sessionCode := suite.helper.MustDataString(suite.T(), otpResponse, "session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
 
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
 	}
 
 	verifyResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)

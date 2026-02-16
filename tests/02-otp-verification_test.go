@@ -39,6 +39,19 @@ func (suite *OTPVerificationTestSuite) ClearCapturedOTPs() {
 	suite.capturedOTPCodes = nil
 }
 
+func (suite *OTPVerificationTestSuite) getSessionCodeFromResponse(response *PinResponse) string {
+	suite.T().Helper()
+	if response == nil || response.Data == nil {
+		return ""
+	}
+	data, ok := response.Data.(map[string]any)
+	if !ok {
+		return ""
+	}
+	sessionCode, _ := data["session_code"].(string)
+	return strings.TrimSpace(sessionCode)
+}
+
 func (suite *OTPVerificationTestSuite) TestSendEmailOTP() {
 	email := "test-otp@example.com"
 
@@ -48,6 +61,7 @@ func (suite *OTPVerificationTestSuite) TestSendEmailOTP() {
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", requestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Send email OTP should succeed")
+	suite.NotEmpty(suite.getSessionCodeFromResponse(response), "send otp response should include session_code")
 
 	mockEmailProvider := suite.helper.GetMockEmailProvider()
 	lastEmail := mockEmailProvider.GetLastEmail()
@@ -69,6 +83,7 @@ func (suite *OTPVerificationTestSuite) TestSendSMSOTP() {
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/sms-otp", requestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Send SMS OTP should succeed")
+	suite.NotEmpty(suite.getSessionCodeFromResponse(response), "send sms otp response should include session_code")
 
 	mockSMSProvider := suite.helper.GetMockSMSProvider()
 	lastSMS := mockSMSProvider.GetLastSMS()
@@ -154,6 +169,8 @@ func (suite *OTPVerificationTestSuite) TestVerifyOTP() {
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", sendRequestBody)
 	suite.Equal(200, response.ResponseRecorder.Code, "Send OTP should succeed")
+	sessionCode := suite.getSessionCodeFromResponse(response)
+	suite.NotEmpty(sessionCode, "send otp response should include session_code")
 
 	actualOTPCode := suite.GetLastCapturedOTP()
 	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
@@ -169,9 +186,10 @@ func (suite *OTPVerificationTestSuite) TestVerifyOTP() {
 
 	suite.T().Logf("About to verify with OTP code: '%s'", actualOTPCode)
 	verifyRequestBody := S{
-		"email": email,
-		"token": actualOTPCode,
-		"type":  "signup",
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": sessionCode,
+		"type":         "signup",
 	}
 
 	suite.T().Logf("Verify request body: %+v", verifyRequestBody)
@@ -189,9 +207,10 @@ func (suite *OTPVerificationTestSuite) TestVerifyOTPWithInvalidCode() {
 	email := "invalid-code-test@example.com"
 
 	verifyRequestBody := S{
-		"email": email,
-		"token": "123456",
-		"type":  "signup",
+		"email":        email,
+		"token":        "123456",
+		"session_code": "session_invalid_code_case",
+		"type":         "signup",
 	}
 
 	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)
@@ -199,6 +218,57 @@ func (suite *OTPVerificationTestSuite) TestVerifyOTPWithInvalidCode() {
 
 	suite.NotNil(response.Error, "Should have error for invalid verification code")
 	suite.Equal("auth.validation_failed", response.Error.Key, "Should return auth.validation_failed error")
+}
+
+func (suite *OTPVerificationTestSuite) TestVerifyOTPWithoutSessionCode() {
+	suite.ClearCapturedOTPs()
+
+	email := "verify-no-session@example.com"
+	sendRequestBody := S{
+		"email": email,
+	}
+
+	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", sendRequestBody)
+	suite.Equal(200, response.ResponseRecorder.Code, "Send OTP should succeed")
+	actualOTPCode := suite.GetLastCapturedOTP()
+	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
+
+	verifyRequestBody := S{
+		"email": email,
+		"token": actualOTPCode,
+		"type":  "signup",
+	}
+	verifyResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)
+	suite.Equal(200, verifyResp.ResponseRecorder.Code, "Should return 200 status code")
+	if suite.NotNil(verifyResp.Error, "Should fail when session_code is missing") {
+		suite.Equal("auth.validation_failed", verifyResp.Error.Key, "Should return auth.validation_failed")
+	}
+}
+
+func (suite *OTPVerificationTestSuite) TestVerifyOTPWithWrongSessionCode() {
+	suite.ClearCapturedOTPs()
+
+	email := "verify-wrong-session@example.com"
+	sendRequestBody := S{
+		"email": email,
+	}
+
+	response := suite.helper.MakePOSTRequest(suite.T(), "/auth/otp", sendRequestBody)
+	suite.Equal(200, response.ResponseRecorder.Code, "Send OTP should succeed")
+	actualOTPCode := suite.GetLastCapturedOTP()
+	suite.NotEmpty(actualOTPCode, "Should have captured OTP code")
+
+	verifyRequestBody := S{
+		"email":        email,
+		"token":        actualOTPCode,
+		"session_code": "session_wrong",
+		"type":         "signup",
+	}
+	verifyResp := suite.helper.MakePOSTRequest(suite.T(), "/auth/verify", verifyRequestBody)
+	suite.Equal(200, verifyResp.ResponseRecorder.Code, "Should return 200 status code")
+	if suite.NotNil(verifyResp.Error, "Should fail when session_code is wrong") {
+		suite.Equal("auth.validation_failed", verifyResp.Error.Key, "Should return auth.validation_failed")
+	}
 }
 
 func (suite *OTPVerificationTestSuite) TestVerifyOTPWithExpiredCode() {
