@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
+	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/services"
 	"github.com/thecybersailor/slauth/pkg/types"
 )
@@ -79,7 +81,46 @@ func RequestPasswordResetFlow(passwordCtx services.PasswordContext) core.Flow[co
 
 		ctx.User = user
 
-		resetToken := "dummy_reset_token"
+		authServiceImpl, ok := passwordCtx.Service().(*services.AuthServiceImpl)
+		if !ok {
+			slog.Error("Flow: RequestPasswordReset - Failed to cast AuthService")
+			return consts.UNEXPECTED_FAILURE
+		}
+
+		serviceUser, ok := user.(*services.User)
+		if !ok || serviceUser == nil || serviceUser.GetModel() == nil {
+			slog.Error("Flow: RequestPasswordReset - Invalid user object")
+			return consts.UNEXPECTED_FAILURE
+		}
+
+		resetToken, resetTokenHash, err := services.GenerateConfirmationToken()
+		if err != nil {
+			slog.Error("Flow: RequestPasswordReset - Failed to generate reset token", "error", err)
+			return consts.UNEXPECTED_FAILURE
+		}
+
+		otTokenService := authServiceImpl.GetOneTimeTokenService()
+		if err := otTokenService.DeleteByUserIDAndType(ctx.Context, serviceUser.ID, types.OneTimeTokenTypeRecovery, passwordCtx.Service().GetInstanceId()); err != nil {
+			slog.Error("Flow: RequestPasswordReset - Failed to delete old recovery token", "error", err)
+			return consts.UNEXPECTED_FAILURE
+		}
+
+		now := time.Now()
+		otToken := &models.OneTimeToken{
+			UserID:     &serviceUser.ID,
+			TokenType:  types.OneTimeTokenTypeRecovery,
+			TokenHash:  resetTokenHash,
+			RelatesTo:  "password_reset",
+			InstanceId: passwordCtx.Service().GetInstanceId(),
+			CreatedAt:  now,
+			UpdatedAt:  now,
+		}
+
+		if err := otTokenService.Create(ctx.Context, otToken); err != nil {
+			slog.Error("Flow: RequestPasswordReset - Failed to persist recovery token", "error", err)
+			return consts.UNEXPECTED_FAILURE
+		}
+
 		resetURL := fmt.Sprintf("%s/auth/reset-password?token=%s", passwordCtx.Service().GetConfig().AuthServiceBaseUrl, resetToken)
 
 		ctx.Data.ResetURL = resetURL
@@ -109,7 +150,8 @@ func SendResetEmailFlow(passwordCtx services.PasswordContext) core.Flow[core.Pas
 		},
 		func(data core.PasswordResetData) map[string]interface{} {
 			return map[string]interface{}{
-				"ResetURL": data.ResetURL,
+				"ResetURL":        data.ResetURL,
+				"ConfirmationURL": data.ResetURL,
 			}
 		},
 	)

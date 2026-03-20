@@ -39,6 +39,7 @@ func RegisterRoutes(parent gin.IRouter, authService services.AuthService) {
 
 	// Password Management
 	parent.POST("/recover", pin.HandleFunc(authController.ResetPasswordWithFlow)) // FLOW: Password reset - requires email sending, token generation, security checks
+	parent.PUT("/reset-password", pin.HandleFunc(authController.ResetPasswordWithToken))
 
 	// OAuth & SSO
 	parent.POST("/authorize", pin.HandleFunc(authController.SignInWithOAuth))      // FLOW: OAuth login - requires third-party verification, user creation/association, session management

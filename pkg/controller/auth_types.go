@@ -77,6 +77,11 @@ type SignOutRequest struct {
 type ResetPasswordRequest = types.ResetPasswordRequest
 type ResetPasswordOptions = types.ResetPasswordOptions
 
+type ResetPasswordWithTokenRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
 // UpdatePasswordRequest represents password update request
 type UpdatePasswordRequest struct {
 	Password string `json:"password"`
