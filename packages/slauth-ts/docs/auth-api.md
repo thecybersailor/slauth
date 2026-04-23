@@ -16,6 +16,12 @@ createAuthError(message: string): AuthError
 async(): Promise<boolean> =>
 ```
 
+### async
+
+```typescript
+async(): Promise<boolean> =>
+```
+
 ### initializeSession
 
 ```typescript

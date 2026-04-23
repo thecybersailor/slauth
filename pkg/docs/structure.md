@@ -30,6 +30,7 @@ Overview of Slauth Go package organization.
   - func: `NewServiceWithPasswordServiceLegacy`
     This allows external projects to inject custom password encoding implementations
   - func: `Start`
+  - func: `SetDefaultTablePrefix`
 
 ## config/
 
@@ -165,13 +166,14 @@ Overview of Slauth Go package organization.
 - mfa_factor.go
   - struct: `MFAFactor`
 - models.go
+  - interface: `TableModel`
   - func: `Init`
+  - func: `SetDefaultTablePrefix`
+    If called multiple times, only the first call takes effect and subsequent calls are ignored with a warning.
   - func: `AllModels`
     AllModels returns a slice of all auth models for migration purposes
   - func: `AutoMigrate`
     AutoMigrate runs auto migration for all auth models
-  - func: `CreateSchema`
-    CreateSchema creates the auth schema if it doesn't exist
 - one_time_token.go
   - struct: `OneTimeToken`
 - refresh_token.go
@@ -224,6 +226,7 @@ Overview of Slauth Go package organization.
     AdminSessionService provides admin operations for session management
   - func: `NewAdminSessionService`
     NewAdminSessionService creates a new admin session service
+  - func: `NewAdminSessionServiceWithHashIDService`
 - admin_system_service.go
   - struct: `AdminSystemService`
     AdminSystemService provides admin operations for system management
@@ -252,6 +255,8 @@ Overview of Slauth Go package organization.
     This is an internal implementation, use auth.NewService() instead
   - func: `NewAuthServiceImplWithPasswordService`
     This allows external projects to inject custom password encoding implementations
+- auth_service_impl_hashid.go
+- authenticated_context.go
 - builtin_template_resolver.go
   - struct: `BuiltinTemplateResolver`
   - func: `NewBuiltinTemplateResolver`
@@ -267,6 +272,7 @@ Overview of Slauth Go package organization.
   - struct: `FileTemplateResolver`
   - func: `NewFileTemplateResolver`
 - hashid.go
+- identity_linked_context.go
 - jwt_service.go
   - struct: `JWTClaims`
     JWTClaims represents the JWT claims structure
@@ -337,6 +343,7 @@ Overview of Slauth Go package organization.
     NewCertService creates a new certificate service
   - func: `NewSAMLService`
     NewSAMLService creates a new SAML service
+- session_created_context.go
 - session_service.go
   - struct: `SessionService`
     SessionService provides database operations for Session model
@@ -361,6 +368,7 @@ Overview of Slauth Go package organization.
     Returns: (token, tokenHash, error)
   - func: `VerifyToken`
     VerifyToken verifies if a plain token matches the stored hash
+- user_created_context.go
 - user_service.go
 - validator_service.go
   - struct: `ValidatorService`
