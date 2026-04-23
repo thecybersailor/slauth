@@ -75,6 +75,71 @@ func (suite *SigninAuthenticationTestSuite) TestPasswordLogin() {
 	suite.NotEmpty(userInfo["id"], "User should have ID")
 }
 
+func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithPhone() {
+	phone := "+8613800138000"
+	password := "MySecurePassword2024!"
+
+	signupRequestBody := S{
+		"phone":    phone,
+		"password": password,
+	}
+
+	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
+	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Phone signup should succeed")
+	suite.Nil(signupResponse.Error, "Phone signup should not have error")
+
+	loginRequestBody := S{
+		"grant_type": "password",
+		"phone":      phone,
+		"password":   password,
+	}
+
+	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
+	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Phone password login should return pin response")
+	suite.Nil(loginResponse.Error, "Phone password login should not have error")
+
+	responseData := loginResponse.Data.(map[string]any)
+	sessionInfo := responseData["session"].(map[string]any)
+	suite.NotEmpty(sessionInfo["access_token"], "Should have access token")
+	suite.NotEmpty(sessionInfo["refresh_token"], "Should have refresh token")
+
+	userInfo := responseData["user"].(map[string]any)
+	suite.Equal(phone, userInfo["phone"], "User phone should match")
+	suite.NotEmpty(userInfo["id"], "User should have ID")
+}
+
+func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithPhoneDoesNotRequireEmailConfirmation() {
+	phone := "+8613800138001"
+	password := "MySecurePassword2024!"
+
+	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
+		"phone":    phone,
+		"password": password,
+	})
+	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Phone signup should succeed")
+	suite.Nil(signupResponse.Error, "Phone signup should not have error")
+
+	updateConfigReq := S{
+		"config": S{
+			"confirm_email": true,
+		},
+	}
+	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
+	defer suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"confirm_email": false,
+		},
+	}, nil)
+
+	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", S{
+		"grant_type": "password",
+		"phone":      phone,
+		"password":   password,
+	})
+	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Phone password login should return pin response")
+	suite.Nil(loginResponse.Error, "Phone password login should not require email confirmation")
+}
+
 func (suite *SigninAuthenticationTestSuite) TestPasswordLoginWithInvalidCredentials() {
 	email := "signin-invalid@example.com"
 	password := "MySecurePassword2024!"

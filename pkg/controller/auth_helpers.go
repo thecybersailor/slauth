@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/mail"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -167,11 +168,6 @@ func extractUserIDFromToken(claims map[string]any) (string, error) {
 	return userID, nil
 }
 
-// validateEmailOrPhone validates that at least one of email or phone is provided
-func validateEmailOrPhone(email, phone string) bool {
-	return email != "" || phone != ""
-}
-
 // extractBearerToken extracts Bearer token from Authorization header
 func extractBearerToken(authHeader string) string {
 	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
@@ -180,23 +176,46 @@ func extractBearerToken(authHeader string) string {
 	return ""
 }
 
+type signInIdentifierKind string
+
+const (
+	signInIdentifierEmail signInIdentifierKind = "email"
+	signInIdentifierPhone signInIdentifierKind = "phone"
+)
+
+type signInIdentifier struct {
+	Kind  signInIdentifierKind
+	Value string
+}
+
+func resolveSignInIdentifier(req *SignInWithPasswordRequest) (signInIdentifier, error) {
+	if req == nil {
+		return signInIdentifier{}, consts.VALIDATION_FAILED
+	}
+	email := strings.TrimSpace(req.Email)
+	phone := strings.TrimSpace(req.Phone)
+
+	switch {
+	case email != "":
+		if _, err := mail.ParseAddress(email); err != nil {
+			return signInIdentifier{}, consts.EMAIL_ADDRESS_INVALID
+		}
+		return signInIdentifier{Kind: signInIdentifierEmail, Value: email}, nil
+	case phone != "":
+		return signInIdentifier{Kind: signInIdentifierPhone, Value: phone}, nil
+	default:
+		return signInIdentifier{}, consts.VALIDATION_FAILED
+	}
+}
+
 // validateSignInRequest validates sign in request
 func validateSignInRequest(req *SignInWithPasswordRequest) error {
-	if !validateEmailOrPhone(req.Email, req.Phone) {
-		return consts.VALIDATION_FAILED
+	if _, err := resolveSignInIdentifier(req); err != nil {
+		return err
 	}
-
 	if req.Password == "" {
 		return consts.VALIDATION_FAILED
 	}
-
-	// Validate email format if email is provided
-	if req.Email != "" {
-		if _, err := mail.ParseAddress(req.Email); err != nil {
-			return consts.EMAIL_ADDRESS_INVALID
-		}
-	}
-
 	return nil
 }
 

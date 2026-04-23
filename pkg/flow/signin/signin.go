@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
@@ -96,6 +97,12 @@ func CheckEmailConfirmationFlow(signinCtx services.SigninContext) core.Flow[core
 		// Only check if email confirmation is enabled
 		if config.ConfirmEmail == nil || !*config.ConfirmEmail {
 			slog.Info("Flow: CheckEmailConfirmation - Email confirmation not required, skipping")
+			return next()
+		}
+
+		req := signinCtx.Request()
+		if req != nil && strings.TrimSpace(req.Email) == "" && strings.TrimSpace(req.Phone) != "" {
+			slog.Info("Flow: CheckEmailConfirmation - Phone sign-in, skipping email confirmation")
 			return next()
 		}
 

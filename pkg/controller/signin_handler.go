@@ -36,6 +36,11 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 		slog.Error("SignIn validation failed", "error", err)
 		return consts.VALIDATION_FAILED
 	}
+	identifier, err := resolveSignInIdentifier(req)
+	if err != nil {
+		slog.Error("SignIn identifier resolution failed", "error", err)
+		return err
+	}
 
 	// Check authService
 	if a.authService == nil {
@@ -52,14 +57,14 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 	// Create flow context
 	ctx := &core.Context[core.SigninData]{
 		Data: core.SigninData{
-			EmailOrPhone: req.Email,
+			EmailOrPhone: identifier.Value,
 			Password:     req.Password,
 			Action:       "password_signin",
 		},
 	}
 
 	// Execute flow chain
-	err := chain.Execute(ctx)
+	err = chain.Execute(ctx)
 	if err != nil {
 		slog.Error("SignIn flow chain failed", "error", err)
 		return err // Return original error instead of wrapping
