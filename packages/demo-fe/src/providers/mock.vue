@@ -37,7 +37,8 @@ const handleMockLogin = async () => {
   error.value = ''
   
   try {
-    const mockOAuthServerUrl = import.meta.env.VITE_MOCK_OAUTH_SERVER || 'http://localhost:8080/mock-oauth'
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+    const mockOAuthServerUrl = import.meta.env.VITE_MOCK_OAUTH_SERVER || `${apiUrl}/mock-oauth`
     const mockClientId = 'mock-client-id'
 
     const oauthData = await signInWithOAuth('mock', {
@@ -69,4 +70,3 @@ const handleMockLogin = async () => {
   }
 }
 </script>
-

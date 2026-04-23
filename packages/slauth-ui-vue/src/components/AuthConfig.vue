@@ -7,6 +7,7 @@
 <script setup lang="ts">
 import { provide, computed } from 'vue'
 import type { AuthApi } from '@cybersailor/slauth-ts'
+import type { SocialProvider } from '../types'
 
 // UI appearance configuration interface
 export interface AppearanceConfig {
@@ -22,7 +23,7 @@ export interface AuthConfig {
   authBaseUrl: string
 
   // Social login providers
-  providers?: string[]
+  providers?: SocialProvider[]
 
   // Redirect configuration
   redirectTo?: string
