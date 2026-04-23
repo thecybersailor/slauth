@@ -153,6 +153,7 @@ export const SendOTPRequestSchema = z.object({
 
 export const SendOTPResponseSchema = z.object({
   messageId: z.string().optional(),
+  session_code: z.string().optional(),
 });
 
 export const SendSMSOTPRequestSchema = z.object({
@@ -162,6 +163,7 @@ export const SendSMSOTPRequestSchema = z.object({
 
 export const SendSMSOTPResponseSchema = z.object({
   messageId: z.string().optional(),
+  session_code: z.string().optional(),
 });
 
 export const SignInWithIdTokenRequestSchema = z.object({
@@ -280,6 +282,7 @@ export const VerifyOtpRequestSchema = z.object({
   email: z.string().optional(),
   options: VerifyOtpOptionsSchema.optional(),
   phone: z.string().optional(),
+  session_code: z.string().optional(),
   token: z.string().optional(),
   token_hash: z.string().optional(),
   type: z.string().optional(),

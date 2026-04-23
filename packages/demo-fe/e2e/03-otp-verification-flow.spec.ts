@@ -267,6 +267,8 @@ test.describe('OTP Verification Flow', () => {
       console.log('❌ Page error:', error.message)
     })
 
+    let smsSessionCode = ''
+
     // ==================== Step 1: Send SMS OTP ====================
     await test.step('Send SMS OTP', async () => {
       
@@ -280,6 +282,8 @@ test.describe('OTP Verification Flow', () => {
       expect(response.status()).toBe(200)
       const responseData = await response.json()
       expect(responseData.data.messageId).toBeDefined()
+      expect(responseData.data.session_code).toBeDefined()
+      smsSessionCode = responseData.data.session_code
       console.log('📱 SMS OTP sent successfully, MessageID:', responseData.data.messageId)
     })
 
@@ -341,6 +345,7 @@ test.describe('OTP Verification Flow', () => {
         data: {
           phone: '+1234567890',
           token: otpCode,
+          session_code: smsSessionCode,
           type: 'sms'
         }
       })
@@ -399,7 +404,7 @@ test.describe('OTP Verification Flow', () => {
       
       expect(response.status()).toBe(200)
       expect(responseData.error).toBeDefined()
-      expect(responseData.error.key).toBe('auth.invalid_credentials')
+      expect(responseData.error.key).toBe('auth.validation_failed')
       console.log('❌ Empty phone number send failed, error:', responseData.error)
     })
 

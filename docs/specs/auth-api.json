@@ -1722,6 +1722,9 @@
             "properties": {
                 "messageId": {
                     "type": "string"
+                },
+                "session_code": {
+                    "type": "string"
                 }
             }
         },
@@ -1741,6 +1744,9 @@
             "type": "object",
             "properties": {
                 "messageId": {
+                    "type": "string"
+                },
+                "session_code": {
                     "type": "string"
                 }
             }
@@ -2149,6 +2155,9 @@
                     "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.VerifyOtpOptions"
                 },
                 "phone": {
+                    "type": "string"
+                },
+                "session_code": {
                     "type": "string"
                 },
                 "token": {

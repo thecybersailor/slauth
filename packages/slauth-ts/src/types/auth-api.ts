@@ -206,6 +206,7 @@ export interface SendOTPRequest {
 
 export interface SendOTPResponse {
   messageId?: string;
+  session_code?: string;
 }
 
 export interface SendSMSOTPRequest {
@@ -216,6 +217,7 @@ export interface SendSMSOTPRequest {
 
 export interface SendSMSOTPResponse {
   messageId?: string;
+  session_code?: string;
 }
 
 /** Authentication session with tokens */
@@ -393,6 +395,7 @@ export interface VerifyOtpRequest {
   email?: string;
   options?: VerifyOtpOptions;
   phone?: string;
+  session_code?: string;
   token?: string;
   token_hash?: string;
   /** signup, invite, magiclink, recovery, email_change, sms, phone_change */
