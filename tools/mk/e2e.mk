@@ -6,6 +6,8 @@
 e2e-up:
 	@echo "Building frontend for E2E..."
 	$(MAKE) all
+	@echo "Building E2E Docker images..."
+	docker-compose -f docker/docker-compose.dev-infra.yml build backend frontend e2e-tests
 	@echo "Starting E2E environment..."
 	docker-compose -f docker/docker-compose.dev-infra.yml up -d postgres redis mailhog smshog
 	@sleep 5
@@ -26,6 +28,7 @@ e2e-down:
 # Run E2E tests
 e2e-test:
 	@echo "Running E2E tests..."
+	docker-compose -f docker/docker-compose.dev-infra.yml build e2e-tests
 	docker-compose -f docker/docker-compose.dev-infra.yml run --rm e2e-tests
 
 # View logs
@@ -37,4 +40,3 @@ e2e-full: e2e-up
 	@sleep 10
 	$(MAKE) e2e-test
 	$(MAKE) e2e-down
-
