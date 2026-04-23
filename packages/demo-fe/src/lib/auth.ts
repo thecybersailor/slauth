@@ -37,7 +37,7 @@ if (typeof window !== 'undefined') {
 
 // Create the API clients
 const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080'
-export const { authClient, adminClient } = createClients({
+const clients = createClients({
   auth: { url: `${baseUrl}/auth` },
   admin: { url: `${baseUrl}/admin` },
   autoRefreshToken: true,
@@ -78,6 +78,13 @@ export const { authClient, adminClient } = createClients({
     }
   }
 })
+
+if (!clients.authClient || !clients.adminClient) {
+  throw new Error('Failed to initialize slauth demo clients')
+}
+
+export const authClient = clients.authClient
+export const adminClient = clients.adminClient
 
 console.log('[demo:auth.ts] Clients created', {
   hasAuthClient: !!authClient,
@@ -153,4 +160,3 @@ export const localizationConfig = {
     }
   }
 }
-
