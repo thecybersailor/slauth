@@ -11,9 +11,9 @@ import (
 )
 
 type ConfigLoader struct {
-	db             *gorm.DB
+	db              *gorm.DB
 	secretsProvider types.InstanceSecretsProvider
-	instanceId     string
+	instanceId      string
 
 	cachedConfig *config.AuthServiceConfig
 	cacheMutex   sync.RWMutex
@@ -23,10 +23,10 @@ type ConfigLoader struct {
 
 func NewConfigLoader(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string) *ConfigLoader {
 	return &ConfigLoader{
-		db:             db,
+		db:              db,
 		secretsProvider: secretsProvider,
-		instanceId:     instanceId,
-		cacheTTL:       30 * time.Second,
+		instanceId:      instanceId,
+		cacheTTL:        30 * time.Second,
 	}
 }
 
@@ -231,11 +231,70 @@ func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *con
 		merged.RatelimitConfig = new.RatelimitConfig
 	}
 	if new.SecurityConfig != nil {
-		merged.SecurityConfig = new.SecurityConfig
+		if merged.SecurityConfig == nil {
+			merged.SecurityConfig = config.GetDefaultSecurityConfig()
+		}
+		merged.SecurityConfig = mergeSecurityConfig(merged.SecurityConfig, new.SecurityConfig)
 	}
 
 	// AppSecret is managed by secrets provider, preserve current value
 	merged.AppSecret = current.AppSecret
+
+	return merged
+}
+
+func mergeSecurityConfig(current, next *config.SecurityConfig) *config.SecurityConfig {
+	if current == nil {
+		current = config.GetDefaultSecurityConfig()
+	}
+	if next == nil {
+		return current
+	}
+
+	merged := *current
+
+	if next.AALPolicy != (config.AALPolicy{}) {
+		merged.AALPolicy = next.AALPolicy
+	}
+	if next.PasswordUpdateConfig != (config.PasswordUpdateConfig{}) {
+		merged.PasswordUpdateConfig = next.PasswordUpdateConfig
+	}
+	if next.PasswordStrengthConfig != (config.PasswordStrengthConfig{}) {
+		merged.PasswordStrengthConfig = next.PasswordStrengthConfig
+	}
+
+	merged.EmailChangeConfig = mergeIdentityChangeConfig(current.EmailChangeConfig, next.EmailChangeConfig)
+	merged.PhoneChangeConfig = mergeIdentityChangeConfig(current.PhoneChangeConfig, next.PhoneChangeConfig)
+
+	return &merged
+}
+
+func mergeIdentityChangeConfig(current, next config.IdentityChangeConfig) config.IdentityChangeConfig {
+	merged := current
+
+	if next != (config.IdentityChangeConfig{}) {
+		merged.RequireCurrentValueConfirmation = next.RequireCurrentValueConfirmation
+	}
+	if next.RequiredAAL != "" {
+		merged.RequiredAAL = next.RequiredAAL
+	}
+	merged.RateLimit = mergeRateLimit(merged.RateLimit, next.RateLimit)
+
+	return merged
+}
+
+func mergeRateLimit(current, next config.RateLimit) config.RateLimit {
+	merged := current
+
+	if next.MaxRequests > 0 {
+		merged.MaxRequests = next.MaxRequests
+	}
+	if next.WindowDuration > 0 {
+		merged.WindowDuration = next.WindowDuration
+	}
+	if next.Description != "" {
+		merged.Description = next.Description
+	}
 
 	return merged
 }

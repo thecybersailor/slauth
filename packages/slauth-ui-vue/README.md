@@ -104,6 +104,17 @@ The components come with default styling that can be customized:
 - ✅ TypeScript Support
 - ✅ Vue 3 Composition API
 
+## User Management Security Flows
+
+The user-management components support both secure and legacy identity-change APIs:
+
+- `PasswordManagement.vue` uses `PUT /password`
+- `EmailManagement.vue` prefers `POST /email/change` and `POST /email/change/verify`
+- `PhoneManagement.vue` prefers `POST /phone/change` and `POST /phone/change/verify`
+- Legacy `PUT /email`, `POST /email/verify`, `PUT /phone`, and `POST /phone/verify` remain supported for compatibility
+
+For secure email and phone changes, the components keep track of `flow_id`, `session_code`, and verification stage internally so they can continue multi-step verification flows.
+
 ## License
 
 MIT

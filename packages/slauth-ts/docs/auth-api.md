@@ -2,6 +2,26 @@
 
 Authentication API client for user-facing operations.
 
+## Security Flow Overview
+
+For new integrations, prefer the secure identity-change APIs:
+
+- `reauthenticate()`
+- `verifyReauthentication()`
+- `startEmailChange()`
+- `verifyEmailChangeSecure()`
+- `startPhoneChange()`
+- `verifyPhoneChangeSecure()`
+
+These methods support multi-step verification with `flow_id` and `session_code`.
+
+The legacy helpers below remain available for compatibility:
+
+- `updateEmail()` + `verifyEmailChange()`
+- `updatePhone()` + `verifyPhoneChange()`
+
+`updatePasswordWithFlow()` and `updatePassword()` both call the password update route. Password updates may require a higher AAL depending on server configuration.
+
 ## Methods
 
 ### createAuthError
@@ -160,16 +180,28 @@ refreshSession(): Promise<Types.AuthData>
 updatePassword(request: Types.UpdatePasswordRequest): Promise<Record<string, any>>
 ```
 
+### reauthenticate
+
+```typescript
+reauthenticate(request: Types.ReauthenticateRequest = {}): Promise<Types.ReauthenticateData>
+```
+
+### verifyReauthentication
+
+```typescript
+verifyReauthentication(request: Types.VerifyReauthenticateRequest): Promise<Types.ReauthenticateVerifyData>
+```
+
 ### updateEmail
 
 ```typescript
-updateEmail(request: { email: string }): Promise<Types.SuccessResponse>
+updateEmail(request: { email: string }): Promise<Types.SendOTPResponse>
 ```
 
 ### updatePhone
 
 ```typescript
-updatePhone(request: { phone: string }): Promise<Types.SuccessResponse>
+updatePhone(request: { phone: string }): Promise<Types.SendOTPResponse>
 ```
 
 ### verifyEmailChange
@@ -183,6 +215,42 @@ verifyEmailChange(params: Types.VerifyOtpRequest): Promise<Types.SuccessResponse
 ```typescript
 verifyPhoneChange(params: Types.VerifyOtpRequest): Promise<Types.SuccessResponse>
 ```
+
+### startEmailChange
+
+```typescript
+startEmailChange(request: Types.StartEmailChangeRequest): Promise<Types.IdentityChangeData>
+```
+
+### verifyEmailChangeSecure
+
+```typescript
+verifyEmailChangeSecure(request: Types.VerifyIdentityChangeRequest): Promise<Types.IdentityChangeData>
+```
+
+### startPhoneChange
+
+```typescript
+startPhoneChange(request: Types.StartPhoneChangeRequest): Promise<Types.IdentityChangeData>
+```
+
+### verifyPhoneChangeSecure
+
+```typescript
+verifyPhoneChangeSecure(request: Types.VerifyIdentityChangeRequest): Promise<Types.IdentityChangeData>
+```
+
+## Secure Email And Phone Change Pattern
+
+Typical secure change flow:
+
+1. Call `startEmailChange()` or `startPhoneChange()`
+2. Store the returned `flow_id`, `session_code`, and `stage`
+3. Call the matching secure verify method with the verification token
+4. If the response returns `completed: false`, continue with the returned `stage` and `session_code`
+5. Finish when the response returns `completed: true`
+
+Legacy change helpers still return `session_code`, and clients should pass it explicitly when calling the matching legacy verify method.
 
 ### getSessions
 

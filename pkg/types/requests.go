@@ -93,6 +93,32 @@ type UpdatePasswordRequest struct {
 	Nonce    string `json:"nonce,omitempty"`
 }
 
+// ReauthenticateRequest represents a reauthentication challenge request
+type ReauthenticateRequest struct {
+	Channel string `json:"channel,omitempty"` // email, sms
+}
+
+// VerifyReauthenticateRequest represents a reauthentication verification request
+type VerifyReauthenticateRequest struct {
+	Token       string `json:"token"`
+	SessionCode string `json:"session_code"`
+	Channel     string `json:"channel,omitempty"` // email, sms
+}
+
+type StartEmailChangeRequest struct {
+	Email string `json:"email"`
+}
+
+type StartPhoneChangeRequest struct {
+	Phone string `json:"phone"`
+}
+
+type VerifyIdentityChangeRequest struct {
+	FlowID      string `json:"flow_id"`
+	Token       string `json:"token"`
+	SessionCode string `json:"session_code"`
+}
+
 // SignInWithOAuthRequest represents OAuth login request
 type SignInWithOAuthRequest struct {
 	Provider string          `json:"provider"`

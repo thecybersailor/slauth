@@ -48,6 +48,7 @@ Overview of Slauth Go package organization.
   - struct: `SecurityConfig`
   - struct: `PasswordUpdateConfig`
   - struct: `PasswordStrengthConfig`
+  - struct: `IdentityChangeConfig`
   - func: `GetDefaultSecurityConfig`
 - service.go
   - struct: `AuthServiceConfig`

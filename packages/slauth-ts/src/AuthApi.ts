@@ -541,7 +541,7 @@ export class AuthApi {
 
   async updatePasswordWithFlow(params: Types.UpdatePasswordRequest): Promise<Types.UserResponse> {
     const { data, error } = await this.api.putWithValidation<Types.UserResponse>(
-      '/user/password',
+      '/password',
       params,
       Schemas.UpdatePasswordRequestSchema,
       Schemas.UserResponseSchema
@@ -673,16 +673,16 @@ export class AuthApi {
     return data || {}
   }
 
-  async updateEmail(request: { email: string }): Promise<Types.SuccessResponse> {
+  async reauthenticate(request: Types.ReauthenticateRequest = {}): Promise<Types.ReauthenticateData> {
     if (!this.currentSession) {
       return Promise.reject(this.createAuthError('No session'))
     }
 
-    const { data, error } = await this.api.putWithValidation<Types.SuccessResponse>(
-      '/email',
+    const { data, error } = await this.api.postWithValidation<Types.ReauthenticateData>(
+      '/reauthenticate',
       request,
-      Schemas.UpdateUserRequestSchema,
-      Schemas.SuccessResponseSchema
+      Schemas.ReauthenticateRequestSchema,
+      Schemas.ReauthenticateDataSchema
     )
 
     if (error || !data) {
@@ -692,16 +692,54 @@ export class AuthApi {
     return data
   }
 
-  async updatePhone(request: { phone: string }): Promise<Types.SuccessResponse> {
+  async verifyReauthentication(request: Types.VerifyReauthenticateRequest): Promise<Types.ReauthenticateVerifyData> {
     if (!this.currentSession) {
       return Promise.reject(this.createAuthError('No session'))
     }
 
-    const { data, error } = await this.api.putWithValidation<Types.SuccessResponse>(
+    const { data, error } = await this.api.postWithValidation<Types.ReauthenticateVerifyData>(
+      '/reauthenticate/verify',
+      request,
+      Schemas.VerifyReauthenticateRequestSchema,
+      Schemas.ReauthenticateVerifyDataSchema
+    )
+
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
+    }
+
+    return data
+  }
+
+  async updateEmail(request: { email: string }): Promise<Types.SendOTPResponse> {
+    if (!this.currentSession) {
+      return Promise.reject(this.createAuthError('No session'))
+    }
+
+    const { data, error } = await this.api.putWithValidation<Types.SendOTPResponse>(
+      '/email',
+      request,
+      Schemas.UpdateUserRequestSchema,
+      Schemas.SendOTPResponseSchema
+    )
+
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
+    }
+
+    return data
+  }
+
+  async updatePhone(request: { phone: string }): Promise<Types.SendOTPResponse> {
+    if (!this.currentSession) {
+      return Promise.reject(this.createAuthError('No session'))
+    }
+
+    const { data, error } = await this.api.putWithValidation<Types.SendOTPResponse>(
       '/phone',
       request,
       Schemas.UpdateUserRequestSchema,
-      Schemas.SuccessResponseSchema
+      Schemas.SendOTPResponseSchema
     )
 
     if (error || !data) {
@@ -741,6 +779,82 @@ export class AuthApi {
       params,
       Schemas.VerifyOtpRequestSchema,
       Schemas.SuccessResponseSchema
+    )
+
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
+    }
+
+    return data
+  }
+
+  async startEmailChange(request: Types.StartEmailChangeRequest): Promise<Types.IdentityChangeData> {
+    if (!this.currentSession) {
+      return Promise.reject(this.createAuthError('No session'))
+    }
+
+    const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
+      '/email/change',
+      request,
+      Schemas.StartEmailChangeRequestSchema,
+      Schemas.IdentityChangeDataSchema
+    )
+
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
+    }
+
+    return data
+  }
+
+  async verifyEmailChangeSecure(request: Types.VerifyIdentityChangeRequest): Promise<Types.IdentityChangeData> {
+    if (!this.currentSession) {
+      return Promise.reject(this.createAuthError('No session'))
+    }
+
+    const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
+      '/email/change/verify',
+      request,
+      Schemas.VerifyIdentityChangeRequestSchema,
+      Schemas.IdentityChangeDataSchema
+    )
+
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
+    }
+
+    return data
+  }
+
+  async startPhoneChange(request: Types.StartPhoneChangeRequest): Promise<Types.IdentityChangeData> {
+    if (!this.currentSession) {
+      return Promise.reject(this.createAuthError('No session'))
+    }
+
+    const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
+      '/phone/change',
+      request,
+      Schemas.StartPhoneChangeRequestSchema,
+      Schemas.IdentityChangeDataSchema
+    )
+
+    if (error || !data) {
+      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
+    }
+
+    return data
+  }
+
+  async verifyPhoneChangeSecure(request: Types.VerifyIdentityChangeRequest): Promise<Types.IdentityChangeData> {
+    if (!this.currentSession) {
+      return Promise.reject(this.createAuthError('No session'))
+    }
+
+    const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
+      '/phone/change/verify',
+      request,
+      Schemas.VerifyIdentityChangeRequestSchema,
+      Schemas.IdentityChangeDataSchema
     )
 
     if (error || !data) {

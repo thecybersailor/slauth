@@ -40,8 +40,8 @@ export enum AALLevel {
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigAALPolicy {
-  aaltimeout?: TimeDuration;
-  allowDowngrade?: boolean;
+  aal_timeout?: TimeDuration;
+  allow_downgrade?: boolean;
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigAuthServiceConfig {
@@ -89,14 +89,20 @@ export interface GithubComThecybersailorSlauthPkgConfigAuthServiceConfig {
   site_url?: string;
 }
 
+export interface GithubComThecybersailorSlauthPkgConfigIdentityChangeConfig {
+  rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimit;
+  require_current_value_confirmation?: boolean;
+  required_aal?: AALLevel;
+}
+
 export interface GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfig {
-  minScore?: number;
+  min_score?: number;
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfig {
-  rateLimit?: GithubComThecybersailorSlauthPkgConfigRateLimit;
-  revokeOtherSessions?: boolean;
-  updateRequiredAAL?: AALLevel;
+  rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimit;
+  revoke_other_sessions?: boolean;
+  update_required_aal?: AALLevel;
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigRateLimit {
@@ -126,9 +132,11 @@ export interface GithubComThecybersailorSlauthPkgConfigRatelimitConfig {
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigSecurityConfig {
-  aalpolicy?: GithubComThecybersailorSlauthPkgConfigAALPolicy;
-  passwordStrengthConfig?: GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfig;
-  passwordUpdateConfig?: GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfig;
+  aal_policy?: GithubComThecybersailorSlauthPkgConfigAALPolicy;
+  email_change_config?: GithubComThecybersailorSlauthPkgConfigIdentityChangeConfig;
+  password_strength_config?: GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfig;
+  password_update_config?: GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfig;
+  phone_change_config?: GithubComThecybersailorSlauthPkgConfigIdentityChangeConfig;
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigSessionConfig {

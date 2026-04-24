@@ -7,8 +7,10 @@ import (
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
+	identitychange "github.com/thecybersailor/slauth/pkg/flow/identity_change"
 	"github.com/thecybersailor/slauth/pkg/flow/otp"
 	"github.com/thecybersailor/slauth/pkg/flow/password"
+	"github.com/thecybersailor/slauth/pkg/flow/reauth"
 	"github.com/thecybersailor/slauth/pkg/services"
 	"github.com/thecybersailor/slauth/pkg/types"
 )
@@ -140,34 +142,229 @@ func (u *UserController) UpdateUser(c *pin.Context) error {
 }
 
 // Reauthenticate sends reauthentication OTP
-// GET /reauthenticate
+// @Summary Start Reauthentication
+// @Description Send a short-lived verification code to upgrade the current session assurance level.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ReauthenticateRequest false "Reauthentication request"
+// @Success 200 {object} ReauthenticateData "Reauthentication challenge sent successfully"
+// @Router /reauthenticate [post]
 func (u *UserController) Reauthenticate(c *pin.Context) error {
+	req := &ReauthenticateRequest{}
+	if c.Request.ContentLength > 0 {
+		if err := c.BindJSON(req); err != nil {
+			return consts.BAD_JSON
+		}
+	}
 
-	// Extract JWT from Authorization header
 	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" {
-		return consts.NO_AUTHORIZATION
-	}
-
-	// Extract token
-	token := ""
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		token = authHeader[7:]
-	}
-
+	token := extractBearerToken(authHeader)
 	if token == "" {
+		if authHeader == "" {
+			return consts.NO_AUTHORIZATION
+		}
 		return consts.BAD_JWT
 	}
 
-	// Send reauthentication OTP
-	// In a real implementation, this would:
-	// 1. Validate JWT and extract user information
-	// 2. Generate a reauthentication OTP
-	// 3. Send OTP to user's verified email/phone
-	// 4. Store OTP with short expiration time
-	// 5. Return success response
+	claims, err := u.authService.ValidateJWT(token)
+	if err != nil {
+		return consts.BAD_JWT
+	}
 
-	return c.Render(nil)
+	userID, err := extractUserIDFromToken(claims)
+	if err != nil {
+		return err
+	}
+
+	user, err := u.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
+	if err != nil {
+		return consts.USER_NOT_FOUND
+	}
+
+	result, err := reauth.SendChallenge(c.Request.Context(), u.authService, user, req.Channel)
+	if err != nil {
+		return err
+	}
+
+	currentLevel := types.AALLevel1
+	if currentAAL, ok := claims["aal"].(types.AALLevel); ok && currentAAL != "" {
+		currentLevel = currentAAL
+	}
+
+	resp := &ReauthenticateData{
+		MessageID:    result.MessageID,
+		SessionCode:  result.SessionCode,
+		Channel:      result.Channel,
+		CurrentLevel: string(currentLevel),
+		NextLevel:    string(types.AALLevel2),
+		ExpiresAt:    &result.ExpiresAt,
+	}
+
+	return c.Render(resp)
+}
+
+// VerifyReauthentication verifies the challenge and upgrades the current session AAL.
+// @Summary Verify Reauthentication
+// @Description Verify the reauthentication challenge and upgrade the current session assurance level.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body VerifyReauthenticateRequest true "Reauthentication verification request"
+// @Success 200 {object} ReauthenticateVerifyData "Session assurance upgraded successfully"
+// @Router /reauthenticate/verify [post]
+func (u *UserController) VerifyReauthentication(c *pin.Context) error {
+	req := &VerifyReauthenticateRequest{}
+	if err := c.BindJSON(req); err != nil {
+		return consts.BAD_JSON
+	}
+
+	userID, err := u.extractUserIDFromToken(c)
+	if err != nil {
+		return err
+	}
+
+	sessionID, err := u.extractSessionIDFromToken(c)
+	if err != nil {
+		return err
+	}
+
+	user, err := u.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
+	if err != nil {
+		return consts.USER_NOT_FOUND
+	}
+
+	result, err := reauth.VerifyChallenge(
+		c.Request.Context(),
+		u.authService,
+		user,
+		sessionID,
+		req.Channel,
+		req.Token,
+		req.SessionCode,
+	)
+	if err != nil {
+		return err
+	}
+
+	resp := &ReauthenticateVerifyData{
+		Success:      true,
+		Channel:      result.Channel,
+		CurrentLevel: string(types.AALLevel2),
+		ExpiresAt:    result.ExpiresAt.Unix(),
+	}
+
+	return c.Render(resp)
+}
+
+// StartSecureEmailChange starts the secure email change flow.
+// @Summary Start Secure Email Change
+// @Description Start a secure multi-step email change flow.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body StartEmailChangeRequest true "Secure email change request"
+// @Success 200 {object} IdentityChangeData "Secure email change flow started"
+// @Router /email/change [post]
+func (u *UserController) StartSecureEmailChange(c *pin.Context) error {
+	req := &StartEmailChangeRequest{}
+	if err := c.BindJSON(req); err != nil {
+		return consts.BAD_JSON
+	}
+
+	user, currentAAL, err := u.getCurrentUserAndAAL(c)
+	if err != nil {
+		return err
+	}
+
+	result, err := identitychange.Start(c.Request.Context(), u.authService, user, identitychange.KindEmail, req.Email, currentAAL)
+	if err != nil {
+		return err
+	}
+
+	flowID, err := encodeFlowID(result.FlowStateID)
+	if err != nil {
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	return c.Render(&IdentityChangeData{
+		FlowID:      flowID,
+		SessionCode: result.SessionCode,
+		Stage:       string(result.Stage),
+		Channel:     result.Channel,
+		Completed:   false,
+	})
+}
+
+// VerifySecureEmailChange verifies a secure email change flow step.
+// @Summary Verify Secure Email Change
+// @Description Verify the current step in a secure email change flow.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body VerifyIdentityChangeRequest true "Secure email change verification request"
+// @Success 200 {object} IdentityChangeData "Secure email change flow advanced"
+// @Router /email/change/verify [post]
+func (u *UserController) VerifySecureEmailChange(c *pin.Context) error {
+	return u.verifySecureIdentityChange(c, identitychange.KindEmail)
+}
+
+// StartSecurePhoneChange starts the secure phone change flow.
+// @Summary Start Secure Phone Change
+// @Description Start a secure multi-step phone change flow.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body StartPhoneChangeRequest true "Secure phone change request"
+// @Success 200 {object} IdentityChangeData "Secure phone change flow started"
+// @Router /phone/change [post]
+func (u *UserController) StartSecurePhoneChange(c *pin.Context) error {
+	req := &StartPhoneChangeRequest{}
+	if err := c.BindJSON(req); err != nil {
+		return consts.BAD_JSON
+	}
+
+	user, currentAAL, err := u.getCurrentUserAndAAL(c)
+	if err != nil {
+		return err
+	}
+
+	result, err := identitychange.Start(c.Request.Context(), u.authService, user, identitychange.KindPhone, req.Phone, currentAAL)
+	if err != nil {
+		return err
+	}
+
+	flowID, err := encodeFlowID(result.FlowStateID)
+	if err != nil {
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	return c.Render(&IdentityChangeData{
+		FlowID:      flowID,
+		SessionCode: result.SessionCode,
+		Stage:       string(result.Stage),
+		Channel:     result.Channel,
+		Completed:   false,
+	})
+}
+
+// VerifySecurePhoneChange verifies a secure phone change flow step.
+// @Summary Verify Secure Phone Change
+// @Description Verify the current step in a secure phone change flow.
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body VerifyIdentityChangeRequest true "Secure phone change verification request"
+// @Success 200 {object} IdentityChangeData "Secure phone change flow advanced"
+// @Router /phone/change/verify [post]
+func (u *UserController) VerifySecurePhoneChange(c *pin.Context) error {
+	return u.verifySecureIdentityChange(c, identitychange.KindPhone)
 }
 
 // Resend resends confirmation email/SMS
@@ -413,6 +610,74 @@ func (u *UserController) extractSessionIDFromToken(c *pin.Context) (uint, error)
 	}
 
 	return sessionID, nil
+}
+
+func (u *UserController) getCurrentUserAndAAL(c *pin.Context) (*services.User, types.AALLevel, error) {
+	authHeader := c.GetHeader("Authorization")
+	token := extractBearerToken(authHeader)
+	if token == "" {
+		if authHeader == "" {
+			return nil, "", consts.NO_AUTHORIZATION
+		}
+		return nil, "", consts.BAD_JWT
+	}
+
+	claims, err := u.authService.ValidateJWT(token)
+	if err != nil {
+		return nil, "", consts.BAD_JWT
+	}
+
+	userID, err := extractUserIDFromToken(claims)
+	if err != nil {
+		return nil, "", err
+	}
+
+	user, err := u.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
+	if err != nil {
+		return nil, "", consts.USER_NOT_FOUND
+	}
+
+	currentAAL := types.AALLevel1
+	if claimAAL, ok := claims["aal"].(types.AALLevel); ok && claimAAL != "" {
+		currentAAL = claimAAL
+	}
+
+	return user, currentAAL, nil
+}
+
+func (u *UserController) verifySecureIdentityChange(c *pin.Context, kind identitychange.Kind) error {
+	req := &VerifyIdentityChangeRequest{}
+	if err := c.BindJSON(req); err != nil {
+		return consts.BAD_JSON
+	}
+
+	userID, err := u.extractUserIDFromToken(c)
+	if err != nil {
+		return err
+	}
+
+	user, err := u.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
+	if err != nil {
+		return consts.USER_NOT_FOUND
+	}
+
+	flowStateID, err := decodeFlowID(req.FlowID)
+	if err != nil {
+		return consts.VALIDATION_FAILED
+	}
+
+	result, err := identitychange.Verify(c.Request.Context(), u.authService, user, flowStateID, kind, req.Token, req.SessionCode)
+	if err != nil {
+		return err
+	}
+
+	return c.Render(&IdentityChangeData{
+		FlowID:      req.FlowID,
+		SessionCode: result.SessionCode,
+		Stage:       string(result.Stage),
+		Channel:     result.Channel,
+		Completed:   result.Completed,
+	})
 }
 
 // ===== New User Management Methods =====

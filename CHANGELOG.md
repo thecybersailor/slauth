@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Reauthentication endpoints:
+  - `POST /reauthenticate`
+  - `POST /reauthenticate/verify`
+- Secure identity-change endpoints:
+  - `POST /email/change`
+  - `POST /email/change/verify`
+  - `POST /phone/change`
+  - `POST /phone/change/verify`
+- Shared identity-change flow state built on existing flow/token infrastructure without introducing new tables
+
+### Changed
+
+- `PUT /password` client helpers now align with the real password update route
+- TypeScript client methods now expose `session_code` for legacy email and phone change flows
+- Vue user-management components now preserve `session_code`, `flow_id`, and verification stage for multi-step email and phone changes
+
+### Compatibility
+
+- Legacy `PUT /email` and `POST /email/verify` remain supported
+- Legacy `PUT /phone` and `POST /phone/verify` remain supported
+- No database migration is required for this release
+
 ## [0.8.0] - 2025-09-30
 
 ### Initial Open Source Release

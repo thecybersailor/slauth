@@ -16,8 +16,8 @@ export const FactorStatusSchema = z.enum(FactorStatus);
 export const AALLevelSchema = z.enum(AALLevel);
 
 export const GithubComThecybersailorSlauthPkgConfigAALPolicySchema = z.object({
-  aaltimeout: TimeDurationSchema.optional(),
-  allowDowngrade: z.boolean().optional(),
+  aal_timeout: TimeDurationSchema.optional(),
+  allow_downgrade: z.boolean().optional(),
 });
 
 export const GithubComThecybersailorSlauthPkgConfigSessionConfigSchema =
@@ -31,16 +31,24 @@ export const GithubComThecybersailorSlauthPkgConfigSessionConfigSchema =
     time_box_user_sessions: z.number().optional(),
   });
 
-export const GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfigSchema =
-  z.object({
-    minScore: z.number().optional(),
-  });
-
 export const GithubComThecybersailorSlauthPkgConfigRateLimitSchema = z.object({
   description: z.string().optional(),
   max_requests: z.number().optional(),
   window_duration: TimeDurationSchema.optional(),
 });
+
+export const GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfigSchema =
+  z.object({
+    min_score: z.number().optional(),
+  });
+
+export const GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfigSchema =
+  z.object({
+    rate_limit:
+      GithubComThecybersailorSlauthPkgConfigRateLimitSchema.optional(),
+    revoke_other_sessions: z.boolean().optional(),
+    update_required_aal: AALLevelSchema.optional(),
+  });
 
 export const GithubComThecybersailorSlauthPkgConfigRatelimitConfigSchema =
   z.object({
@@ -60,11 +68,12 @@ export const GithubComThecybersailorSlauthPkgConfigRatelimitConfigSchema =
       GithubComThecybersailorSlauthPkgConfigRateLimitSchema.optional(),
   });
 
-export const GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfigSchema =
+export const GithubComThecybersailorSlauthPkgConfigIdentityChangeConfigSchema =
   z.object({
-    rateLimit: GithubComThecybersailorSlauthPkgConfigRateLimitSchema.optional(),
-    revokeOtherSessions: z.boolean().optional(),
-    updateRequiredAAL: AALLevelSchema.optional(),
+    rate_limit:
+      GithubComThecybersailorSlauthPkgConfigRateLimitSchema.optional(),
+    require_current_value_confirmation: z.boolean().optional(),
+    required_aal: AALLevelSchema.optional(),
   });
 
 export const AdminCreateUserRequestSchema = z.object({
@@ -187,11 +196,16 @@ export const UpdateSAMLProviderRequestSchema = z.object({
 
 export const GithubComThecybersailorSlauthPkgConfigSecurityConfigSchema =
   z.object({
-    aalpolicy: GithubComThecybersailorSlauthPkgConfigAALPolicySchema.optional(),
-    passwordStrengthConfig:
+    aal_policy:
+      GithubComThecybersailorSlauthPkgConfigAALPolicySchema.optional(),
+    email_change_config:
+      GithubComThecybersailorSlauthPkgConfigIdentityChangeConfigSchema.optional(),
+    password_strength_config:
       GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfigSchema.optional(),
-    passwordUpdateConfig:
+    password_update_config:
       GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfigSchema.optional(),
+    phone_change_config:
+      GithubComThecybersailorSlauthPkgConfigIdentityChangeConfigSchema.optional(),
   });
 
 export const GithubComThecybersailorSlauthPkgConfigAuthServiceConfigSchema =

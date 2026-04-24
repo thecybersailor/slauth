@@ -51,6 +51,34 @@ Slauth provides enterprise-grade authentication capabilities similar to Supabase
 - TypeScript SDK and Vue 3 UI Components
 - Comprehensive Test Suite
 
+### Account Security Flows
+- Password update with configurable AAL enforcement
+- Reauthentication flow for sensitive operations
+- Secure email change flow with `flow_id` and `session_code`
+- Secure phone change flow with `flow_id` and `session_code`
+- Backward-compatible legacy email/phone verification endpoints
+
+## Security Flow Guidance
+
+Slauth now exposes two categories of identity-change APIs:
+
+- Recommended secure flows:
+  - `POST /reauthenticate`
+  - `POST /reauthenticate/verify`
+  - `POST /email/change`
+  - `POST /email/change/verify`
+  - `POST /phone/change`
+  - `POST /phone/change/verify`
+- Legacy compatibility flows:
+  - `PUT /email`
+  - `POST /email/verify`
+  - `PUT /phone`
+  - `POST /phone/verify`
+
+Use the secure flows for new integrations. They are designed for multi-step verification and return both `flow_id` and `session_code` so clients can continue the verification process safely.
+
+Password updates remain available at `PUT /password`. By default, password update requires `AAL2`, and successful password changes revoke other active sessions unless your security config overrides that behavior.
+
 ## Quick Start
 
 ### Installation

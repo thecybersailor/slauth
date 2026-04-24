@@ -153,6 +153,9 @@ const formState = ref<FormState>({
 })
 
 const verificationSent = ref(false)
+const flowId = ref('')
+const sessionCode = ref('')
+const verificationStage = ref<'verify_new' | 'verify_current'>('verify_new')
 
 // Form data
 const form = reactive<FormData>({
@@ -199,7 +202,7 @@ const sendVerificationCode = async () => {
   formState.value.message = undefined
   formErrors.value = {}
 
-  const result = await authClient.updateEmail({
+  const result = await authClient.startEmailChange({
     email: form.newEmail
   })
 
@@ -210,6 +213,9 @@ const sendVerificationCode = async () => {
 
   // Switch to verification mode
   verificationSent.value = true
+  flowId.value = result.flow_id || ''
+  sessionCode.value = result.session_code || ''
+  verificationStage.value = (result.stage as 'verify_new' | 'verify_current') || 'verify_new'
 
   // Emit auth event
   emit('auth-event', {
@@ -230,10 +236,38 @@ const verifyEmail = async () => {
   formState.value.message = undefined
   formErrors.value = {}
 
-  const result = await authClient.verifyEmailChange({
-    email: form.newEmail,
-    token: form.verificationCode
-  })
+  let result: unknown
+  if (flowId.value) {
+    const secureResult = await authClient.verifyEmailChangeSecure({
+      flow_id: flowId.value,
+      token: form.verificationCode,
+      session_code: sessionCode.value
+    })
+
+    if (secureResult.completed === false) {
+      form.verificationCode = ''
+      sessionCode.value = secureResult.session_code || ''
+      verificationStage.value = (secureResult.stage as 'verify_new' | 'verify_current') || 'verify_current'
+      formState.value.message = 'Verification code sent to your current email'
+      formState.value.messageType = 'info'
+      formState.value.loading = false
+
+      emit('auth-event', {
+        event: 'email_verification_sent',
+        email: form.newEmail,
+        data: secureResult
+      })
+      return
+    }
+
+    result = secureResult
+  } else {
+    result = await authClient.verifyEmailChange({
+      email: form.newEmail,
+      token: form.verificationCode,
+      session_code: sessionCode.value
+    })
+  }
 
   // Show success message
   formState.value.message = localization.value?.success_message || 'Email updated successfully'
@@ -256,6 +290,9 @@ const resetForm = () => {
   form.newEmail = ''
   form.verificationCode = ''
   verificationSent.value = false
+  flowId.value = ''
+  sessionCode.value = ''
+  verificationStage.value = 'verify_new'
   formErrors.value = {}
   formState.value.message = undefined
 }

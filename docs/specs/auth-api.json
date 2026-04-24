@@ -167,6 +167,84 @@
                 }
             }
         },
+        "/email/change": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Start a secure multi-step email change flow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Start Secure Email Change",
+                "parameters": [
+                    {
+                        "description": "Secure email change request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.StartEmailChangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Secure email change flow started",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.IdentityChangeData"
+                        }
+                    }
+                }
+            }
+        },
+        "/email/change/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verify the current step in a secure email change flow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify Secure Email Change",
+                "parameters": [
+                    {
+                        "description": "Secure email change verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.VerifyIdentityChangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Secure email change flow advanced",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.IdentityChangeData"
+                        }
+                    }
+                }
+            }
+        },
         "/email/verify": {
             "post": {
                 "security": [
@@ -605,6 +683,84 @@
                 }
             }
         },
+        "/phone/change": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Start a secure multi-step phone change flow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Start Secure Phone Change",
+                "parameters": [
+                    {
+                        "description": "Secure phone change request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.StartPhoneChangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Secure phone change flow started",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.IdentityChangeData"
+                        }
+                    }
+                }
+            }
+        },
+        "/phone/change/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verify the current step in a secure phone change flow.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify Secure Phone Change",
+                "parameters": [
+                    {
+                        "description": "Secure phone change verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.VerifyIdentityChangeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Secure phone change flow advanced",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.IdentityChangeData"
+                        }
+                    }
+                }
+            }
+        },
         "/phone/verify": {
             "post": {
                 "security": [
@@ -648,6 +804,83 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/reauthenticate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send a short-lived verification code to upgrade the current session assurance level.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Start Reauthentication",
+                "parameters": [
+                    {
+                        "description": "Reauthentication request",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ReauthenticateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reauthentication challenge sent successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ReauthenticateData"
+                        }
+                    }
+                }
+            }
+        },
+        "/reauthenticate/verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verify the reauthentication challenge and upgrade the current session assurance level.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify Reauthentication",
+                "parameters": [
+                    {
+                        "description": "Reauthentication verification request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.VerifyReauthenticateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Session assurance upgraded successfully",
+                        "schema": {
+                            "$ref": "#/definitions/pkg_controller.ReauthenticateVerifyData"
                         }
                     }
                 }
@@ -1471,6 +1704,26 @@
                 }
             }
         },
+        "pkg_controller.IdentityChangeData": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "completed": {
+                    "type": "boolean"
+                },
+                "flow_id": {
+                    "type": "string"
+                },
+                "session_code": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                }
+            }
+        },
         "pkg_controller.ListSessionsResponse": {
             "type": "object",
             "properties": {
@@ -1638,6 +1891,58 @@
                 },
                 "provider": {
                     "type": "string"
+                }
+            }
+        },
+        "pkg_controller.ReauthenticateData": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "currentLevel": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "integer"
+                },
+                "messageId": {
+                    "type": "string"
+                },
+                "nextLevel": {
+                    "type": "string"
+                },
+                "session_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.ReauthenticateRequest": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "email, sms",
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.ReauthenticateVerifyData": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "currentLevel": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "integer"
+                },
+                "nextLevel": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1939,6 +2244,22 @@
                 }
             }
         },
+        "pkg_controller.StartEmailChangeRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.StartPhoneChangeRequest": {
+            "type": "object",
+            "properties": {
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
         "pkg_controller.SuccessResponse": {
             "type": "object",
             "properties": {
@@ -2145,6 +2466,20 @@
                 }
             }
         },
+        "pkg_controller.VerifyIdentityChangeRequest": {
+            "type": "object",
+            "properties": {
+                "flow_id": {
+                    "type": "string"
+                },
+                "session_code": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "pkg_controller.VerifyOtpRequest": {
             "type": "object",
             "properties": {
@@ -2168,6 +2503,21 @@
                 },
                 "type": {
                     "description": "signup, invite, magiclink, recovery, email_change, sms, phone_change",
+                    "type": "string"
+                }
+            }
+        },
+        "pkg_controller.VerifyReauthenticateRequest": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "description": "email, sms",
+                    "type": "string"
+                },
+                "session_code": {
+                    "type": "string"
+                },
+                "token": {
                     "type": "string"
                 }
             }

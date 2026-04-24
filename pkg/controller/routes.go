@@ -73,13 +73,19 @@ func registerUserRoutes(parent gin.IRouter, authService services.AuthService) {
 	parent.GET("/factors", pin.HandleFunc(mfaController.ListFactors))            // SIMPLE: MFA list - direct database query
 
 	// Password Management
+	parent.POST("/reauthenticate", pin.HandleFunc(userController.Reauthenticate))
+	parent.POST("/reauthenticate/verify", pin.HandleFunc(userController.VerifyReauthentication))
 	parent.PUT("/password", pin.HandleFunc(userController.UpdatePasswordWithFlow))
 
 	// Email Management
+	parent.POST("/email/change", pin.HandleFunc(userController.StartSecureEmailChange))
+	parent.POST("/email/change/verify", pin.HandleFunc(userController.VerifySecureEmailChange))
 	parent.PUT("/email", pin.HandleFunc(userController.UpdateEmail))               // FLOW: Email change - requires code sending, old email confirmation, new email verification
 	parent.POST("/email/verify", pin.HandleFunc(userController.VerifyEmailChange)) // SIMPLE: Email change verification - simple code validation
 
 	// Phone Management
+	parent.POST("/phone/change", pin.HandleFunc(userController.StartSecurePhoneChange))
+	parent.POST("/phone/change/verify", pin.HandleFunc(userController.VerifySecurePhoneChange))
 	parent.PUT("/phone", pin.HandleFunc(userController.UpdatePhone))               // FLOW: Phone change - requires code sending, old phone confirmation, new phone verification
 	parent.POST("/phone/verify", pin.HandleFunc(userController.VerifyPhoneChange)) // SIMPLE: Phone change verification - simple code validation
 

@@ -167,6 +167,7 @@ const (
 	OneTimeTokenTypeEmailChangeNew     OneTimeTokenType = "email_change_token_new"
 	OneTimeTokenTypeEmailChangeCurrent OneTimeTokenType = "email_change_token_current"
 	OneTimeTokenTypePhoneChange        OneTimeTokenType = "phone_change_token"
+	OneTimeTokenTypePhoneChangeCurrent OneTimeTokenType = "phone_change_token_current"
 )
 
 // Value implements driver.Valuer interface for database serialization

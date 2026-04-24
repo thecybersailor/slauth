@@ -100,6 +100,31 @@ type SendSMSOTPResponse struct {
 	SessionCode string `json:"session_code"`
 }
 
+type ReauthenticateData struct {
+	MessageID    string `json:"messageId"`
+	SessionCode  string `json:"session_code"`
+	Channel      string `json:"channel"`
+	CurrentLevel string `json:"currentLevel,omitempty"`
+	NextLevel    string `json:"nextLevel,omitempty"`
+	ExpiresAt    *int64 `json:"expires_at,omitempty"`
+}
+
+type ReauthenticateVerifyData struct {
+	Success      bool   `json:"success"`
+	Channel      string `json:"channel"`
+	CurrentLevel string `json:"currentLevel"`
+	NextLevel    string `json:"nextLevel,omitempty"`
+	ExpiresAt    int64  `json:"expires_at,omitempty"`
+}
+
+type IdentityChangeData struct {
+	FlowID      string `json:"flow_id"`
+	SessionCode string `json:"session_code,omitempty"`
+	Stage       string `json:"stage"`
+	Channel     string `json:"channel"`
+	Completed   bool   `json:"completed"`
+}
+
 type APIError struct {
 	Message string `json:"message"`
 	Status  int    `json:"status,omitempty"`

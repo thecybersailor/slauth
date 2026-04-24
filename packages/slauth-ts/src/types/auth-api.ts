@@ -95,6 +95,14 @@ export interface GetDevicesResponse {
   devices?: Record<string, any>[];
 }
 
+export interface IdentityChangeData {
+  channel?: string;
+  completed?: boolean;
+  flow_id?: string;
+  session_code?: string;
+  stage?: string;
+}
+
 export interface ListSessionsResponse {
   page?: number;
   page_size?: number;
@@ -166,6 +174,28 @@ export interface OAuthData {
   config?: any;
   flow_id?: string;
   provider?: string;
+}
+
+export interface ReauthenticateData {
+  channel?: string;
+  currentLevel?: string;
+  expires_at?: number;
+  messageId?: string;
+  nextLevel?: string;
+  session_code?: string;
+}
+
+export interface ReauthenticateRequest {
+  /** email, sms */
+  channel?: string;
+}
+
+export interface ReauthenticateVerifyData {
+  channel?: string;
+  currentLevel?: string;
+  expires_at?: number;
+  nextLevel?: string;
+  success?: boolean;
 }
 
 /** Refresh token request */
@@ -302,6 +332,14 @@ export interface SignUpRequest {
   user_metadata?: Record<string, any>;
 }
 
+export interface StartEmailChangeRequest {
+  email?: string;
+}
+
+export interface StartPhoneChangeRequest {
+  phone?: string;
+}
+
 export interface SuccessResponse {
   success?: boolean;
 }
@@ -391,6 +429,12 @@ export interface UserResponse {
   user?: User;
 }
 
+export interface VerifyIdentityChangeRequest {
+  flow_id?: string;
+  session_code?: string;
+  token?: string;
+}
+
 export interface VerifyOtpRequest {
   email?: string;
   options?: VerifyOtpOptions;
@@ -400,6 +444,13 @@ export interface VerifyOtpRequest {
   token_hash?: string;
   /** signup, invite, magiclink, recovery, email_change, sms, phone_change */
   type?: string;
+}
+
+export interface VerifyReauthenticateRequest {
+  /** email, sms */
+  channel?: string;
+  session_code?: string;
+  token?: string;
 }
 
 export interface WeakPassword {

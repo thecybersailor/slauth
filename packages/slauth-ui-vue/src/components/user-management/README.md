@@ -8,8 +8,8 @@ This directory contains Vue components for post-authentication user management f
 |-----------|-------------|---------------|
 | `UserProfile.vue` | Display and edit user profile information | `GET /user`, `PUT /user` |
 | `PasswordManagement.vue` | Change user password | `PUT /password` |
-| `EmailManagement.vue` | Change email address with verification | `PUT /email`, `POST /email/verify` |
-| `PhoneManagement.vue` | Change phone number with verification | `PUT /phone`, `POST /phone/verify` |
+| `EmailManagement.vue` | Change email address with secure or legacy verification | `POST /email/change`, `POST /email/change/verify`, `PUT /email`, `POST /email/verify` |
+| `PhoneManagement.vue` | Change phone number with secure or legacy verification | `POST /phone/change`, `POST /phone/change/verify`, `PUT /phone`, `POST /phone/verify` |
 | `MFAManagement.vue` | Manage two-factor authentication | `POST /factors/enroll`, `GET /factors`, `DELETE /factors/:id` |
 | `SessionManagement.vue` | View and manage active sessions | `GET /sessions`, `DELETE /sessions/:id`, `DELETE /sessions` |
 | `SecurityAudit.vue` | View security events and trusted devices | `GET /security/audit-log`, `GET /security/devices` |
@@ -107,8 +107,14 @@ Components use the `AuthApi` client from `@cybersailor/slauth-ts` package:
 authClient.getUser()
 authClient.updateUser()
 authClient.updatePassword()
+authClient.reauthenticate()
+authClient.verifyReauthentication()
+authClient.startEmailChange()
+authClient.verifyEmailChangeSecure()
 authClient.updateEmail()
 authClient.verifyEmailChange()
+authClient.startPhoneChange()
+authClient.verifyPhoneChangeSecure()
 authClient.updatePhone()
 authClient.verifyPhoneChange()
 authClient.enrollMFAFactor()
@@ -152,6 +158,12 @@ await page.getByTestId('mfa-qr-code')
 await page.getByTestId('session-item')
 await page.getByTestId('audit-event')
 ```
+
+## Secure Flow Semantics
+
+- `PasswordManagement.vue` surfaces password update failures directly, including insufficient AAL errors returned by the server.
+- `EmailManagement.vue` and `PhoneManagement.vue` preserve `session_code` across verification attempts.
+- When the server returns another verification stage, the components keep the returned stage and continue the flow instead of resetting prematurely.
 
 ## File Structure
 

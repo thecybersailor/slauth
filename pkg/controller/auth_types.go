@@ -22,6 +22,14 @@ type VerifyOtpOptions = types.VerifyOtpOptions
 type SuccessResponse = types.SuccessResponse
 type GetAuditLogResponse = types.GetAuditLogResponse
 type GetDevicesResponse = types.GetDevicesResponse
+type ReauthenticateRequest = types.ReauthenticateRequest
+type VerifyReauthenticateRequest = types.VerifyReauthenticateRequest
+type ReauthenticateData = types.ReauthenticateData
+type ReauthenticateVerifyData = types.ReauthenticateVerifyData
+type StartEmailChangeRequest = types.StartEmailChangeRequest
+type StartPhoneChangeRequest = types.StartPhoneChangeRequest
+type VerifyIdentityChangeRequest = types.VerifyIdentityChangeRequest
+type IdentityChangeData = types.IdentityChangeData
 
 // SignInWithOAuthRequest represents OAuth login request
 // @Description OAuth authentication request

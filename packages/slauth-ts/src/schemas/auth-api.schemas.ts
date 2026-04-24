@@ -67,6 +67,14 @@ export const GetDevicesResponseSchema = z.object({
   devices: z.array(z.record(z.string(), z.any())).optional(),
 });
 
+export const IdentityChangeDataSchema = z.object({
+  channel: z.string().optional(),
+  completed: z.boolean().optional(),
+  flow_id: z.string().optional(),
+  session_code: z.string().optional(),
+  stage: z.string().optional(),
+});
+
 export const SessionResponseSchema = z.object({
   aal: z.string().optional(),
   created_at: z.string().optional(),
@@ -117,6 +125,27 @@ export const OAuthDataSchema = z.object({
   config: z.any().optional(),
   flow_id: z.string().optional(),
   provider: z.string().optional(),
+});
+
+export const ReauthenticateDataSchema = z.object({
+  channel: z.string().optional(),
+  currentLevel: z.string().optional(),
+  expires_at: z.number().optional(),
+  messageId: z.string().optional(),
+  nextLevel: z.string().optional(),
+  session_code: z.string().optional(),
+});
+
+export const ReauthenticateRequestSchema = z.object({
+  channel: z.string().optional(),
+});
+
+export const ReauthenticateVerifyDataSchema = z.object({
+  channel: z.string().optional(),
+  currentLevel: z.string().optional(),
+  expires_at: z.number().optional(),
+  nextLevel: z.string().optional(),
+  success: z.boolean().optional(),
 });
 
 export const RefreshTokenRequestSchema = z.object({
@@ -213,6 +242,14 @@ export const SignUpRequestSchema = z.object({
   user_metadata: z.record(z.string(), z.any()).optional(),
 });
 
+export const StartEmailChangeRequestSchema = z.object({
+  email: z.string().optional(),
+});
+
+export const StartPhoneChangeRequestSchema = z.object({
+  phone: z.string().optional(),
+});
+
 export const SuccessResponseSchema = z.object({
   success: z.boolean().optional(),
 });
@@ -278,6 +315,12 @@ export const UserResponseSchema = z.object({
   user: UserSchema.optional(),
 });
 
+export const VerifyIdentityChangeRequestSchema = z.object({
+  flow_id: z.string().optional(),
+  session_code: z.string().optional(),
+  token: z.string().optional(),
+});
+
 export const VerifyOtpRequestSchema = z.object({
   email: z.string().optional(),
   options: VerifyOtpOptionsSchema.optional(),
@@ -286,6 +329,12 @@ export const VerifyOtpRequestSchema = z.object({
   token: z.string().optional(),
   token_hash: z.string().optional(),
   type: z.string().optional(),
+});
+
+export const VerifyReauthenticateRequestSchema = z.object({
+  channel: z.string().optional(),
+  session_code: z.string().optional(),
+  token: z.string().optional(),
 });
 
 export const SessionSchema = z.object({
