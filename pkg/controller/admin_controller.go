@@ -1228,7 +1228,7 @@ type QueryBuilder struct {
 func NewQueryBuilder(db *gorm.DB, instanceId string) *QueryBuilder {
 	userTable := models.User{}.TableName()
 	return &QueryBuilder{
-		query:      db.Table(userTable + " AS tu").Where("tu.instance_id = ?", instanceId),
+		query:      db.Table(userTable+" AS tu").Where("tu.instance_id = ?", instanceId),
 		hasJoin:    make(map[string]bool),
 		instanceId: instanceId,
 	}
@@ -1501,13 +1501,15 @@ func (c *AdminController) UpdateInstanceConfig(ctx *pin.Context) error {
 		return consts.VALIDATION_FAILED
 	}
 
-	err := c.authService.SaveConfig(&req.Config)
+	err := c.authService.SaveConfigPatch(&req.Config)
 	if err != nil {
 		return err
 	}
 
+	cfg := c.authService.GetConfig()
+
 	return ctx.Render(map[string]interface{}{
 		"message": "Config updated successfully",
-		"config":  req.Config,
+		"config":  cfg,
 	})
 }

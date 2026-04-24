@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -63,11 +64,7 @@ func (l *ConfigLoader) loadFromDB() *config.AuthServiceConfig {
 		return config.NewDefaultAuthServiceConfig()
 	}
 
-	// AfterFind hook automatically unmarshals Config to ConfigData
-	cfg := instance.ConfigData
-	if cfg == nil {
-		return config.NewDefaultAuthServiceConfig()
-	}
+	cfg := NormalizeAuthServiceConfigFromRaw(instance.Config)
 
 	// Set UpdatedAt from database to config
 	cfg.SetUpdatedAt(instance.UpdatedAt)
@@ -128,7 +125,7 @@ func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
 	currentConfig := l.GetConfig()
 
 	// Merge new config with current config (partial update)
-	mergedConfig := l.mergeConfigs(currentConfig, cfg)
+	mergedConfig := MergeAuthServiceConfig(currentConfig, cfg)
 
 	var instance models.AuthInstance
 	err := l.db.Where("instance_id = ?", l.instanceId).First(&instance).Error
@@ -151,96 +148,280 @@ func (l *ConfigLoader) SaveConfig(cfg *config.AuthServiceConfig) error {
 	return err
 }
 
-// mergeConfigs merges new config with current config, preserving existing values for unspecified fields
-func (l *ConfigLoader) mergeConfigs(current, new *config.AuthServiceConfig) *config.AuthServiceConfig {
-	merged := &config.AuthServiceConfig{}
+func (l *ConfigLoader) SaveConfigPatch(patch *config.AuthServiceConfigPatch) error {
+	currentConfig := l.GetConfig()
+	mergedConfig := ApplyAuthServiceConfigPatch(currentConfig, patch)
 
-	// Copy current config as base
-	*merged = *current
+	var instance models.AuthInstance
+	err := l.db.Where("instance_id = ?", l.instanceId).First(&instance).Error
 
-	// Override with new values
-	// For boolean pointer fields, only update if not nil
-	if new.AllowNewUsers != nil {
-		merged.AllowNewUsers = new.AllowNewUsers
-	}
-	if new.ManualLinking != nil {
-		merged.ManualLinking = new.ManualLinking
-	}
-	if new.AnonymousSignIns != nil {
-		merged.AnonymousSignIns = new.AnonymousSignIns
-	}
-	if new.ConfirmEmail != nil {
-		merged.ConfirmEmail = new.ConfirmEmail
-	}
-	if new.EnableCaptcha != nil {
-		merged.EnableCaptcha = new.EnableCaptcha
+	if err == gorm.ErrRecordNotFound {
+		instance = models.AuthInstance{
+			InstanceId: l.instanceId,
+			ConfigData: mergedConfig,
+		}
+		err = l.db.Create(&instance).Error
+	} else {
+		instance.ConfigData = mergedConfig
+		err = l.db.Save(&instance).Error
 	}
 
-	// For string fields, only update if not empty
-	if new.SiteURL != "" {
-		merged.SiteURL = new.SiteURL
-	}
-	if new.AuthServiceBaseUrl != "" {
-		merged.AuthServiceBaseUrl = new.AuthServiceBaseUrl
-	}
-	if new.RedirectURLs != nil {
-		merged.RedirectURLs = new.RedirectURLs
-	}
-	if new.MFAUpdateRequiredAAL != "" {
-		merged.MFAUpdateRequiredAAL = new.MFAUpdateRequiredAAL
+	if err == nil {
+		l.InvalidateCache()
 	}
 
-	// For numeric fields, only update if > 0
-	if new.MaximumMfaFactors > 0 {
-		merged.MaximumMfaFactors = new.MaximumMfaFactors
+	return err
+}
+
+func NormalizeAuthServiceConfigFromRaw(raw []byte) *config.AuthServiceConfig {
+	cfg := config.NewDefaultAuthServiceConfig()
+	if len(raw) == 0 {
+		return cfg
 	}
-	if new.MaximumMfaFactorValidationAttempts > 0 {
-		merged.MaximumMfaFactorValidationAttempts = new.MaximumMfaFactorValidationAttempts
+	if err := json.Unmarshal(raw, cfg); err != nil {
+		return config.NewDefaultAuthServiceConfig()
 	}
-	if new.MaxTimeAllowedForAuthRequest > 0 {
-		merged.MaxTimeAllowedForAuthRequest = new.MaxTimeAllowedForAuthRequest
+	return cfg
+}
+
+func NormalizeAuthServiceConfig(cfg *config.AuthServiceConfig) *config.AuthServiceConfig {
+	if cfg == nil {
+		return config.NewDefaultAuthServiceConfig()
+	}
+	return MergeAuthServiceConfig(config.NewDefaultAuthServiceConfig(), cfg)
+}
+
+func MergeAuthServiceConfig(current, next *config.AuthServiceConfig) *config.AuthServiceConfig {
+	if current == nil {
+		current = config.NewDefaultAuthServiceConfig()
+	}
+	if next == nil {
+		return NormalizeAuthServiceConfig(current)
 	}
 
-	// Merge SessionConfig fields instead of replacing the whole object
-	if new.SessionConfig != nil {
-		if merged.SessionConfig == nil {
-			merged.SessionConfig = config.GetDefaultSessionConfig()
-		}
-		// Only update non-zero values
-		if new.SessionConfig.RefreshTokenReuseInterval != 0 {
-			merged.SessionConfig.RefreshTokenReuseInterval = new.SessionConfig.RefreshTokenReuseInterval
-		}
-		if new.SessionConfig.TimeBoxUserSessions != 0 {
-			merged.SessionConfig.TimeBoxUserSessions = new.SessionConfig.TimeBoxUserSessions
-		}
-		if new.SessionConfig.InactivityTimeout != 0 {
-			merged.SessionConfig.InactivityTimeout = new.SessionConfig.InactivityTimeout
-		}
-		if new.SessionConfig.AccessTokenTTL != 0 {
-			merged.SessionConfig.AccessTokenTTL = new.SessionConfig.AccessTokenTTL
-		}
-		if new.SessionConfig.RefreshTokenTTL != 0 {
-			merged.SessionConfig.RefreshTokenTTL = new.SessionConfig.RefreshTokenTTL
-		}
-		// Always update boolean fields (false is a valid value)
-		merged.SessionConfig.RevokeCompromisedRefreshTokens = new.SessionConfig.RevokeCompromisedRefreshTokens
-		merged.SessionConfig.EnforceSingleSessionPerUser = new.SessionConfig.EnforceSingleSessionPerUser
+	merged := *current
+
+	if next.SiteURL != "" {
+		merged.SiteURL = next.SiteURL
+	}
+	if next.AuthServiceBaseUrl != "" {
+		merged.AuthServiceBaseUrl = next.AuthServiceBaseUrl
+	}
+	if next.RedirectURLs != nil {
+		merged.RedirectURLs = append([]string(nil), next.RedirectURLs...)
+	}
+	if next.AllowNewUsers != nil {
+		val := *next.AllowNewUsers
+		merged.AllowNewUsers = &val
+	}
+	if next.ManualLinking != nil {
+		val := *next.ManualLinking
+		merged.ManualLinking = &val
+	}
+	if next.AnonymousSignIns != nil {
+		val := *next.AnonymousSignIns
+		merged.AnonymousSignIns = &val
+	}
+	if next.ConfirmEmail != nil {
+		val := *next.ConfirmEmail
+		merged.ConfirmEmail = &val
+	}
+	if next.EnableCaptcha != nil {
+		val := *next.EnableCaptcha
+		merged.EnableCaptcha = &val
+	}
+	if next.MFAUpdateRequiredAAL != "" {
+		merged.MFAUpdateRequiredAAL = next.MFAUpdateRequiredAAL
+	}
+	if next.MaximumMfaFactors > 0 {
+		merged.MaximumMfaFactors = next.MaximumMfaFactors
+	}
+	if next.MaximumMfaFactorValidationAttempts > 0 {
+		merged.MaximumMfaFactorValidationAttempts = next.MaximumMfaFactorValidationAttempts
+	}
+	if next.MaxTimeAllowedForAuthRequest > 0 {
+		merged.MaxTimeAllowedForAuthRequest = next.MaxTimeAllowedForAuthRequest
 	}
 
-	if new.RatelimitConfig != nil {
-		merged.RatelimitConfig = new.RatelimitConfig
-	}
-	if new.SecurityConfig != nil {
-		if merged.SecurityConfig == nil {
-			merged.SecurityConfig = config.GetDefaultSecurityConfig()
-		}
-		merged.SecurityConfig = mergeSecurityConfig(merged.SecurityConfig, new.SecurityConfig)
-	}
+	merged.SessionConfig = mergeSessionConfig(merged.SessionConfig, next.SessionConfig)
+	merged.RatelimitConfig = mergeRatelimitConfig(merged.RatelimitConfig, next.RatelimitConfig)
+	merged.SecurityConfig = mergeSecurityConfig(merged.SecurityConfig, next.SecurityConfig)
 
-	// AppSecret is managed by secrets provider, preserve current value
+	merged.JWTSecret = current.JWTSecret
 	merged.AppSecret = current.AppSecret
+	merged.SetUpdatedAt(current.UpdatedAt())
 
-	return merged
+	return &merged
+}
+
+func ApplyAuthServiceConfigPatch(current *config.AuthServiceConfig, patch *config.AuthServiceConfigPatch) *config.AuthServiceConfig {
+	if current == nil {
+		current = config.NewDefaultAuthServiceConfig()
+	}
+	if patch == nil {
+		return NormalizeAuthServiceConfig(current)
+	}
+
+	merged := *current
+	if patch.SiteURL != nil {
+		merged.SiteURL = *patch.SiteURL
+	}
+	if patch.AuthServiceBaseUrl != nil {
+		merged.AuthServiceBaseUrl = *patch.AuthServiceBaseUrl
+	}
+	if patch.RedirectURLs != nil {
+		merged.RedirectURLs = append([]string(nil), (*patch.RedirectURLs)...)
+	}
+	if patch.AllowNewUsers != nil {
+		val := *patch.AllowNewUsers
+		merged.AllowNewUsers = &val
+	}
+	if patch.ManualLinking != nil {
+		val := *patch.ManualLinking
+		merged.ManualLinking = &val
+	}
+	if patch.AnonymousSignIns != nil {
+		val := *patch.AnonymousSignIns
+		merged.AnonymousSignIns = &val
+	}
+	if patch.ConfirmEmail != nil {
+		val := *patch.ConfirmEmail
+		merged.ConfirmEmail = &val
+	}
+	if patch.MFAUpdateRequiredAAL != nil {
+		merged.MFAUpdateRequiredAAL = *patch.MFAUpdateRequiredAAL
+	}
+	if patch.MaximumMfaFactors != nil {
+		merged.MaximumMfaFactors = *patch.MaximumMfaFactors
+	}
+	if patch.MaximumMfaFactorValidationAttempts != nil {
+		merged.MaximumMfaFactorValidationAttempts = *patch.MaximumMfaFactorValidationAttempts
+	}
+	if patch.EnableCaptcha != nil {
+		val := *patch.EnableCaptcha
+		merged.EnableCaptcha = &val
+	}
+	if patch.MaxTimeAllowedForAuthRequest != nil {
+		merged.MaxTimeAllowedForAuthRequest = *patch.MaxTimeAllowedForAuthRequest
+	}
+
+	merged.SessionConfig = applySessionConfigPatch(merged.SessionConfig, patch.SessionConfig)
+	merged.RatelimitConfig = applyRatelimitConfigPatch(merged.RatelimitConfig, patch.RatelimitConfig)
+	merged.SecurityConfig = applySecurityConfigPatch(merged.SecurityConfig, patch.SecurityConfig)
+
+	merged.JWTSecret = current.JWTSecret
+	merged.AppSecret = current.AppSecret
+	merged.SetUpdatedAt(current.UpdatedAt())
+
+	return NormalizeAuthServiceConfig(&merged)
+}
+
+func mergeSessionConfig(current, next *config.SessionConfig) *config.SessionConfig {
+	if current == nil {
+		current = config.GetDefaultSessionConfig()
+	}
+	if next == nil {
+		cloned := *current
+		return &cloned
+	}
+
+	merged := *current
+	if next.RefreshTokenReuseInterval != 0 {
+		merged.RefreshTokenReuseInterval = next.RefreshTokenReuseInterval
+	}
+	if next.TimeBoxUserSessions != 0 {
+		merged.TimeBoxUserSessions = next.TimeBoxUserSessions
+	}
+	if next.InactivityTimeout != 0 {
+		merged.InactivityTimeout = next.InactivityTimeout
+	}
+	if next.AccessTokenTTL != 0 {
+		merged.AccessTokenTTL = next.AccessTokenTTL
+	}
+	if next.RefreshTokenTTL != 0 {
+		merged.RefreshTokenTTL = next.RefreshTokenTTL
+	}
+	if next.RevokeCompromisedRefreshTokens != current.RevokeCompromisedRefreshTokens {
+		merged.RevokeCompromisedRefreshTokens = next.RevokeCompromisedRefreshTokens
+	}
+	if next.EnforceSingleSessionPerUser != current.EnforceSingleSessionPerUser {
+		merged.EnforceSingleSessionPerUser = next.EnforceSingleSessionPerUser
+	}
+	return &merged
+}
+
+func applySessionConfigPatch(current *config.SessionConfig, patch *config.SessionConfigPatch) *config.SessionConfig {
+	if current == nil {
+		current = config.GetDefaultSessionConfig()
+	}
+	if patch == nil {
+		cloned := *current
+		return &cloned
+	}
+
+	merged := *current
+	if patch.RevokeCompromisedRefreshTokens != nil {
+		merged.RevokeCompromisedRefreshTokens = *patch.RevokeCompromisedRefreshTokens
+	}
+	if patch.RefreshTokenReuseInterval != nil {
+		merged.RefreshTokenReuseInterval = *patch.RefreshTokenReuseInterval
+	}
+	if patch.EnforceSingleSessionPerUser != nil {
+		merged.EnforceSingleSessionPerUser = *patch.EnforceSingleSessionPerUser
+	}
+	if patch.TimeBoxUserSessions != nil {
+		merged.TimeBoxUserSessions = *patch.TimeBoxUserSessions
+	}
+	if patch.InactivityTimeout != nil {
+		merged.InactivityTimeout = *patch.InactivityTimeout
+	}
+	if patch.AccessTokenTTL != nil {
+		merged.AccessTokenTTL = *patch.AccessTokenTTL
+	}
+	if patch.RefreshTokenTTL != nil {
+		merged.RefreshTokenTTL = *patch.RefreshTokenTTL
+	}
+	return &merged
+}
+
+func mergeRatelimitConfig(current, next *config.RatelimitConfig) *config.RatelimitConfig {
+	if current == nil {
+		current = config.GetDefaultRatelimitConfig()
+	}
+	if next == nil {
+		cloned := *current
+		return &cloned
+	}
+
+	merged := *current
+	merged.EmailRateLimit = mergeRateLimit(merged.EmailRateLimit, next.EmailRateLimit)
+	merged.SMSRateLimit = mergeRateLimit(merged.SMSRateLimit, next.SMSRateLimit)
+	merged.TokenRefreshRateLimit = mergeRateLimit(merged.TokenRefreshRateLimit, next.TokenRefreshRateLimit)
+	merged.TokenVerificationRateLimit = mergeRateLimit(merged.TokenVerificationRateLimit, next.TokenVerificationRateLimit)
+	merged.AnonymousUsersRateLimit = mergeRateLimit(merged.AnonymousUsersRateLimit, next.AnonymousUsersRateLimit)
+	merged.SignUpSignInRateLimit = mergeRateLimit(merged.SignUpSignInRateLimit, next.SignUpSignInRateLimit)
+	merged.Web3SignUpSignInRateLimit = mergeRateLimit(merged.Web3SignUpSignInRateLimit, next.Web3SignUpSignInRateLimit)
+	return &merged
+}
+
+func applyRatelimitConfigPatch(current *config.RatelimitConfig, patch *config.RatelimitConfigPatch) *config.RatelimitConfig {
+	if current == nil {
+		current = config.GetDefaultRatelimitConfig()
+	}
+	if patch == nil {
+		cloned := *current
+		return &cloned
+	}
+
+	merged := *current
+	merged.EmailRateLimit = applyRateLimitPatch(merged.EmailRateLimit, patch.EmailRateLimit)
+	merged.SMSRateLimit = applyRateLimitPatch(merged.SMSRateLimit, patch.SMSRateLimit)
+	merged.TokenRefreshRateLimit = applyRateLimitPatch(merged.TokenRefreshRateLimit, patch.TokenRefreshRateLimit)
+	merged.TokenVerificationRateLimit = applyRateLimitPatch(merged.TokenVerificationRateLimit, patch.TokenVerificationRateLimit)
+	merged.AnonymousUsersRateLimit = applyRateLimitPatch(merged.AnonymousUsersRateLimit, patch.AnonymousUsersRateLimit)
+	merged.SignUpSignInRateLimit = applyRateLimitPatch(merged.SignUpSignInRateLimit, patch.SignUpSignInRateLimit)
+	merged.Web3SignUpSignInRateLimit = applyRateLimitPatch(merged.Web3SignUpSignInRateLimit, patch.Web3SignUpSignInRateLimit)
+	return &merged
 }
 
 func mergeSecurityConfig(current, next *config.SecurityConfig) *config.SecurityConfig {
@@ -248,44 +429,147 @@ func mergeSecurityConfig(current, next *config.SecurityConfig) *config.SecurityC
 		current = config.GetDefaultSecurityConfig()
 	}
 	if next == nil {
-		return current
+		cloned := *current
+		return &cloned
 	}
 
 	merged := *current
-
 	if next.AALPolicy != (config.AALPolicy{}) {
-		merged.AALPolicy = next.AALPolicy
+		merged.AALPolicy = mergeAALPolicy(merged.AALPolicy, next.AALPolicy)
 	}
 	if next.PasswordUpdateConfig != (config.PasswordUpdateConfig{}) {
-		merged.PasswordUpdateConfig = next.PasswordUpdateConfig
+		merged.PasswordUpdateConfig = mergePasswordUpdateConfig(merged.PasswordUpdateConfig, next.PasswordUpdateConfig)
 	}
 	if next.PasswordStrengthConfig != (config.PasswordStrengthConfig{}) {
-		merged.PasswordStrengthConfig = next.PasswordStrengthConfig
+		merged.PasswordStrengthConfig = mergePasswordStrengthConfig(merged.PasswordStrengthConfig, next.PasswordStrengthConfig)
+	}
+	if next.EmailChangeConfig != (config.IdentityChangeConfig{}) {
+		merged.EmailChangeConfig = mergeIdentityChangeConfig(merged.EmailChangeConfig, next.EmailChangeConfig)
+	}
+	if next.PhoneChangeConfig != (config.IdentityChangeConfig{}) {
+		merged.PhoneChangeConfig = mergeIdentityChangeConfig(merged.PhoneChangeConfig, next.PhoneChangeConfig)
+	}
+	return &merged
+}
+
+func applySecurityConfigPatch(current *config.SecurityConfig, patch *config.SecurityConfigPatch) *config.SecurityConfig {
+	if current == nil {
+		current = config.GetDefaultSecurityConfig()
+	}
+	if patch == nil {
+		cloned := *current
+		return &cloned
 	}
 
-	merged.EmailChangeConfig = mergeIdentityChangeConfig(current.EmailChangeConfig, next.EmailChangeConfig)
-	merged.PhoneChangeConfig = mergeIdentityChangeConfig(current.PhoneChangeConfig, next.PhoneChangeConfig)
-
+	merged := *current
+	merged.AALPolicy = applyAALPolicyPatch(merged.AALPolicy, patch.AALPolicy)
+	merged.PasswordUpdateConfig = applyPasswordUpdateConfigPatch(merged.PasswordUpdateConfig, patch.PasswordUpdateConfig)
+	merged.PasswordStrengthConfig = applyPasswordStrengthConfigPatch(merged.PasswordStrengthConfig, patch.PasswordStrengthConfig)
+	merged.EmailChangeConfig = applyIdentityChangeConfigPatch(merged.EmailChangeConfig, patch.EmailChangeConfig)
+	merged.PhoneChangeConfig = applyIdentityChangeConfigPatch(merged.PhoneChangeConfig, patch.PhoneChangeConfig)
 	return &merged
+}
+
+func mergeAALPolicy(current, next config.AALPolicy) config.AALPolicy {
+	merged := current
+	if next.AALTimeout > 0 {
+		merged.AALTimeout = next.AALTimeout
+	}
+	if next.AllowDowngrade != current.AllowDowngrade {
+		merged.AllowDowngrade = next.AllowDowngrade
+	}
+	return merged
+}
+
+func applyAALPolicyPatch(current config.AALPolicy, patch *config.AALPolicyPatch) config.AALPolicy {
+	merged := current
+	if patch == nil {
+		return merged
+	}
+	if patch.AALTimeout != nil {
+		merged.AALTimeout = *patch.AALTimeout
+	}
+	if patch.AllowDowngrade != nil {
+		merged.AllowDowngrade = *patch.AllowDowngrade
+	}
+	return merged
+}
+
+func mergePasswordUpdateConfig(current, next config.PasswordUpdateConfig) config.PasswordUpdateConfig {
+	merged := current
+	if next.UpdateRequiredAAL != "" {
+		merged.UpdateRequiredAAL = next.UpdateRequiredAAL
+	}
+	if next.RevokeOtherSessions != current.RevokeOtherSessions {
+		merged.RevokeOtherSessions = next.RevokeOtherSessions
+	}
+	merged.RateLimit = mergeRateLimit(merged.RateLimit, next.RateLimit)
+	return merged
+}
+
+func applyPasswordUpdateConfigPatch(current config.PasswordUpdateConfig, patch *config.PasswordUpdateConfigPatch) config.PasswordUpdateConfig {
+	merged := current
+	if patch == nil {
+		return merged
+	}
+	if patch.UpdateRequiredAAL != nil {
+		merged.UpdateRequiredAAL = *patch.UpdateRequiredAAL
+	}
+	if patch.RevokeOtherSessions != nil {
+		merged.RevokeOtherSessions = *patch.RevokeOtherSessions
+	}
+	merged.RateLimit = applyRateLimitPatch(merged.RateLimit, patch.RateLimit)
+	return merged
+}
+
+func mergePasswordStrengthConfig(current, next config.PasswordStrengthConfig) config.PasswordStrengthConfig {
+	merged := current
+	if next.MinScore > 0 {
+		merged.MinScore = next.MinScore
+	}
+	return merged
+}
+
+func applyPasswordStrengthConfigPatch(current config.PasswordStrengthConfig, patch *config.PasswordStrengthConfigPatch) config.PasswordStrengthConfig {
+	merged := current
+	if patch == nil {
+		return merged
+	}
+	if patch.MinScore != nil {
+		merged.MinScore = *patch.MinScore
+	}
+	return merged
 }
 
 func mergeIdentityChangeConfig(current, next config.IdentityChangeConfig) config.IdentityChangeConfig {
 	merged := current
-
-	if next != (config.IdentityChangeConfig{}) {
-		merged.RequireCurrentValueConfirmation = next.RequireCurrentValueConfirmation
-	}
 	if next.RequiredAAL != "" {
 		merged.RequiredAAL = next.RequiredAAL
 	}
+	if next.RequireCurrentValueConfirmation != current.RequireCurrentValueConfirmation {
+		merged.RequireCurrentValueConfirmation = next.RequireCurrentValueConfirmation
+	}
 	merged.RateLimit = mergeRateLimit(merged.RateLimit, next.RateLimit)
+	return merged
+}
 
+func applyIdentityChangeConfigPatch(current config.IdentityChangeConfig, patch *config.IdentityChangeConfigPatch) config.IdentityChangeConfig {
+	merged := current
+	if patch == nil {
+		return merged
+	}
+	if patch.RequiredAAL != nil {
+		merged.RequiredAAL = *patch.RequiredAAL
+	}
+	if patch.RequireCurrentValueConfirmation != nil {
+		merged.RequireCurrentValueConfirmation = *patch.RequireCurrentValueConfirmation
+	}
+	merged.RateLimit = applyRateLimitPatch(merged.RateLimit, patch.RateLimit)
 	return merged
 }
 
 func mergeRateLimit(current, next config.RateLimit) config.RateLimit {
 	merged := current
-
 	if next.MaxRequests > 0 {
 		merged.MaxRequests = next.MaxRequests
 	}
@@ -295,6 +579,22 @@ func mergeRateLimit(current, next config.RateLimit) config.RateLimit {
 	if next.Description != "" {
 		merged.Description = next.Description
 	}
+	return merged
+}
 
+func applyRateLimitPatch(current config.RateLimit, patch *config.RateLimitPatch) config.RateLimit {
+	merged := current
+	if patch == nil {
+		return merged
+	}
+	if patch.MaxRequests != nil {
+		merged.MaxRequests = *patch.MaxRequests
+	}
+	if patch.WindowDuration != nil {
+		merged.WindowDuration = *patch.WindowDuration
+	}
+	if patch.Description != nil {
+		merged.Description = *patch.Description
+	}
 	return merged
 }

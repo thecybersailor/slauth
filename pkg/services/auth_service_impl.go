@@ -788,6 +788,10 @@ func (s *AuthServiceImpl) SaveConfig(cfg *config.AuthServiceConfig) error {
 	return s.configLoader.SaveConfig(cfg)
 }
 
+func (s *AuthServiceImpl) SaveConfigPatch(cfg *config.AuthServiceConfigPatch) error {
+	return s.configLoader.SaveConfigPatch(cfg)
+}
+
 // GetOneTimeTokenService returns the one-time token service
 func (s *AuthServiceImpl) GetOneTimeTokenService() *OneTimeTokenService {
 	return s.otTokenService

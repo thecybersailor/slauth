@@ -149,7 +149,7 @@ type RecentSigninResponse struct {
 
 // UpdateInstanceConfigRequest represents the request for updating instance config
 type UpdateInstanceConfigRequest struct {
-	Config config.AuthServiceConfig `json:"config"`
+	Config config.AuthServiceConfigPatch `json:"config"`
 }
 
 // GetInstanceConfigResponse represents the response for getting instance config

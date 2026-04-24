@@ -992,6 +992,17 @@
                 }
             }
         },
+        "github_com_thecybersailor_slauth_pkg_config.AALPolicyPatch": {
+            "type": "object",
+            "properties": {
+                "aal_timeout": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "allow_downgrade": {
+                    "type": "boolean"
+                }
+            }
+        },
         "github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig": {
             "type": "object",
             "properties": {
@@ -1074,11 +1085,78 @@
                 }
             }
         },
+        "github_com_thecybersailor_slauth_pkg_config.AuthServiceConfigPatch": {
+            "type": "object",
+            "properties": {
+                "allow_new_users": {
+                    "type": "boolean"
+                },
+                "anonymous_sign_ins": {
+                    "type": "boolean"
+                },
+                "auth_service_base_url": {
+                    "type": "string"
+                },
+                "confirm_email": {
+                    "type": "boolean"
+                },
+                "enable_captcha": {
+                    "type": "boolean"
+                },
+                "manual_linking": {
+                    "type": "boolean"
+                },
+                "max_time_allowed_for_auth_request": {
+                    "$ref": "#/definitions/time.Duration"
+                },
+                "maximum_mfa_factor_validation_attempts": {
+                    "type": "integer"
+                },
+                "maximum_mfa_factors": {
+                    "type": "integer"
+                },
+                "mfa_update_required_aal": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.AALLevel"
+                },
+                "ratelimit_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RatelimitConfigPatch"
+                },
+                "redirect_urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "security_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.SecurityConfigPatch"
+                },
+                "session_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.SessionConfigPatch"
+                },
+                "site_url": {
+                    "type": "string"
+                }
+            }
+        },
         "github_com_thecybersailor_slauth_pkg_config.IdentityChangeConfig": {
             "type": "object",
             "properties": {
                 "rate_limit": {
                     "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                },
+                "require_current_value_confirmation": {
+                    "type": "boolean"
+                },
+                "required_aal": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.AALLevel"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.IdentityChangeConfigPatch": {
+            "type": "object",
+            "properties": {
+                "rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
                 },
                 "require_current_value_confirmation": {
                     "type": "boolean"
@@ -1096,11 +1174,33 @@
                 }
             }
         },
+        "github_com_thecybersailor_slauth_pkg_config.PasswordStrengthConfigPatch": {
+            "type": "object",
+            "properties": {
+                "min_score": {
+                    "type": "integer"
+                }
+            }
+        },
         "github_com_thecybersailor_slauth_pkg_config.PasswordUpdateConfig": {
             "type": "object",
             "properties": {
                 "rate_limit": {
                     "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimit"
+                },
+                "revoke_other_sessions": {
+                    "type": "boolean"
+                },
+                "update_required_aal": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_types.AALLevel"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.PasswordUpdateConfigPatch": {
+            "type": "object",
+            "properties": {
+                "rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
                 },
                 "revoke_other_sessions": {
                     "type": "boolean"
@@ -1128,6 +1228,20 @@
                             "$ref": "#/definitions/time.Duration"
                         }
                     ]
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.RateLimitPatch": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "max_requests": {
+                    "type": "integer"
+                },
+                "window_duration": {
+                    "$ref": "#/definitions/time.Duration"
                 }
             }
         },
@@ -1192,6 +1306,32 @@
                 }
             }
         },
+        "github_com_thecybersailor_slauth_pkg_config.RatelimitConfigPatch": {
+            "type": "object",
+            "properties": {
+                "anonymous_users_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                },
+                "email_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                },
+                "sign_up_sign_in_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                },
+                "sms_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                },
+                "token_refresh_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                },
+                "token_verification_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                },
+                "web3_sign_up_sign_in_rate_limit": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.RateLimitPatch"
+                }
+            }
+        },
         "github_com_thecybersailor_slauth_pkg_config.SecurityConfig": {
             "type": "object",
             "properties": {
@@ -1209,6 +1349,26 @@
                 },
                 "phone_change_config": {
                     "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.IdentityChangeConfig"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.SecurityConfigPatch": {
+            "type": "object",
+            "properties": {
+                "aal_policy": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AALPolicyPatch"
+                },
+                "email_change_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.IdentityChangeConfigPatch"
+                },
+                "password_strength_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.PasswordStrengthConfigPatch"
+                },
+                "password_update_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.PasswordUpdateConfigPatch"
+                },
+                "phone_change_config": {
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.IdentityChangeConfigPatch"
                 }
             }
         },
@@ -1241,6 +1401,32 @@
                 },
                 "time_box_user_sessions": {
                     "description": "Time-box user sessions (in seconds)\nThe amount of time before a user is forced to sign in again. Use 0 for never.",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_thecybersailor_slauth_pkg_config.SessionConfigPatch": {
+            "type": "object",
+            "properties": {
+                "access_token_ttl": {
+                    "type": "integer"
+                },
+                "enforce_single_session_per_user": {
+                    "type": "boolean"
+                },
+                "inactivity_timeout": {
+                    "type": "integer"
+                },
+                "refresh_token_reuse_interval": {
+                    "type": "integer"
+                },
+                "refresh_token_ttl": {
+                    "type": "integer"
+                },
+                "revoke_compromised_refresh_tokens": {
+                    "type": "boolean"
+                },
+                "time_box_user_sessions": {
                     "type": "integer"
                 }
             }
@@ -1644,7 +1830,7 @@
             "type": "object",
             "properties": {
                 "config": {
-                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AuthServiceConfig"
+                    "$ref": "#/definitions/github_com_thecybersailor_slauth_pkg_config.AuthServiceConfigPatch"
                 }
             }
         },

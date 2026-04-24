@@ -12,6 +12,11 @@ type AALPolicy struct {
 	AllowDowngrade bool `json:"allow_downgrade"`
 }
 
+type AALPolicyPatch struct {
+	AALTimeout     *time.Duration `json:"aal_timeout,omitempty"`
+	AllowDowngrade *bool          `json:"allow_downgrade,omitempty"`
+}
+
 type SecurityConfig struct {
 	AALPolicy AALPolicy `json:"aal_policy"`
 
@@ -24,6 +29,14 @@ type SecurityConfig struct {
 	PhoneChangeConfig IdentityChangeConfig `json:"phone_change_config"`
 }
 
+type SecurityConfigPatch struct {
+	AALPolicy              *AALPolicyPatch              `json:"aal_policy,omitempty"`
+	PasswordUpdateConfig   *PasswordUpdateConfigPatch   `json:"password_update_config,omitempty"`
+	PasswordStrengthConfig *PasswordStrengthConfigPatch `json:"password_strength_config,omitempty"`
+	EmailChangeConfig      *IdentityChangeConfigPatch   `json:"email_change_config,omitempty"`
+	PhoneChangeConfig      *IdentityChangeConfigPatch   `json:"phone_change_config,omitempty"`
+}
+
 type PasswordUpdateConfig struct {
 	UpdateRequiredAAL types.AALLevel `json:"update_required_aal"`
 
@@ -32,8 +45,18 @@ type PasswordUpdateConfig struct {
 	RateLimit RateLimit `json:"rate_limit"`
 }
 
+type PasswordUpdateConfigPatch struct {
+	UpdateRequiredAAL   *types.AALLevel `json:"update_required_aal,omitempty"`
+	RevokeOtherSessions *bool           `json:"revoke_other_sessions,omitempty"`
+	RateLimit           *RateLimitPatch `json:"rate_limit,omitempty"`
+}
+
 type PasswordStrengthConfig struct {
 	MinScore int `json:"min_score"`
+}
+
+type PasswordStrengthConfigPatch struct {
+	MinScore *int `json:"min_score,omitempty"`
 }
 
 type IdentityChangeConfig struct {
@@ -42,6 +65,12 @@ type IdentityChangeConfig struct {
 	RequireCurrentValueConfirmation bool `json:"require_current_value_confirmation"`
 
 	RateLimit RateLimit `json:"rate_limit"`
+}
+
+type IdentityChangeConfigPatch struct {
+	RequiredAAL                     *types.AALLevel `json:"required_aal,omitempty"`
+	RequireCurrentValueConfirmation *bool           `json:"require_current_value_confirmation,omitempty"`
+	RateLimit                       *RateLimitPatch `json:"rate_limit,omitempty"`
 }
 
 func GetDefaultSecurityConfig() *SecurityConfig {

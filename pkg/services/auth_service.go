@@ -59,6 +59,7 @@ type AuthService interface {
 	GetUserService() *UserService
 	GetPasswordService() *PasswordService
 	SaveConfig(cfg *config.AuthServiceConfig) error
+	SaveConfigPatch(cfg *config.AuthServiceConfigPatch) error
 
 	GetAdminSessionService() *AdminSessionService
 	GetAdminIdentityService() *AdminIdentityService

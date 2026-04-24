@@ -79,6 +79,16 @@ Use the secure flows for new integrations. They are designed for multi-step veri
 
 Password updates remain available at `PUT /password`. By default, password update requires `AAL2`, and successful password changes revoke other active sessions unless your security config overrides that behavior.
 
+## Runtime Configuration Semantics
+
+Slauth stores runtime configuration in the database and exposes it through `GET /admin/config` and `PUT /admin/config`.
+
+- `GET /admin/config` always returns the fully normalized runtime config, including nested defaults that were not explicitly stored in the database.
+- `PUT /admin/config` supports partial updates. Omitted fields keep their current values.
+- Sensitive nested settings such as `security_config.password_update_config`, `session_config`, and `ratelimit_config` are merged field-by-field instead of being replaced wholesale.
+
+For new integrations, treat `/admin/config` as a patch-style API: send only the fields you intend to change.
+
 ## Quick Start
 
 ### Installation

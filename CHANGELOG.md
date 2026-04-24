@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PUT /password` client helpers now align with the real password update route
 - TypeScript client methods now expose `session_code` for legacy email and phone change flows
 - Vue user-management components now preserve `session_code`, `flow_id`, and verification stage for multi-step email and phone changes
+- `/admin/config` now applies partial updates with field-presence semantics instead of zero-value replacement
+- Config loaded from `auth_instances.config` now rehydrates missing nested defaults before becoming the runtime config
+- Default runtime config now uses distinct boolean pointers, preventing JSON unmarshalling from mutating sibling flags
 
 ### Compatibility
 

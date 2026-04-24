@@ -203,6 +203,27 @@ func (suite *ServiceConfigTestSuite) TestConfirmEmailConfiguration() {
 	}
 }
 
+func (suite *ServiceConfigTestSuite) TestPartialSessionConfigUpdatePreservesSiblingDefaults() {
+	configResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", S{
+		"config": S{
+			"session_config": S{
+				"access_token_ttl": 1800,
+			},
+		},
+	}, nil)
+	suite.Equal(200, configResponse.ResponseRecorder.Code, "Config update should succeed")
+
+	current := suite.AuthService.GetConfig()
+	suite.Require().NotNil(current)
+	suite.Require().NotNil(current.SessionConfig)
+
+	suite.Equal(int64(1800), current.SessionConfig.AccessTokenTTL)
+	suite.True(current.SessionConfig.RevokeCompromisedRefreshTokens, "partial session update should preserve revoke_compromised_refresh_tokens default")
+	suite.False(current.SessionConfig.EnforceSingleSessionPerUser, "partial session update should preserve enforce_single_session_per_user default")
+	suite.Equal(int64(10), current.SessionConfig.RefreshTokenReuseInterval, "partial session update should preserve refresh token reuse interval")
+	suite.Equal(int64(7*24*3600), current.SessionConfig.RefreshTokenTTL, "partial session update should preserve refresh token ttl")
+}
+
 func TestServiceConfigSuite(t *testing.T) {
 	suite.Run(t, new(ServiceConfigTestSuite))
 }

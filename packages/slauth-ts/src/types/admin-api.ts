@@ -44,6 +44,11 @@ export interface GithubComThecybersailorSlauthPkgConfigAALPolicy {
   allow_downgrade?: boolean;
 }
 
+export interface GithubComThecybersailorSlauthPkgConfigAALPolicyPatch {
+  aal_timeout?: TimeDuration;
+  allow_downgrade?: boolean;
+}
+
 export interface GithubComThecybersailorSlauthPkgConfigAuthServiceConfig {
   /** If this is disabled, new users will not be able to sign up to your application */
   allow_new_users?: boolean;
@@ -89,8 +94,32 @@ export interface GithubComThecybersailorSlauthPkgConfigAuthServiceConfig {
   site_url?: string;
 }
 
+export interface GithubComThecybersailorSlauthPkgConfigAuthServiceConfigPatch {
+  allow_new_users?: boolean;
+  anonymous_sign_ins?: boolean;
+  auth_service_base_url?: string;
+  confirm_email?: boolean;
+  enable_captcha?: boolean;
+  manual_linking?: boolean;
+  max_time_allowed_for_auth_request?: TimeDuration;
+  maximum_mfa_factor_validation_attempts?: number;
+  maximum_mfa_factors?: number;
+  mfa_update_required_aal?: AALLevel;
+  ratelimit_config?: GithubComThecybersailorSlauthPkgConfigRatelimitConfigPatch;
+  redirect_urls?: string[];
+  security_config?: GithubComThecybersailorSlauthPkgConfigSecurityConfigPatch;
+  session_config?: GithubComThecybersailorSlauthPkgConfigSessionConfigPatch;
+  site_url?: string;
+}
+
 export interface GithubComThecybersailorSlauthPkgConfigIdentityChangeConfig {
   rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimit;
+  require_current_value_confirmation?: boolean;
+  required_aal?: AALLevel;
+}
+
+export interface GithubComThecybersailorSlauthPkgConfigIdentityChangeConfigPatch {
+  rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
   require_current_value_confirmation?: boolean;
   required_aal?: AALLevel;
 }
@@ -99,8 +128,18 @@ export interface GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfig {
   min_score?: number;
 }
 
+export interface GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfigPatch {
+  min_score?: number;
+}
+
 export interface GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfig {
   rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimit;
+  revoke_other_sessions?: boolean;
+  update_required_aal?: AALLevel;
+}
+
+export interface GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfigPatch {
+  rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
   revoke_other_sessions?: boolean;
   update_required_aal?: AALLevel;
 }
@@ -111,6 +150,12 @@ export interface GithubComThecybersailorSlauthPkgConfigRateLimit {
   /** MaxRequests is the maximum number of requests allowed */
   max_requests?: number;
   /** WindowDuration is the time window for the rate limit */
+  window_duration?: TimeDuration;
+}
+
+export interface GithubComThecybersailorSlauthPkgConfigRateLimitPatch {
+  description?: string;
+  max_requests?: number;
   window_duration?: TimeDuration;
 }
 
@@ -131,12 +176,30 @@ export interface GithubComThecybersailorSlauthPkgConfigRatelimitConfig {
   web3_sign_up_sign_in_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimit;
 }
 
+export interface GithubComThecybersailorSlauthPkgConfigRatelimitConfigPatch {
+  anonymous_users_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+  email_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+  sign_up_sign_in_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+  sms_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+  token_refresh_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+  token_verification_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+  web3_sign_up_sign_in_rate_limit?: GithubComThecybersailorSlauthPkgConfigRateLimitPatch;
+}
+
 export interface GithubComThecybersailorSlauthPkgConfigSecurityConfig {
   aal_policy?: GithubComThecybersailorSlauthPkgConfigAALPolicy;
   email_change_config?: GithubComThecybersailorSlauthPkgConfigIdentityChangeConfig;
   password_strength_config?: GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfig;
   password_update_config?: GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfig;
   phone_change_config?: GithubComThecybersailorSlauthPkgConfigIdentityChangeConfig;
+}
+
+export interface GithubComThecybersailorSlauthPkgConfigSecurityConfigPatch {
+  aal_policy?: GithubComThecybersailorSlauthPkgConfigAALPolicyPatch;
+  email_change_config?: GithubComThecybersailorSlauthPkgConfigIdentityChangeConfigPatch;
+  password_strength_config?: GithubComThecybersailorSlauthPkgConfigPasswordStrengthConfigPatch;
+  password_update_config?: GithubComThecybersailorSlauthPkgConfigPasswordUpdateConfigPatch;
+  phone_change_config?: GithubComThecybersailorSlauthPkgConfigIdentityChangeConfigPatch;
 }
 
 export interface GithubComThecybersailorSlauthPkgConfigSessionConfig {
@@ -175,6 +238,16 @@ export interface GithubComThecybersailorSlauthPkgConfigSessionConfig {
    * Time-box user sessions (in seconds)
    * The amount of time before a user is forced to sign in again. Use 0 for never.
    */
+  time_box_user_sessions?: number;
+}
+
+export interface GithubComThecybersailorSlauthPkgConfigSessionConfigPatch {
+  access_token_ttl?: number;
+  enforce_single_session_per_user?: boolean;
+  inactivity_timeout?: number;
+  refresh_token_reuse_interval?: number;
+  refresh_token_ttl?: number;
+  revoke_compromised_refresh_tokens?: boolean;
   time_box_user_sessions?: number;
 }
 
@@ -318,7 +391,7 @@ export interface StatsResponse {
 }
 
 export interface UpdateInstanceConfigRequest {
-  config?: GithubComThecybersailorSlauthPkgConfigAuthServiceConfig;
+  config?: GithubComThecybersailorSlauthPkgConfigAuthServiceConfigPatch;
 }
 
 export interface UpdateInstanceConfigResponse {

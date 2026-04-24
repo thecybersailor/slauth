@@ -31,6 +31,16 @@ type SessionConfig struct {
 	RefreshTokenTTL int64 `json:"refresh_token_ttl"`
 }
 
+type SessionConfigPatch struct {
+	RevokeCompromisedRefreshTokens *bool  `json:"revoke_compromised_refresh_tokens,omitempty"`
+	RefreshTokenReuseInterval      *int64 `json:"refresh_token_reuse_interval,omitempty"`
+	EnforceSingleSessionPerUser    *bool  `json:"enforce_single_session_per_user,omitempty"`
+	TimeBoxUserSessions            *int64 `json:"time_box_user_sessions,omitempty"`
+	InactivityTimeout              *int64 `json:"inactivity_timeout,omitempty"`
+	AccessTokenTTL                 *int64 `json:"access_token_ttl,omitempty"`
+	RefreshTokenTTL                *int64 `json:"refresh_token_ttl,omitempty"`
+}
+
 // GetDefaultSessionConfig returns the default session configuration
 func GetDefaultSessionConfig() *SessionConfig {
 	return &SessionConfig{

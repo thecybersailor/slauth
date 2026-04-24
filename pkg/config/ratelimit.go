@@ -26,6 +26,16 @@ type RatelimitConfig struct {
 	Web3SignUpSignInRateLimit RateLimit `json:"web3_sign_up_sign_in_rate_limit"`
 }
 
+type RatelimitConfigPatch struct {
+	EmailRateLimit             *RateLimitPatch `json:"email_rate_limit,omitempty"`
+	SMSRateLimit               *RateLimitPatch `json:"sms_rate_limit,omitempty"`
+	TokenRefreshRateLimit      *RateLimitPatch `json:"token_refresh_rate_limit,omitempty"`
+	TokenVerificationRateLimit *RateLimitPatch `json:"token_verification_rate_limit,omitempty"`
+	AnonymousUsersRateLimit    *RateLimitPatch `json:"anonymous_users_rate_limit,omitempty"`
+	SignUpSignInRateLimit      *RateLimitPatch `json:"sign_up_sign_in_rate_limit,omitempty"`
+	Web3SignUpSignInRateLimit  *RateLimitPatch `json:"web3_sign_up_sign_in_rate_limit,omitempty"`
+}
+
 // RateLimit defines the structure for rate limiting configuration
 type RateLimit struct {
 	// MaxRequests is the maximum number of requests allowed
@@ -36,6 +46,12 @@ type RateLimit struct {
 
 	// Description provides context about what this rate limit applies to
 	Description string `json:"description"`
+}
+
+type RateLimitPatch struct {
+	MaxRequests    *int           `json:"max_requests,omitempty"`
+	WindowDuration *time.Duration `json:"window_duration,omitempty"`
+	Description    *string        `json:"description,omitempty"`
 }
 
 // GetDefaultRatelimitConfig returns the default rate limiting configuration

@@ -2,8 +2,10 @@ package tests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/services"
 )
 
@@ -156,4 +158,69 @@ func (suite *SecurityConfigTestSuite) Test_06_PasswordUpdateRateLimit() {
 	suite.helper.HasError(suite.T(), passwordResponse3, "over_request_rate_limit", "Third password update should be rate limited")
 
 	suite.T().Logf("Password update rate limit test completed successfully")
+}
+
+func (suite *SecurityConfigTestSuite) Test_07_PartialPasswordUpdateConfigPreservesDefaultRateLimit() {
+	defaultConfig := config.NewDefaultAuthServiceConfig()
+	falseVal := false
+	defaultConfig.ConfirmEmail = &falseVal
+	suite.Require().NoError(suite.AuthService.SaveConfig(defaultConfig))
+
+	updateConfigRequest := S{
+		"config": S{
+			"confirm_email": false,
+			"security_config": S{
+				"password_update_config": S{
+					"update_required_aal":   "aal1",
+					"revoke_other_sessions": false,
+				},
+			},
+		},
+	}
+
+	updateConfigResponse := suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigRequest, nil)
+	suite.Equal(200, updateConfigResponse.ResponseRecorder.Code, "partial password update config should save")
+
+	reloaded := suite.AuthService.GetConfig()
+	suite.Require().NotNil(reloaded)
+	suite.Require().NotNil(reloaded.AllowNewUsers)
+	suite.True(*reloaded.AllowNewUsers, "partial config should preserve allow_new_users")
+	suite.Require().NotNil(reloaded.SecurityConfig)
+
+	passwordUpdateConfig := reloaded.SecurityConfig.PasswordUpdateConfig
+	suite.Equal("aal1", string(passwordUpdateConfig.UpdateRequiredAAL))
+	suite.False(passwordUpdateConfig.RevokeOtherSessions)
+	suite.Equal(5, passwordUpdateConfig.RateLimit.MaxRequests, "partial config should keep default password update rate limit max requests")
+	suite.Equal(time.Hour, passwordUpdateConfig.RateLimit.WindowDuration, "partial config should keep default password update rate limit window")
+	suite.Equal("Password update rate limit per user", passwordUpdateConfig.RateLimit.Description, "partial config should keep default password update rate limit description")
+
+	email := "password-partial-rate-limit@example.com"
+	password := "InitialPassword123!"
+
+	signupRequest := S{
+		"email":    email,
+		"password": password,
+	}
+	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequest)
+	suite.Require().Equal(200, signupResponse.ResponseRecorder.Code, "signup should succeed")
+
+	loginRequest := S{
+		"email":    email,
+		"password": password,
+	}
+	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=password", loginRequest)
+	suite.Require().Equal(200, loginResponse.ResponseRecorder.Code, "login should succeed")
+
+	responseData := loginResponse.Data.(map[string]interface{})
+	session := responseData["session"].(map[string]interface{})
+	accessToken := session["access_token"].(string)
+
+	headers := map[string]string{
+		"Authorization": "Bearer " + accessToken,
+	}
+
+	passwordResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/password", S{
+		"password": "UpdatedPassword123!",
+	}, headers)
+	suite.Equal(200, passwordResponse.ResponseRecorder.Code, "first password update should not be rate limited when partial config omits nested rate limit")
 }

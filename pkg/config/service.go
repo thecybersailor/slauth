@@ -68,18 +68,34 @@ type AuthServiceConfig struct {
 	updatedAt time.Time
 }
 
+type AuthServiceConfigPatch struct {
+	SiteURL                            *string               `json:"site_url,omitempty"`
+	AuthServiceBaseUrl                 *string               `json:"auth_service_base_url,omitempty"`
+	RedirectURLs                       *[]string             `json:"redirect_urls,omitempty"`
+	AllowNewUsers                      *bool                 `json:"allow_new_users,omitempty"`
+	ManualLinking                      *bool                 `json:"manual_linking,omitempty"`
+	AnonymousSignIns                   *bool                 `json:"anonymous_sign_ins,omitempty"`
+	ConfirmEmail                       *bool                 `json:"confirm_email,omitempty"`
+	MFAUpdateRequiredAAL               *types.AALLevel       `json:"mfa_update_required_aal,omitempty"`
+	MaximumMfaFactors                  *int                  `json:"maximum_mfa_factors,omitempty"`
+	MaximumMfaFactorValidationAttempts *int                  `json:"maximum_mfa_factor_validation_attempts,omitempty"`
+	EnableCaptcha                      *bool                 `json:"enable_captcha,omitempty"`
+	MaxTimeAllowedForAuthRequest       *time.Duration        `json:"max_time_allowed_for_auth_request,omitempty"`
+	SessionConfig                      *SessionConfigPatch   `json:"session_config,omitempty"`
+	RatelimitConfig                    *RatelimitConfigPatch `json:"ratelimit_config,omitempty"`
+	SecurityConfig                     *SecurityConfigPatch  `json:"security_config,omitempty"`
+}
+
 func NewDefaultAuthServiceConfig() *AuthServiceConfig {
-	trueVal := true
-	falseVal := false
 	return &AuthServiceConfig{
 		RedirectURLs:                       []string{},
-		AllowNewUsers:                      &trueVal,
-		ManualLinking:                      &falseVal,
-		AnonymousSignIns:                   &falseVal,
-		ConfirmEmail:                       &trueVal,
+		AllowNewUsers:                      boolPtr(true),
+		ManualLinking:                      boolPtr(false),
+		AnonymousSignIns:                   boolPtr(false),
+		ConfirmEmail:                       boolPtr(true),
 		MaximumMfaFactors:                  10,
 		MaximumMfaFactorValidationAttempts: 5,
-		EnableCaptcha:                      &falseVal,
+		EnableCaptcha:                      boolPtr(false),
 		MaxTimeAllowedForAuthRequest:       10 * time.Second,
 		SessionConfig:                      GetDefaultSessionConfig(),
 		RatelimitConfig:                    GetDefaultRatelimitConfig(),
@@ -99,4 +115,8 @@ func (c *AuthServiceConfig) SetUpdatedAt(t time.Time) {
 
 func (c *AuthServiceConfig) UpdatedAt() time.Time {
 	return c.updatedAt
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
