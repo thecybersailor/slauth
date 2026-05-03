@@ -10,18 +10,18 @@ import { version } from './version'
 /** HTTP client configuration */
 export interface HttpClientConfig {
   baseURL: string
-  apiKey?: string
-  headers?: { [key: string]: string }
-  timeout?: number
-  debug?: boolean
-  autoRefreshToken?: boolean
-  refreshTokenFn?: () => Promise<boolean>
+  apiKey?: string | undefined
+  headers?: { [key: string]: string } | undefined
+  timeout?: number | undefined
+  debug?: boolean | undefined
+  autoRefreshToken?: boolean | undefined
+  refreshTokenFn?: (() => Promise<boolean>) | undefined
   /** Callback when 401 unauthorized error occurs or refresh fails */
-  onUnauthorized?: () => void
+  onUnauthorized?: (() => void) | undefined
   /** Callback when session is refreshed successfully */
-  onSessionRefreshed?: (session: any) => void
+  onSessionRefreshed?: ((session: any) => void) | undefined
   /** Callback for general auth errors */
-  onAuthError?: (error: AuthError) => void
+  onAuthError?: ((error: AuthError) => void) | undefined
 }
 
 /** Request options - extends AxiosRequestConfig for maximum flexibility */

@@ -4,6 +4,7 @@ export { createClients } from './createClients'
 // API client exports
 export { AuthApi } from './AuthApi'
 export { AdminApi } from './AdminApi'
+export { SessionManager } from './lib/session-manager'
 
 // Type exports
 export * from './lib/types'

@@ -57,12 +57,20 @@ auth.onAuthStateChange((event, session) => {
 - `signInWithOAuth(provider)` - Sign in with OAuth provider
 - `signOut()` - Sign out current user
 - `refreshSession()` - Refresh current session
+- `getSession()` - Resolve current session after initialization/refresh
+- `isAuthenticated()` - Resolve whether a session exists
 
 ### User Management
 
 - `getUser()` - Get current user
 - `updateUser(attributes)` - Update user attributes
-- `getSession()` - Get current session
+
+### Session Model
+
+- `SessionManager` is the single source of truth for session state
+- `getSession()` is async and waits for initialization/refresh
+- `AdminApi` does not expose `setSession()`; auth/admin clients share one `SessionManager`
+- Refresh failure fast-fails through `onUnauthorized`
 
 ### MFA Methods
 
@@ -103,6 +111,11 @@ await authClient.signInWithPassword({
   email: 'user@example.com',
   password: 'Password123!'
 })
+
+const session = await authClient.getSession()
+if (!session) {
+  throw new Error('session unavailable')
+}
 
 // Use authClient.request instead of axios for your API calls
 // The access token is automatically attached to the request

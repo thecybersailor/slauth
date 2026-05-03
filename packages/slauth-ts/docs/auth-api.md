@@ -30,35 +30,7 @@ The legacy helpers below remain available for compatibility:
 createAuthError(message: string): AuthError
 ```
 
-### async
-
-```typescript
-async(): Promise<boolean> =>
-```
-
-### async
-
-```typescript
-async(): Promise<boolean> =>
-```
-
-### initializeSession
-
-```typescript
-initializeSession(): Promise<void>
-```
-
-### setSession
-
-```typescript
-setSession(session: Types.Session): Promise<void>
-```
-
-### clearSession
-
-```typescript
-clearSession(): Promise<void>
-```
+`AuthApi` delegates session lifecycle to `SessionManager`. Consumers should treat `getSession()` and `isAuthenticated()` as async APIs and should not read storage directly.
 
 ### signUp
 
@@ -147,7 +119,19 @@ updatePasswordWithFlow(params: Types.UpdatePasswordRequest): Promise<Types.UserR
 ### getSession
 
 ```typescript
-getSession(): Types.Session | null
+getSession(): Promise<Types.Session | null>
+```
+
+### getAuthState
+
+```typescript
+getAuthState(): Promise<{ session: Types.Session | null; user: Types.User | null }>
+```
+
+### isAuthenticated
+
+```typescript
+isAuthenticated(): Promise<boolean>
 ```
 
 ### getUser

@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `@cybersailor/slauth-ts` now uses a single `SessionManager` as the only session source of truth
+- `@cybersailor/slauth-ts` `getSession()` and `isAuthenticated()` are now async APIs that wait for initialization
+- `@cybersailor/slauth-ts` `AdminApi.setSession()` and the shared mutable-session pattern have been removed
 - `PUT /password` client helpers now align with the real password update route
 - TypeScript client methods now expose `session_code` for legacy email and phone change flows
 - Vue user-management components now preserve `session_code`, `flow_id`, and verification stage for multi-step email and phone changes
@@ -30,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Compatibility
 
+- Downstream TypeScript consumers must migrate to the async session APIs before upgrading to the new `@cybersailor/slauth-ts` release
 - Legacy `PUT /email` and `POST /email/verify` remain supported
 - Legacy `PUT /phone` and `POST /phone/verify` remain supported
 - No database migration is required for this release

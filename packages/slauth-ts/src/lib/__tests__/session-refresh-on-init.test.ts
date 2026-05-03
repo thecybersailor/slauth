@@ -58,10 +58,8 @@ describe('Session Auto-Refresh on Initialization', () => {
       }
     })
 
-    // Wait for initialization to complete
-    await new Promise(resolve => setTimeout(resolve, 200))
-
     // Verify that refresh was called
+    const currentSession = await authClient.getSession()
     expect(mockAdapter.history.post.length).toBeGreaterThan(0)
     const refreshRequest = mockAdapter.history.post.find(req => 
       req.url?.includes('/token?grant_type=refresh_token')
@@ -70,9 +68,6 @@ describe('Session Auto-Refresh on Initialization', () => {
     expect(JSON.parse(refreshRequest!.data)).toMatchObject({
       refresh_token: 'valid-refresh-token'
     })
-
-    // Verify that session was updated with new token
-    const currentSession = authClient.getSession()
     expect(currentSession?.access_token).toBe('new-access-token')
   })
 
@@ -96,11 +91,8 @@ describe('Session Auto-Refresh on Initialization', () => {
       debug: false
     })
 
-    // Wait for initialization
-    await new Promise(resolve => setTimeout(resolve, 100))
-
     // Verify that session was cleared
-    const currentSession = authClient.getSession()
+    const currentSession = await authClient.getSession()
     expect(currentSession).toBeNull()
   })
 
@@ -128,15 +120,9 @@ describe('Session Auto-Refresh on Initialization', () => {
     const axiosInstance = (authClient as any).api.client
     mockAdapter = new MockAdapter(axiosInstance)
 
-    // Wait for initialization
-    await new Promise(resolve => setTimeout(resolve, 100))
-
     // Verify that refresh was NOT called
+    const currentSession = await authClient.getSession()
     expect(mockAdapter.history.post.length).toBe(0)
-
-    // Verify that session is still valid
-    const currentSession = authClient.getSession()
     expect(currentSession?.access_token).toBe('valid-token')
   })
 })
-

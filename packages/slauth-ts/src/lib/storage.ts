@@ -65,15 +65,12 @@ export class StorageManager {
     })
   }
 
-  /** Get session from storage */
-  async getSession(options: { checkExpiry?: boolean } = {}): Promise<any | null> {
-    const { checkExpiry = true } = options
-    
+  /** Load session from storage */
+  async loadSession(): Promise<any | null> {
     const localStorageRef = getLocalStorage()
     debugLog(this.debug, '[slauth:storage] getSession - checking storage', {
       storageKey: this.storageKey,
       storageType: this.storage.constructor.name,
-      checkExpiry,
       allKeys: localStorageRef && this.storage === localStorageRef ? Object.keys(localStorageRef) : 'N/A'
     })
     
@@ -92,13 +89,7 @@ export class StorageManager {
       hasExpiresAt: !!session.expires_at,
       expiresAt: session.expires_at
     })
-    
-    if (checkExpiry && session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)) {
-      debugLog(this.debug, '[slauth:storage] Session expired, removing')
-      await this.removeSession()
-      return null
-    }
-    
+
     return session
   }
 

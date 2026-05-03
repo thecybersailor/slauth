@@ -1,55 +1,58 @@
 import { createHttpClient } from './lib/fetch'
 import { Session, AuthError } from './lib/types'
 import { ValidatedApiClient } from './lib/validated-client'
+import { SessionManager } from './lib/session-manager'
 import * as Types from './types/admin-api'
 import * as Schemas from './schemas/admin-api.schemas'
 
 /** Admin API client - handles administrative operations */
 export class AdminApi {
   private api: ValidatedApiClient
-  private currentSession: Session | null = null
+  private sessionManager: SessionManager
 
-  constructor(baseURL: string, config: any) {
+  constructor(baseURL: string, config: any, sessionManager?: SessionManager) {
+    this.sessionManager =
+      sessionManager ??
+      new SessionManager({
+        authBaseURL: config.authBaseURL,
+        apiKey: config.apiKey,
+        headers: config.headers,
+        autoRefreshToken: config.autoRefreshToken,
+        persistSession: config.persistSession,
+        storage: config.storage,
+        storageKey: config.storageKey,
+        crossTabRefreshLock: config.crossTabRefreshLock,
+        refreshLockKey: config.refreshLockKey,
+        debug: config.debug,
+        timeout: config.timeout,
+        onSessionRefreshed: config.onSessionRefreshed
+      })
     this.api = new ValidatedApiClient({
+      refreshTokenFn: async () => (await this.sessionManager.refreshSession()) !== null,
       baseURL,
       ...config
     })
-  }
-
-  /**
-   * Set session for admin operations (typically from authClient)
-   * IMPORTANT: This stores a reference to the session object, not a copy.
-   * When called with authClient.getSession(), both clients will share the same
-   * session object. This enables automatic synchronization - when authClient
-   * refreshes the token, the changes propagate automatically to adminClient
-   * because AuthApi.setSession() uses Object.assign() to update the same object.
-   * 
-   * Usage: adminClient.setSession(authClient.getSession())
-   */
-  setSession(session: Session): void {
-    this.currentSession = session
-    this.api.setAuth(session.access_token || null)
-  }
-
-  /** Clear current session */
-  clearSession(): void {
-    this.currentSession = null
-    this.api.setAuth(null)
+    this.sessionManager.registerTokenConsumer((token) => {
+      this.api.setAuth(token)
+    })
+    queueMicrotask(() => {
+      void this.sessionManager.initialize()
+    })
   }
 
   /** Get current access token */
-  getToken(): string | null {
-    return this.currentSession?.access_token || null
+  async getToken(): Promise<string | null> {
+    return this.sessionManager.getAccessToken()
   }
 
   /** Check if admin client is authenticated */
-  isAuthenticated(): boolean {
-    return this.currentSession !== null
+  async isAuthenticated(): Promise<boolean> {
+    return this.sessionManager.hasSession()
   }
 
   /** Get current session */
-  getSession(): Session | null {
-    return this.currentSession
+  async getSession(): Promise<Session | null> {
+    return this.sessionManager.getSession()
   }
 
   // SAML SSO Management

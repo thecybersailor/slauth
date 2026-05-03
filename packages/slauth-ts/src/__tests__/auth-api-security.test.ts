@@ -6,7 +6,7 @@ describe('AuthApi security flow contracts', () => {
   let authClient: AuthApi
   let mockAdapter: MockAdapter
 
-  beforeEach(() => {
+  beforeEach(async () => {
     authClient = new AuthApi('http://localhost:8080/auth', {
       storage: new MemoryStorage(),
       storageKey: 'test.auth.token',
@@ -15,12 +15,11 @@ describe('AuthApi security flow contracts', () => {
       debug: false
     })
 
-    ;(authClient as any).currentSession = {
+    await (authClient as any).sessionManager.setSession({
       access_token: 'test-access-token',
       refresh_token: 'test-refresh-token',
       user: { id: 'user_123', email: 'test@example.com' }
-    }
-    ;(authClient as any).api.setAuth('test-access-token')
+    })
 
     mockAdapter = new MockAdapter((authClient as any).api.client)
   })

@@ -141,8 +141,8 @@ describe('Cross-tab refresh coordination (navigator.locks)', () => {
       mockB.history.post.filter((r) => isRefreshCall(r.url)).length
 
     expect(refreshCalls).toBe(1)
-    expect(authClientA.getSession()?.access_token).toBe('access-token-2')
-    expect(authClientB.getSession()?.access_token).toBe('access-token-2')
+    await expect(authClientA.getSession()).resolves.toMatchObject({ access_token: 'access-token-2' })
+    await expect(authClientB.getSession()).resolves.toMatchObject({ access_token: 'access-token-2' })
 
     mockA.restore()
     mockB.restore()

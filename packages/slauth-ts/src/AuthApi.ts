@@ -1,29 +1,23 @@
 import { createHttpClient } from './lib/fetch'
 import { createValidatedHttpClient, ValidatedApiClient } from './lib/validated-client'
-import { StorageManager } from './lib/storage'
 import { AuthError } from './lib/errors'
 import { debugLog } from './lib/helpers'
-import { withBestEffortExclusiveLock } from './lib/locks'
+import { SessionManager } from './lib/session-manager'
 import * as Schemas from './schemas/auth-api.schemas'
 import * as Types from './types/auth-api'
 
 /** Auth API client - handles authentication operations */
 export class AuthApi {
-  public request: any           
-  private api: ValidatedApiClient  
-  private storage: StorageManager
-  private autoRefreshToken: boolean
-  private persistSession: boolean
+  public request: any
+  private api: ValidatedApiClient
   private debug: boolean
-  private currentSession: Types.Session | null = null
-  private currentUser: any = null
-  private refreshTokenFn?: () => Promise<boolean>
+  private sessionManager: SessionManager
 
   private createAuthError(message: string): AuthError {
     return { message, key: 'UNAUTHORIZED' }
   }
 
-  constructor(baseURL: string, config: any) {
+  constructor(baseURL: string, config: any, sessionManager?: SessionManager) {
     this.debug = config.debug || false
     debugLog(this.debug, '[slauth:AuthApi] Constructor called', {
       baseURL,
@@ -33,228 +27,61 @@ export class AuthApi {
       storageKey: config.storageKey,
       debug: this.debug
     })
-    
-    this.storage = new StorageManager(config.storage, config.storageKey, this.debug)
-    this.autoRefreshToken = config.autoRefreshToken !== false
-    this.persistSession = config.persistSession !== false
-    
-    // Create clients first without refresh function
+
+    this.sessionManager =
+      sessionManager ??
+      new SessionManager({
+        authBaseURL: baseURL,
+        apiKey: config.apiKey,
+        headers: config.headers,
+        autoRefreshToken: config.autoRefreshToken,
+        persistSession: config.persistSession,
+        storage: config.storage,
+        storageKey: config.storageKey,
+        crossTabRefreshLock: config.crossTabRefreshLock,
+        refreshLockKey: config.refreshLockKey,
+        debug: config.debug,
+        timeout: config.timeout,
+        onSessionRefreshed: config.onSessionRefreshed
+      })
+
     this.api = createValidatedHttpClient({
+      refreshTokenFn: async () => (await this.sessionManager.refreshSession()) !== null,
       baseURL,
       ...config
     })
-    
+    this.sessionManager.bindRefreshClient(this.api)
+
     this.request = createHttpClient({
-      baseURL: '', 
+      refreshTokenFn: async () => (await this.sessionManager.refreshSession()) !== null,
+      baseURL: '',
       ...config
     })
-    
-    // Create refresh token function that uses this.api
-    const refreshTokenFn = async (): Promise<boolean> => {
-      const now = Math.floor(Date.now() / 1000)
-      const crossTabRefreshLockEnabled =
-        this.persistSession &&
-        this.autoRefreshToken &&
-        config.crossTabRefreshLock !== false
 
-      const lockKey =
-        config.refreshLockKey ||
-        `slauth:refresh:${config.storageKey || 'aira.auth.token'}:${baseURL}`
-
-      const refreshImpl = async (): Promise<boolean> => {
-        // If another tab already refreshed and persisted the latest session,
-        // adopt it and skip calling refresh endpoint with a potentially stale refresh_token.
-        if (this.persistSession) {
-          const latestSession = await this.storage.getSession({ checkExpiry: false })
-          const latestNotExpired =
-            latestSession &&
-            (!latestSession.expires_at || latestSession.expires_at > now)
-
-          const refreshTokenChanged =
-            latestSession?.refresh_token &&
-            latestSession.refresh_token !== this.currentSession?.refresh_token
-
-          const accessTokenChanged =
-            latestSession?.access_token &&
-            latestSession.access_token !== this.currentSession?.access_token
-
-          if (latestNotExpired && (refreshTokenChanged || accessTokenChanged)) {
-            await this.setSession(latestSession as Types.Session)
-            config.onSessionRefreshed?.(latestSession as Types.Session)
-            return true
-          }
-        }
-
-        if (!this.currentSession?.refresh_token) {
-          return false
-        }
-
-        const requestBody = {
-          refresh_token: this.currentSession.refresh_token
-        }
-
-        // Mark this request to skip auto refresh to prevent infinite loop
-        const { data, error } = await this.api.postWithValidation<Types.AuthData>(
-          '/token?grant_type=refresh_token',
-          requestBody,
-          Schemas.RefreshTokenRequestSchema,
-          Schemas.AuthDataSchema,
-          { _skipAutoRefresh: true } as any
-        )
-
-        if (error || !data || !data.session) {
-          return false
-        }
-
-        await this.setSession(data.session as Types.Session)
-        config.onSessionRefreshed?.(data.session)
-        return true
-      }
-
-      if (!crossTabRefreshLockEnabled) {
-        return refreshImpl()
-      }
-
-      return withBestEffortExclusiveLock(lockKey, refreshImpl)
-    }
-    this.refreshTokenFn = refreshTokenFn
-    
-    // Set refresh function if auto refresh is enabled
-    if (this.autoRefreshToken) {
-      ;(this.api as any).config.refreshTokenFn = refreshTokenFn
-      ;(this.request as any).config.refreshTokenFn = refreshTokenFn
-    }
-    
     this.syncTokenState()
-    this.initializeSession()
+    queueMicrotask(() => {
+      void this.sessionManager.initialize()
+    })
   }
 
   private syncTokenState() {
     debugLog(this.debug, '[slauth:AuthApi] syncTokenState called')
-    const originalSetAuth = this.api.setAuth.bind(this.api)
-    this.api.setAuth = (token: string | null) => {
-      debugLog(this.debug, '[slauth:AuthApi] api.setAuth wrapper called', { 
+    this.sessionManager.registerTokenConsumer((token) => {
+      debugLog(this.debug, '[slauth:AuthApi] token consumer called', {
         hasToken: !!token,
-        tokenPreview: token ? `${token.substring(0, 20)}...` : null 
+        tokenPreview: token ? `${token.substring(0, 20)}...` : null
       })
-      originalSetAuth(token)
+      this.api.setAuth(token)
       this.request.setAuth(token)
-    }
+    })
   }
 
-  private async initializeSession(): Promise<void> {
-    debugLog(this.debug, '[slauth:AuthApi] initializeSession called', { 
-      persistSession: this.persistSession,
-      autoRefreshToken: this.autoRefreshToken 
-    })
-    if (!this.persistSession) return
-
-    // Get session without expiry check to allow refresh attempt
-    const session = await this.storage.getSession({ checkExpiry: false })
-    debugLog(this.debug, '[slauth:AuthApi] Session from storage', { 
-      hasSession: !!session,
-      hasAccessToken: !!session?.access_token,
-      hasRefreshToken: !!session?.refresh_token,
-      expiresAt: session?.expires_at,
-      tokenPreview: session?.access_token ? `${session.access_token.substring(0, 20)}...` : null
-    })
-    
+  private async requireSession(): Promise<Types.Session> {
+    const session = await this.sessionManager.getSession()
     if (!session) {
-      debugLog(this.debug, '[slauth:AuthApi] No session found in storage')
-      return
+      throw this.createAuthError('No session')
     }
-
-    // Check if session is expired
-    const isExpired = session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000)
-    debugLog(this.debug, '[slauth:AuthApi] Session expiry check', {
-      isExpired,
-      expiresAt: session.expires_at,
-      currentTime: Math.floor(Date.now() / 1000)
-    })
-
-    if (isExpired) {
-      // Session expired - attempt refresh if enabled and refresh token exists
-      if (this.autoRefreshToken && session.refresh_token) {
-        debugLog(this.debug, '[slauth:AuthApi] Session expired, attempting auto-refresh')
-        
-        // Set current session temporarily for refresh function
-        this.currentSession = session
-
-        const refreshSuccess = await (this.refreshTokenFn?.() ?? Promise.resolve(false))
-        if (!refreshSuccess) {
-          debugLog(this.debug, '[slauth:AuthApi] Auto-refresh failed, clearing session')
-          await this.storage.removeSession()
-          this.currentSession = null
-          this.currentUser = null
-          return
-        }
-
-        debugLog(this.debug, '[slauth:AuthApi] Auto-refresh successful')
-        return
-      } else {
-        debugLog(this.debug, '[slauth:AuthApi] Session expired, no auto-refresh available, clearing session')
-        await this.storage.removeSession()
-        return
-      }
-    }
-
-    // Session is valid
-    this.currentSession = session
-    this.currentUser = session.user
-    this.api.setAuth(session.access_token)
-    debugLog(this.debug, '[slauth:AuthApi] Session initialized from storage')
-  }
-
-  /**
-   * Set session for the client
-   * IMPORTANT: This method updates the same object reference to maintain synchronization
-   * with AdminApi. When adminClient.setSession(authClient.getSession()) is called,
-   * both clients share the same session object reference. By using Object.assign()
-   * instead of reassigning, token refreshes and session updates automatically propagate
-   * to all clients holding the reference.
-   */
-  private async setSession(session: Types.Session): Promise<void> {
-    debugLog(this.debug, '[slauth:AuthApi] setSession called', {
-      hasCurrentSession: !!this.currentSession,
-      hasAccessToken: !!session.access_token,
-      tokenPreview: session.access_token ? `${session.access_token.substring(0, 20)}...` : null,
-      persistSession: this.persistSession
-    })
-    
-    if (this.currentSession) {
-      Object.assign(this.currentSession, session)
-      debugLog(this.debug, '[slauth:AuthApi] Session updated via Object.assign')
-    } else {
-      this.currentSession = session
-      debugLog(this.debug, '[slauth:AuthApi] New session created')
-    }
-    
-    this.currentUser = session.user
-    if (!session.access_token) {
-      throw new Error('No access token in session')
-    }
-    this.api.setAuth(session.access_token)
-    debugLog(this.debug, '[slauth:AuthApi] Access token set on api client')
-
-    if (this.persistSession) {
-      await this.storage.saveSession(session)
-      await this.storage.saveUser(session.user)
-      debugLog(this.debug, '[slauth:AuthApi] Session persisted to storage')
-    }
-  }
-
-  private async clearSession(): Promise<void> {
-    debugLog(this.debug, '[slauth:AuthApi] clearSession called')
-    this.currentSession = null
-    this.currentUser = null
-    this.api.setAuth(null)
-    debugLog(this.debug, '[slauth:AuthApi] Session cleared')
-
-    if (this.persistSession) {
-      await this.storage.removeSession()
-      await this.storage.removeUser()
-      debugLog(this.debug, '[slauth:AuthApi] Session removed from storage')
-    }
+    return session
   }
 
   // Authentication methods
@@ -274,7 +101,7 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
     }
 
     return data
@@ -296,7 +123,7 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
     }
 
     return data
@@ -333,7 +160,7 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
     }
 
     return data
@@ -358,7 +185,7 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
     }
 
     return data
@@ -398,7 +225,7 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
     }
 
     return data
@@ -467,7 +294,7 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
       
       localStorage.removeItem('pkce_code_verifier')
     }
@@ -555,23 +382,22 @@ export class AuthApi {
   }
 
   // Session management
-  getSession(): Types.Session | null {
-    return this.currentSession
+  async getSession(): Promise<Types.Session | null> {
+    return this.sessionManager.getSession()
   }
 
-  getAuthState() {
-    return { session: this.currentSession, user: this.currentUser }
+  async getAuthState() {
+    const session = await this.sessionManager.getSession()
+    return { session, user: session?.user ?? null }
   }
 
-  isAuthenticated() {
-    return this.currentSession !== null
+  async isAuthenticated(): Promise<boolean> {
+    return this.sessionManager.hasSession()
   }
 
   // User management methods (merged from UserApi)
   async getUser(): Promise<Types.UserData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.getWithValidation<Types.UserData>(
       '/user',
@@ -586,9 +412,7 @@ export class AuthApi {
   }
 
   async updateUser(attributes: Types.UpdateUserRequest): Promise<Types.UserData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.putWithValidation<Types.UserData>(
       '/user',
@@ -601,9 +425,12 @@ export class AuthApi {
       return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
     }
 
-    // Update current user
     if (data.user) {
-      this.currentUser = { ...this.currentUser, ...data.user }
+      const session = await this.requireSession()
+      await this.sessionManager.setSession({
+        ...session,
+        user: { ...session.user, ...data.user }
+      })
     }
 
     return data
@@ -618,7 +445,7 @@ export class AuthApi {
     )
 
     // Clear session regardless of API response
-    await this.clearSession()
+    await this.sessionManager.clearSession()
 
     if (error || !data) {
       return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
@@ -628,7 +455,8 @@ export class AuthApi {
   }
 
   async refreshSession(): Promise<Types.AuthData> {
-    if (!this.currentSession?.refresh_token) {
+    const session = await this.requireSession()
+    if (!session.refresh_token) {
       return Promise.reject({
         message: 'No refresh token',
         key: 'no_refresh_token'
@@ -636,7 +464,7 @@ export class AuthApi {
     }
 
     const requestBody: Types.RefreshTokenRequest = {
-      refresh_token: this.currentSession.refresh_token
+      refresh_token: session.refresh_token
     }
 
     // Mark this request to skip auto refresh to prevent infinite loop
@@ -653,16 +481,14 @@ export class AuthApi {
     }
 
     if (data.session) {
-      await this.setSession(data.session as Types.Session)
+      await this.sessionManager.setSession(data.session as Types.Session)
     }
 
     return data
   }
 
   async updatePassword(request: Types.UpdatePasswordRequest): Promise<Record<string, any>> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.put('/password', request)
 
@@ -674,9 +500,7 @@ export class AuthApi {
   }
 
   async reauthenticate(request: Types.ReauthenticateRequest = {}): Promise<Types.ReauthenticateData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.ReauthenticateData>(
       '/reauthenticate',
@@ -693,9 +517,7 @@ export class AuthApi {
   }
 
   async verifyReauthentication(request: Types.VerifyReauthenticateRequest): Promise<Types.ReauthenticateVerifyData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.ReauthenticateVerifyData>(
       '/reauthenticate/verify',
@@ -712,9 +534,7 @@ export class AuthApi {
   }
 
   async updateEmail(request: { email: string }): Promise<Types.SendOTPResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.putWithValidation<Types.SendOTPResponse>(
       '/email',
@@ -731,9 +551,7 @@ export class AuthApi {
   }
 
   async updatePhone(request: { phone: string }): Promise<Types.SendOTPResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.putWithValidation<Types.SendOTPResponse>(
       '/phone',
@@ -751,9 +569,7 @@ export class AuthApi {
 
   // Email and phone verification methods
   async verifyEmailChange(params: Types.VerifyOtpRequest): Promise<Types.SuccessResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.SuccessResponse>(
       '/email/verify',
@@ -770,9 +586,7 @@ export class AuthApi {
   }
 
   async verifyPhoneChange(params: Types.VerifyOtpRequest): Promise<Types.SuccessResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.SuccessResponse>(
       '/phone/verify',
@@ -789,9 +603,7 @@ export class AuthApi {
   }
 
   async startEmailChange(request: Types.StartEmailChangeRequest): Promise<Types.IdentityChangeData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
       '/email/change',
@@ -808,9 +620,7 @@ export class AuthApi {
   }
 
   async verifyEmailChangeSecure(request: Types.VerifyIdentityChangeRequest): Promise<Types.IdentityChangeData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
       '/email/change/verify',
@@ -827,9 +637,7 @@ export class AuthApi {
   }
 
   async startPhoneChange(request: Types.StartPhoneChangeRequest): Promise<Types.IdentityChangeData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
       '/phone/change',
@@ -846,9 +654,7 @@ export class AuthApi {
   }
 
   async verifyPhoneChangeSecure(request: Types.VerifyIdentityChangeRequest): Promise<Types.IdentityChangeData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.IdentityChangeData>(
       '/phone/change/verify',
@@ -866,9 +672,7 @@ export class AuthApi {
 
   // Session management methods
   async getSessions(): Promise<Types.ListSessionsResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.getWithValidation<Types.ListSessionsResponse>(
       '/sessions',
@@ -883,9 +687,7 @@ export class AuthApi {
   }
 
   async revokeSession(sessionId: string): Promise<Types.SuccessResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { error } = await this.api.delete(`/sessions/${sessionId}`)
     if (error) return Promise.reject(error)
@@ -893,9 +695,7 @@ export class AuthApi {
   }
 
   async revokeAllSessions(excludeCurrent: boolean = false): Promise<Types.SuccessResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const params = new URLSearchParams()
     if (excludeCurrent) {
@@ -910,9 +710,7 @@ export class AuthApi {
 
   // Security methods
   async getAuditLog(): Promise<Types.GetAuditLogResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.getWithValidation<Types.GetAuditLogResponse>(
       '/security/audit-log',
@@ -927,9 +725,7 @@ export class AuthApi {
   }
 
   async getDevices(): Promise<Types.GetDevicesResponse> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.getWithValidation<Types.GetDevicesResponse>(
       '/security/devices',
@@ -945,9 +741,7 @@ export class AuthApi {
 
   // MFA methods
   async enrollMFAFactor(params: Types.MFAEnrollRequest): Promise<Types.MFAEnrollData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.MFAEnrollData>(
       '/factors/enroll',
@@ -964,9 +758,7 @@ export class AuthApi {
   }
 
   async challengeMFAFactor(params: { factorId: string }): Promise<Types.MFAChallengeData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.MFAChallengeData>(
       '/factors/challenge',
@@ -983,9 +775,7 @@ export class AuthApi {
   }
 
   async verifyMFAFactor(params: Types.MFAVerifyRequest): Promise<Types.MFAVerifyData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.postWithValidation<Types.MFAVerifyData>(
       '/factors/verify',
@@ -1009,16 +799,14 @@ export class AuthApi {
         user: data.user
       } as Types.Session
 
-      await this.setSession(sessionData)
+      await this.sessionManager.setSession(sessionData)
     }
 
     return data
   }
 
   async unenrollMFAFactor(factorId: string): Promise<Types.MFAUnenrollData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { error } = await this.api.delete(`/factors/${factorId}`)
     if (error) return Promise.reject(error)
@@ -1026,9 +814,7 @@ export class AuthApi {
   }
 
   async listMFAFactors(): Promise<Types.MFAListFactorsData> {
-    if (!this.currentSession) {
-      return Promise.reject(this.createAuthError('No session'))
-    }
+    await this.requireSession()
 
     const { data, error } = await this.api.getWithValidation<Types.MFAListFactorsData>(
       '/factors',

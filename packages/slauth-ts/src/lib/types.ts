@@ -1,6 +1,7 @@
 import type { AuthError } from './errors'
 import type { Session, User } from '../types/auth-api'
 import type { AdminUserResponse } from '../types/admin-api'
+import type { SupportedStorage } from './storage'
 
 // Re-export AuthError for convenience
 export type { AuthError }
@@ -48,7 +49,7 @@ export interface ClientsConfig {
   /** Persist session in local storage */
   persistSession?: boolean
   /** Storage implementation for session persistence */
-  storage?: Storage
+  storage?: SupportedStorage
   /** Storage key for session persistence */
   storageKey?: string
   /** Coordinate refresh across tabs/pages (uses navigator.locks when available). Defaults to enabled when persistSession+autoRefreshToken are enabled; set false to opt out. */

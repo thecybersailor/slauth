@@ -4,28 +4,14 @@ Admin API client for user management operations.
 
 ## Methods
 
-### setSession
-
-Set session for admin operations (typically from authClient) IMPORTANT: This stores a reference to the session object, not a copy. When called with authClient.getSession(), both clients will share the same session object. This enables automatic synchronization - when authClient refreshes the token, the changes propagate automatically to adminClient because AuthApi.setSession() uses Object.assign() to update the same object. Usage: adminClient.setSession(authClient.getSession())
-
-```typescript
-setSession(session: Session): void
-```
-
-### clearSession
-
-Clear current session
-
-```typescript
-clearSession(): void
-```
+`AdminApi` reads session state from the shared `SessionManager`. It does not expose `setSession()` or `clearSession()`.
 
 ### getToken
 
 Get current access token
 
 ```typescript
-getToken(): string | null
+getToken(): Promise<string | null>
 ```
 
 ### isAuthenticated
@@ -33,7 +19,7 @@ getToken(): string | null
 Check if admin client is authenticated
 
 ```typescript
-isAuthenticated(): boolean
+isAuthenticated(): Promise<boolean>
 ```
 
 ### getSession
@@ -41,7 +27,7 @@ isAuthenticated(): boolean
 Get current session
 
 ```typescript
-getSession(): Session | null
+getSession(): Promise<Session | null>
 ```
 
 ### createSAMLProvider
