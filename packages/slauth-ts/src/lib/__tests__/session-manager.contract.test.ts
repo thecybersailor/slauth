@@ -86,4 +86,76 @@ describe('SessionManager hard-cut contract', () => {
 
     authMock.restore()
   })
+
+  it('authClient.createRequestClient shares session truth and refresh behavior across base URLs', async () => {
+    const storage = new MemoryStorage()
+    const { authClient, sessionManager } = createClients({
+      auth: { url: 'http://localhost:8080/auth' },
+      storage: storage as any,
+      storageKey: 'test.auth.token',
+      persistSession: true,
+      autoRefreshToken: true,
+      debug: false
+    })
+
+    const authMock = new MockAdapter((authClient as any).api.client)
+    const hostRequest = authClient!.createRequestClient({ baseURL: 'http://localhost:7001' })
+    const hostMock = new MockAdapter((hostRequest as any).client)
+
+    await sessionManager.setSession({
+      access_token: 'expired-access-token',
+      refresh_token: 'refresh-token-1',
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      user: { id: '1', email: 'test@example.com' }
+    } as any)
+
+    authMock.onPost('http://localhost:8080/auth/token?grant_type=refresh_token').reply(200, {
+      data: {
+        session: {
+          access_token: 'fresh-access-token',
+          refresh_token: 'refresh-token-2',
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: { id: '1', email: 'test@example.com' }
+        }
+      }
+    })
+
+    hostMock.onGet('/api/v1/workspaces').replyOnce(401, {
+      error: {
+        message: 'Token expired',
+        key: 'auth.unauthorized',
+        type: 'user'
+      }
+    })
+    hostMock.onGet('/api/v1/workspaces').reply((config) => {
+      expect(config.baseURL).toBe('http://localhost:7001')
+      expect(config.headers?.Authorization).toBe('Bearer fresh-access-token')
+      return [200, { data: { items: [] } }]
+    })
+
+    const response = await hostRequest.get('/api/v1/workspaces')
+
+    expect(response.status).toBe(200)
+    await expect(authClient!.getSession()).resolves.toMatchObject({
+      access_token: 'fresh-access-token',
+      refresh_token: 'refresh-token-2'
+    })
+
+    hostMock.restore()
+    authMock.restore()
+  })
+
+  it('authClient.createRequestClient reuses the same client for the same baseURL', async () => {
+    const { authClient } = createClients({
+      auth: { url: 'http://localhost:8080/auth' },
+      persistSession: false,
+      autoRefreshToken: true,
+      debug: false
+    })
+
+    const clientA = authClient!.createRequestClient({ baseURL: 'http://localhost:7001' })
+    const clientB = authClient!.createRequestClient({ baseURL: 'http://localhost:7001' })
+
+    expect(clientA).toBe(clientB)
+  })
 })
