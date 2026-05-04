@@ -24,12 +24,18 @@ export interface HttpClientConfig {
   onAuthError?: ((error: AuthError) => void) | undefined
 }
 
+export interface DerivedHttpClientOptions {
+  baseURL: string
+}
+
 /** Request options - extends AxiosRequestConfig for maximum flexibility */
 export interface RequestOptions extends Omit<AxiosRequestConfig, 'url' | 'method' | 'data' | 'baseURL'> {
   noResolveJson?: boolean
   redirectTo?: string
   body?: any
 }
+
+type RawRequestConfig = AxiosRequestConfig & { _retry?: boolean; _skipAutoRefresh?: boolean }
 
 /** HTTP client for slauth API */
 export class HttpClient {
@@ -196,6 +202,23 @@ export class HttpClient {
     }
   }
 
+  /** Create another HttpClient that shares auth/refresh semantics but targets a different baseURL */
+  createDerivedClient(options: DerivedHttpClientOptions): HttpClient {
+    const derived = new HttpClient({
+      ...this.config,
+      baseURL: options.baseURL
+    })
+
+    const authHeader = this.client.defaults.headers.common['Authorization']
+    if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      derived.setAuth(authHeader.slice('Bearer '.length))
+    } else {
+      derived.setAuth(null)
+    }
+
+    return derived
+  }
+
   /** Make a GET request */
   async get<T = any>(url: string, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
     const { noResolveJson, redirectTo, body, ...axiosConfig } = options
@@ -224,6 +247,69 @@ export class HttpClient {
   async delete<T = any>(url: string, options: RequestOptions = {}): Promise<AxiosResponse<T>> {
     const { noResolveJson, redirectTo, body, ...axiosConfig } = options
     return this.client.delete<T>(url, axiosConfig)
+  }
+
+  /** Fetch-style request that always resolves HTTP responses, preserving refresh semantics */
+  async fetch<T = any>(url: string, options: AxiosRequestConfig = {}): Promise<AxiosResponse<T>> {
+    return this.requestWithFetchSemantics<T>({
+      ...options,
+      url
+    })
+  }
+
+  private async requestWithFetchSemantics<T = any>(config: RawRequestConfig): Promise<AxiosResponse<T>> {
+    const response = await this.client.request<T>({
+      ...config,
+      validateStatus: () => true
+    })
+
+    if (response.status !== 401) {
+      return response
+    }
+
+    const requestUrl = config.url || ''
+    const hasSkipFlag = config._skipAutoRefresh === true
+    const isRefreshTokenEndpoint =
+      requestUrl.includes('/token') &&
+      (requestUrl.includes('grant_type=refresh_token') || requestUrl.includes('refresh_token'))
+    const isRefreshTokenRequest = hasSkipFlag || isRefreshTokenEndpoint
+
+    if (
+      isRefreshTokenRequest ||
+      !this.config.autoRefreshToken ||
+      !this.config.refreshTokenFn ||
+      config._retry
+    ) {
+      this.config.onUnauthorized?.()
+      return response
+    }
+
+    const refreshSuccess = await this.refreshTokenSingleflight()
+    if (!refreshSuccess) {
+      this.config.onUnauthorized?.()
+      return response
+    }
+
+    const authHeader = this.client.defaults.headers.common['Authorization']
+    const retryConfig: RawRequestConfig = {
+      ...config,
+      _retry: true,
+      headers: {
+        ...(config.headers || {}),
+        ...(typeof authHeader === 'string' ? { Authorization: authHeader } : {})
+      }
+    }
+
+    const retried = await this.client.request<T>({
+      ...retryConfig,
+      validateStatus: () => true
+    })
+
+    if (retried.status === 401) {
+      this.config.onUnauthorized?.()
+    }
+
+    return retried
   }
 
   /** Handle axios errors and convert to AuthError */

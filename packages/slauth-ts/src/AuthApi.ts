@@ -1,4 +1,4 @@
-import { createHttpClient } from './lib/fetch'
+import { createHttpClient, HttpClient } from './lib/fetch'
 import { createValidatedHttpClient, ValidatedApiClient } from './lib/validated-client'
 import { AuthError } from './lib/errors'
 import { debugLog } from './lib/helpers'
@@ -8,10 +8,11 @@ import * as Types from './types/auth-api'
 
 /** Auth API client - handles authentication operations */
 export class AuthApi {
-  public request: any
+  public request: HttpClient
   private api: ValidatedApiClient
   private debug: boolean
   private sessionManager: SessionManager
+  private readonly derivedRequestClients = new Map<string, HttpClient>()
 
   private createAuthError(message: string): AuthError {
     return { message, key: 'UNAUTHORIZED' }
@@ -74,6 +75,21 @@ export class AuthApi {
       this.api.setAuth(token)
       this.request.setAuth(token)
     })
+  }
+
+  createRequestClient(options: { baseURL: string }): HttpClient {
+    const normalizedBaseURL = String(options.baseURL || '').trim()
+    const cached = this.derivedRequestClients.get(normalizedBaseURL)
+    if (cached) {
+      return cached
+    }
+
+    const client = this.request.createDerivedClient({ baseURL: normalizedBaseURL })
+    this.sessionManager.registerTokenConsumer((token) => {
+      client.setAuth(token)
+    })
+    this.derivedRequestClients.set(normalizedBaseURL, client)
+    return client
   }
 
   private async requireSession(): Promise<Types.Session> {

@@ -164,12 +164,29 @@ describe('HttpClient - Callback Mechanisms', () => {
 
       await client.get('/user')
     })
+
+    it('should create a derived client with a different baseURL and inherited auth header', async () => {
+      client.setAuth('seed-token')
+
+      const derived = client.createDerivedClient({ baseURL: 'http://localhost:4000' })
+      const derivedMock = new MockAdapter((derived as any).client)
+
+      derivedMock.onGet('/teams').reply((config) => {
+        expect(config.baseURL).toBe('http://localhost:4000')
+        expect(config.headers?.Authorization).toBe('Bearer seed-token')
+        return [200, { data: { items: [] } }]
+      })
+
+      await derived.get('/teams')
+      derivedMock.restore()
+    })
   })
 })
 
 describe('Auto Token Refresh', () => {
   let client: HttpClient
   let mock: MockAdapter
+  let authTarget: HttpClient
   let refreshCallCount = 0
   let onUnauthorizedMock: jest.Mock
   let onSessionRefreshedMock: jest.Mock
@@ -182,7 +199,7 @@ describe('Auto Token Refresh', () => {
     const refreshTokenFn = async (): Promise<boolean> => {
       refreshCallCount++
       // Simulate successful refresh
-      client.setAuth('new-access-token')
+      authTarget.setAuth('new-access-token')
       onSessionRefreshedMock({ access_token: 'new-access-token' })
       return true
     }
@@ -195,6 +212,8 @@ describe('Auto Token Refresh', () => {
       onSessionRefreshed: onSessionRefreshedMock,
       debug: false
     })
+
+    authTarget = client
 
     mock = new MockAdapter((client as any).client)
   })
@@ -237,7 +256,7 @@ describe('Auto Token Refresh', () => {
       refreshCallCount++
       // Keep refresh in-flight briefly to increase overlap across concurrent 401s
       await sleep(20)
-      client.setAuth('new-access-token')
+      authTarget.setAuth('new-access-token')
       onSessionRefreshedMock({ access_token: 'new-access-token' })
       return true
     }
@@ -250,6 +269,8 @@ describe('Auto Token Refresh', () => {
       onSessionRefreshed: onSessionRefreshedMock,
       debug: false
     })
+
+    authTarget = client
 
     mock.restore()
     mock = new MockAdapter((client as any).client)
@@ -309,5 +330,61 @@ describe('Auto Token Refresh', () => {
     expect(onUnauthorizedMock).toHaveBeenCalledTimes(1)
 
     failMock.restore()
+  })
+
+  it('should preserve auto refresh on derived clients', async () => {
+    const derived = client.createDerivedClient({ baseURL: 'http://localhost:4000' })
+    authTarget = derived
+    const derivedMock = new MockAdapter((derived as any).client)
+
+    derivedMock.onGet('/user').replyOnce(401, {
+      error: {
+        message: 'Token expired',
+        key: 'auth.unauthorized',
+        type: 'user'
+      }
+    })
+
+    derivedMock.onGet('/user').reply((config) => {
+      expect(config.headers?.Authorization).toBe('Bearer new-access-token')
+      return [200, { data: { user: { id: '1' } } }]
+    })
+
+    const response = await derived.get('/user')
+
+    expect(refreshCallCount).toBe(1)
+    expect(response.status).toBe(200)
+    derivedMock.restore()
+  })
+
+  it('should preserve fetch-style non-2xx responses while still refreshing on 401', async () => {
+    const derived = client.createDerivedClient({ baseURL: 'http://localhost:4000' })
+    authTarget = derived
+    const derivedMock = new MockAdapter((derived as any).client)
+
+    derivedMock.onGet('/workspaces').replyOnce(401, {
+      error: {
+        message: 'Token expired',
+        key: 'auth.unauthorized',
+        type: 'user'
+      }
+    })
+    derivedMock.onGet('/workspaces').replyOnce(404, {
+      error: {
+        code: 'workspace.not_found',
+        message: 'Workspace not found'
+      }
+    })
+
+    const response = await derived.fetch('/workspaces', { method: 'GET' })
+
+    expect(refreshCallCount).toBe(1)
+    expect(response.status).toBe(404)
+    expect(response.data).toMatchObject({
+      error: {
+        code: 'workspace.not_found',
+      },
+    })
+    derivedMock.restore()
   })
 })
