@@ -97,7 +97,7 @@ func (s *UserService) CreateUserWithSource(
 	opts *UserCreateOptions,
 	source UserCreatedSource,
 	extraContext map[string]any, // 存储Provider、Identity等额外信息
-	httpRequest *http.Request,   // HTTP请求（可选）
+	httpRequest *http.Request, // HTTP请求（可选）
 ) (*User, error) {
 	var createdUser *User
 	var userModel *models.User
@@ -288,7 +288,7 @@ func (s *UserService) CreateUserWithSource(
 			}
 			// 直接关联到 user，避免事务外查询
 			user.Identities = []models.Identity{*identity}
-			
+
 			// 触发 IdentityLinkedUse middleware
 			if s.authService != nil {
 				if authServiceImpl, ok := s.authService.(*AuthServiceImpl); ok {
@@ -703,6 +703,45 @@ func (u *User) RevokeAllSessions(ctx context.Context) error {
 	return tx.Commit().Error
 }
 
+// RevokeWebSessions revokes only interactive web sessions and their refresh tokens.
+func (u *User) RevokeWebSessions(ctx context.Context) error {
+	now := GetDatabaseNow(u.db)
+	tx := u.db.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	webSessions := tx.Model(&models.Session{}).
+		Select("id").
+		Where("user_id = ? AND instance_id = ? AND (tag IS NULL OR tag = '' OR tag = ?)",
+			u.ID, u.instanceId, SessionTagWeb)
+
+	if err := tx.Model(&models.Session{}).
+		Where("user_id = ? AND instance_id = ? AND (tag IS NULL OR tag = '' OR tag = ?) AND (not_after IS NULL OR not_after > ?)",
+			u.ID, u.instanceId, SessionTagWeb, now).
+		Updates(map[string]any{
+			"not_after":  now,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Model(&models.RefreshToken{}).
+		Where("user_id = ? AND instance_id = ? AND session_id IN (?)", u.ID, u.instanceId, webSessions).
+		Updates(map[string]any{
+			"revoked":    true,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
 // RevokeAllSessionsExcept Revoke all user sessions except specified one
 func (u *User) RevokeAllSessionsExcept(ctx context.Context, exceptSessionID uint) error {
 	now := GetDatabaseNow(u.db)
@@ -713,6 +752,45 @@ func (u *User) RevokeAllSessionsExcept(ctx context.Context, exceptSessionID uint
 			"not_after":  now,
 			"updated_at": now,
 		}).Error
+}
+
+// RevokeWebSessionsExcept revokes interactive web sessions except specified one.
+func (u *User) RevokeWebSessionsExcept(ctx context.Context, exceptSessionID uint) error {
+	now := GetDatabaseNow(u.db)
+	tx := u.db.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	webSessions := tx.Model(&models.Session{}).
+		Select("id").
+		Where("user_id = ? AND instance_id = ? AND id != ? AND (tag IS NULL OR tag = '' OR tag = ?)",
+			u.ID, u.instanceId, exceptSessionID, SessionTagWeb)
+
+	if err := tx.Model(&models.Session{}).
+		Where("user_id = ? AND instance_id = ? AND id != ? AND (tag IS NULL OR tag = '' OR tag = ?) AND (not_after IS NULL OR not_after > ?)",
+			u.ID, u.instanceId, exceptSessionID, SessionTagWeb, now).
+		Updates(map[string]any{
+			"not_after":  now,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Model(&models.RefreshToken{}).
+		Where("user_id = ? AND instance_id = ? AND session_id IN (?)", u.ID, u.instanceId, webSessions).
+		Updates(map[string]any{
+			"revoked":    true,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // CountActiveSessions Count user's active sessions

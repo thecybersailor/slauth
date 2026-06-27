@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/flaboy/pin"
@@ -348,6 +349,11 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 
 // CreateSession creates a new session for user
 func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error) {
+	return s.CreateSessionWithOptions(ctx, user, aal, amr, userAgent, ip, SessionOptions{Tag: SessionTagWeb})
+}
+
+// CreateSessionWithOptions creates a new session for user with explicit session metadata.
+func (s *AuthServiceImpl) CreateSessionWithOptions(ctx context.Context, user *User, aal types.AALLevel, amr []string, userAgent, ip string, options SessionOptions) (*Session, string, string, int64, error) {
 	// Check if single session per user is enforced
 	config := s.GetConfig()
 	if config.SessionConfig.EnforceSingleSessionPerUser {
@@ -361,6 +367,10 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 
 	// Create session record
 	now := time.Now()
+	tag := strings.TrimSpace(options.Tag)
+	if tag == "" {
+		tag = SessionTagWeb
+	}
 	session := &models.Session{
 		UserID:      user.ID,
 		InstanceId:  s.instanceId,
@@ -370,6 +380,7 @@ func (s *AuthServiceImpl) CreateSession(ctx context.Context, user *User, aal typ
 		RefreshedAt: &now,
 		UserAgent:   &userAgent,
 		IP:          &ip,
+		Tag:         &tag,
 	}
 
 	// Set session expiration if time-box is configured

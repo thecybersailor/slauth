@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -126,6 +127,101 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLogoutRevokesAllDevicesR
 	suite.helper.HasError(suite.T(), deviceBRefreshResponse, "refresh_token_not_found", "Device B refresh token should ALSO be revoked (global logout)")
 
 	suite.T().Log("✅ Industry Best Practice: /logout revokes ALL devices' refresh tokens")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestGlobalLogoutPreservesCliTaggedSession() {
+	email := "cli-tagged-global-logout@example.com"
+	password := "MySecurePassword2024!"
+
+	signupRequestBody := S{
+		"email":    email,
+		"password": password,
+	}
+	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
+	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+
+	loginRequestBody := S{
+		"grant_type": "password",
+		"email":      email,
+		"password":   password,
+	}
+	webLoginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
+	suite.Equal(200, webLoginResponse.ResponseRecorder.Code, "Web login should succeed")
+	webData := webLoginResponse.Data.(map[string]any)
+	webSession := webData["session"].(map[string]any)
+	webAccessToken := webSession["access_token"].(string)
+	webRefreshToken := webSession["refresh_token"].(string)
+
+	cliLoginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
+	suite.Equal(200, cliLoginResponse.ResponseRecorder.Code, "CLI login should succeed")
+	cliData := cliLoginResponse.Data.(map[string]any)
+	cliSession := cliData["session"].(map[string]any)
+	cliRefreshToken := cliSession["refresh_token"].(string)
+
+	var cliRefreshRecord models.RefreshToken
+	suite.Require().NoError(suite.DB.Where("token = ?", cliRefreshToken).First(&cliRefreshRecord).Error)
+	suite.Require().NoError(suite.DB.Model(&models.Session{}).
+		Where("id = ?", cliRefreshRecord.SessionID).
+		Update("tag", "cli:botworks-cli").Error)
+
+	logoutHeaders := map[string]string{
+		"Authorization": "Bearer " + webAccessToken,
+	}
+	logoutResponse := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/logout", S{}, logoutHeaders)
+	suite.Equal(200, logoutResponse.ResponseRecorder.Code, "Global logout should succeed")
+
+	webRefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", S{
+		"grant_type":    "refresh_token",
+		"refresh_token": webRefreshToken,
+	})
+	suite.Equal(401, webRefreshResponse.ResponseRecorder.Code, "Web refresh request returns 401")
+	suite.helper.HasError(suite.T(), webRefreshResponse, "refresh_token_not_found", "Web refresh token should be revoked")
+
+	cliRefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", S{
+		"grant_type":    "refresh_token",
+		"refresh_token": cliRefreshToken,
+	})
+	suite.Equal(200, cliRefreshResponse.ResponseRecorder.Code, "CLI refresh token should survive normal global logout")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestSecurityRevokeAllSessionsRevokesCliTaggedSession() {
+	email := "cli-tagged-security-revoke@example.com"
+	password := "MySecurePassword2024!"
+
+	signupRequestBody := S{
+		"email":    email,
+		"password": password,
+	}
+	signupResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", signupRequestBody)
+	suite.Equal(200, signupResponse.ResponseRecorder.Code, "Signup should succeed")
+
+	loginRequestBody := S{
+		"grant_type": "password",
+		"email":      email,
+		"password":   password,
+	}
+	cliLoginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBody)
+	suite.Equal(200, cliLoginResponse.ResponseRecorder.Code, "CLI login should succeed")
+	cliData := cliLoginResponse.Data.(map[string]any)
+	cliSession := cliData["session"].(map[string]any)
+	cliRefreshToken := cliSession["refresh_token"].(string)
+
+	var cliRefreshRecord models.RefreshToken
+	suite.Require().NoError(suite.DB.Where("token = ?", cliRefreshToken).First(&cliRefreshRecord).Error)
+	suite.Require().NoError(suite.DB.Model(&models.Session{}).
+		Where("id = ?", cliRefreshRecord.SessionID).
+		Update("tag", "cli:botworks-cli").Error)
+
+	user, err := suite.AuthService.GetUserService().GetByEmail(context.Background(), email)
+	suite.Require().NoError(err)
+	suite.Require().NoError(user.RevokeAllSessions(context.Background()))
+
+	cliRefreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", S{
+		"grant_type":    "refresh_token",
+		"refresh_token": cliRefreshToken,
+	})
+	suite.Equal(401, cliRefreshResponse.ResponseRecorder.Code, "Security revoke-all should revoke CLI refresh token")
+	suite.helper.HasError(suite.T(), cliRefreshResponse, "refresh_token_not_found", "CLI refresh token should be revoked by security revoke-all")
 }
 
 // TestSessionRevokeInvalidatesRefreshToken verifies that when a session is revoked,
@@ -481,17 +577,17 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRo
 				"refresh_token": originalRefreshToken,
 			}
 			refreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", refreshRequest)
-			
+
 			result := refreshResult{
 				success: refreshResponse.ResponseRecorder.Code == 200,
 				code:    refreshResponse.ResponseRecorder.Code,
 			}
-			
+
 			// Extract error key if present
 			if refreshResponse.Error != nil {
 				result.error = refreshResponse.Error.Key
 			}
-			
+
 			if result.success && refreshResponse.Data != nil {
 				if refreshData, ok := refreshResponse.Data.(map[string]any); ok {
 					if session, ok := refreshData["session"].(map[string]any); ok {
@@ -501,7 +597,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRo
 					}
 				}
 			}
-			
+
 			results <- result
 		}()
 	}
@@ -527,7 +623,7 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRo
 	// Current implementation: Only 1 request succeeds, others fail with refresh_token_not_found
 	// This is the root cause of the infinite refresh loop in frontend
 	suite.T().Logf("Concurrent refresh results: %d succeeded, %d failed", successCount, failureCount)
-	
+
 	if failureCount > 0 {
 		suite.T().Logf("❌ PROBLEM CONFIRMED: %d concurrent requests failed", failureCount)
 		suite.T().Logf("   Root cause: Token rotation happens immediately, causing race condition")

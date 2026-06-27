@@ -19,6 +19,7 @@ type AuthService interface {
 	AuthenticateUser(ctx context.Context, emailOrPhone, password string) (*User, error)
 
 	CreateSession(ctx context.Context, user *User, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error)
+	CreateSessionWithOptions(ctx context.Context, user *User, aal types.AALLevel, amr []string, userAgent, ip string, options SessionOptions) (*Session, string, string, int64, error)
 	RefreshSession(ctx context.Context, user *User, sessionID uint, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error)
 	ValidateJWT(token string) (map[string]any, error)
 
@@ -78,4 +79,10 @@ type AuthService interface {
 	AuthenticatedUse(middleware func(ctx AuthenticatedContext, next func() error) error) AuthService
 	SessionCreatedUse(middleware func(ctx SessionCreatedContext, next func() error) error) AuthService
 	IdentityLinkedUse(middleware func(ctx IdentityLinkedContext, next func() error) error) AuthService
+}
+
+const SessionTagWeb = "web"
+
+type SessionOptions struct {
+	Tag string
 }

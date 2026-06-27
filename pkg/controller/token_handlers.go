@@ -23,7 +23,7 @@ import (
 // @Router /refresh [post]
 func (a *AuthController) RefreshToken(c *pin.Context) error {
 	slog.Info("RefreshToken: Starting token refresh request", "userAgent", c.GetHeader("User-Agent"), "ip", c.ClientIP())
-	
+
 	req := &RefreshTokenRequest{}
 	if err := c.BindJSON(req); err != nil {
 		slog.Warn("RefreshToken: Failed to bind JSON", "error", err)
@@ -42,7 +42,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		slog.Warn("RefreshToken: Invalid refresh token", "error", err)
 		return err
 	}
-	
+
 	slog.Info("RefreshToken: Refresh token validated", "userID", refreshTokenRecord.UserID, "sessionID", refreshTokenRecord.SessionID)
 
 	// Check token refresh rate limit
@@ -100,7 +100,7 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		return err // Return original error instead of wrapping
 	}
 
-	slog.Info("RefreshToken: Session refreshed successfully", 
+	slog.Info("RefreshToken: Session refreshed successfully",
 		"userID", refreshTokenRecord.UserID,
 		"sessionID", sessionObj.HashID,
 		"expiresAt", time.Unix(expiresAt, 0).Format(time.RFC3339),
@@ -227,33 +227,19 @@ func (a *AuthController) SignOut(c *pin.Context) error {
 		// Revoke current session only
 		err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetInstanceId(), sessionHashID)
 	case "others":
-		// For "others" scope, we need to revoke all sessions except current
-		// This requires getting all user sessions and revoking except current
-		// Get user first, then list sessions
 		user, err := a.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
 		if err != nil {
 			return consts.USER_NOT_FOUND
 		}
-		sessions, _, err := user.ListSessions(c.Request.Context(), 1, 100)
-		if err != nil {
+		if err := user.RevokeWebSessionsExcept(c.Request.Context(), sessionID); err != nil {
 			return consts.UNEXPECTED_FAILURE
 		}
-		for _, session := range sessions {
-			if session.HashID != sessionHashID {
-				err = a.authService.GetAdminSessionService().RevokeUserSession(c.Request.Context(), a.authService.GetInstanceId(), session.HashID)
-				if err != nil {
-					return consts.UNEXPECTED_FAILURE
-				}
-			}
-		}
 	default: // "global" - industry best practice default
-		// Revoke all user sessions and refresh tokens
-		// Get user first, then revoke all sessions
 		user, err := a.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
 		if err != nil {
 			return consts.USER_NOT_FOUND
 		}
-		if err := user.RevokeAllSessions(c.Request.Context()); err != nil {
+		if err := user.RevokeWebSessions(c.Request.Context()); err != nil {
 			return consts.UNEXPECTED_FAILURE
 		}
 	}
