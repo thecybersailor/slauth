@@ -18,6 +18,11 @@ execSync('npm run build:cjs', { stdio: 'inherit' })
 console.log('📦 Building ESM...')
 execSync('npm run build:esm', { stdio: 'inherit' })
 
+// TypeScript's ESNext emit preserves extensionless relative imports. The package
+// ESM export is loaded directly by Node, so published files must use .js suffixes.
+console.log('🔗 Fixing ESM import specifiers...')
+fixEsmImportSpecifiers(path.join(__dirname, 'dist/esm'))
+
 // Build types
 console.log('📦 Building types...')
 execSync('npm run build:types', { stdio: 'inherit' })
@@ -64,3 +69,28 @@ console.log('  ├── cjs/           # CommonJS build')
 console.log('  ├── esm/           # ESM build')
 console.log('  ├── types/         # TypeScript definitions')
 console.log('  └── index.d.ts     # Main type definitions')
+
+function fixEsmImportSpecifiers(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      fixEsmImportSpecifiers(fullPath)
+      continue
+    }
+    if (!entry.isFile() || !entry.name.endsWith('.js')) continue
+    const before = fs.readFileSync(fullPath, 'utf8')
+    const after = before
+      .replace(/\b(from\s*['"])(\.{1,2}\/[^'"]+)(['"])/g, addJsExtension)
+      .replace(/\b(import\s*\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g, addJsExtension)
+    if (after !== before) {
+      fs.writeFileSync(fullPath, after)
+    }
+  }
+}
+
+function addJsExtension(_match, prefix, specifier, suffix) {
+  if (/\.(?:mjs|cjs|js|json|node)$/.test(specifier)) {
+    return `${prefix}${specifier}${suffix}`
+  }
+  return `${prefix}${specifier}.js${suffix}`
+}
