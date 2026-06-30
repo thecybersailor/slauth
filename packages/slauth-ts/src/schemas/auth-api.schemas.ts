@@ -35,6 +35,7 @@ export const SignUpOptionsSchema = z.object({
 
 export const VerifyOtpOptionsSchema = z.object({
   captchaToken: z.string().optional(),
+  data: z.record(z.string(), z.any()).optional(),
   redirect_to: z.string().optional(),
 });
 

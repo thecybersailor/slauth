@@ -350,6 +350,69 @@ func (s *UserService) GetByPhone(ctx context.Context, phone, instanceId string) 
 	return &user, nil
 }
 
+// GetOrCreatePhoneOTPUser returns the Slauth user for a verified phone OTP login.
+func (s *UserService) GetOrCreatePhoneOTPUser(ctx context.Context, phone string, userMetadata map[string]any) (*User, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return nil, consts.VALIDATION_FAILED
+	}
+	instanceId := strings.TrimSpace(s.instanceId)
+	userModel, err := s.GetByPhone(ctx, phone, instanceId)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		user, err := s.CreateUser(ctx, &UserCreateOptions{
+			Phone:        &phone,
+			UserMetadata: cloneMetadata(userMetadata),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := user.MarkPhoneConfirmed(ctx); err != nil {
+			return nil, err
+		}
+		return user, nil
+	}
+
+	user, err := s.userFromModel(userModel)
+	if err != nil {
+		return nil, err
+	}
+	if len(userMetadata) > 0 {
+		metadata := user.GetMetadata()
+		for k, v := range userMetadata {
+			metadata[k] = v
+		}
+		if err := user.UpdateMetadata(ctx, metadata); err != nil {
+			return nil, err
+		}
+	}
+	if err := user.MarkPhoneConfirmed(ctx); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *UserService) userFromModel(userModel *models.User) (*User, error) {
+	passwordService := s.passwordService
+	if passwordService == nil {
+		passwordService = NewPasswordService(nil, getAppSecret(), getDefaultPasswordStrengthScore())
+	}
+	return NewUserFromModelWithHashIDService(userModel, passwordService, NewSessionService(s.db), s.db, s.instanceId, s.hashIDService)
+}
+
+func cloneMetadata(metadata map[string]any) map[string]any {
+	if len(metadata) == 0 {
+		return nil
+	}
+	cloned := make(map[string]any, len(metadata))
+	for k, v := range metadata {
+		cloned[k] = v
+	}
+	return cloned
+}
+
 // GetByEmailOrPhone retrieves user by email or phone and instance code
 func (s *UserService) GetByEmailOrPhone(ctx context.Context, emailOrPhone, instanceId string) (*models.User, error) {
 	var user models.User
@@ -1225,6 +1288,25 @@ func (u *User) UpdateMetadata(ctx context.Context, metadata map[string]any) erro
 	}
 	u.RawUserMetaData = (*models.JSON)(&rawMetadata)
 	u.UpdatedAt = time.Now()
+	return nil
+}
+
+// MarkPhoneConfirmed marks the current user's phone as verified by an OTP flow.
+func (u *User) MarkPhoneConfirmed(ctx context.Context) error {
+	now := time.Now()
+	err := u.db.WithContext(ctx).Model(&models.User{}).
+		Where("id = ? AND instance_id = ?", u.ID, u.instanceId).
+		Updates(map[string]any{
+			"phone_confirmed_at": now,
+			"confirmed_at":       now,
+			"updated_at":         now,
+		}).Error
+	if err != nil {
+		return err
+	}
+	u.PhoneConfirmedAt = &now
+	u.ConfirmedAt = &now
+	u.UpdatedAt = now
 	return nil
 }
 

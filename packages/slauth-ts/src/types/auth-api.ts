@@ -53,6 +53,7 @@ export interface SignUpOptions {
 
 export interface VerifyOtpOptions {
   captchaToken?: string;
+  data?: Record<string, any>;
   redirect_to?: string;
 }
 

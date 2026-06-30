@@ -1,12 +1,13 @@
 module github.com/thecybersailor/slauth/tests
 
-go 1.24.4
+go 1.25.1
 
 require (
 	github.com/flaboy/aira-core v1.0.1
 	github.com/flaboy/envconf v1.0.3
 	github.com/flaboy/pin v0.9.9
 	github.com/gin-gonic/gin v1.9.1
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/thecybersailor/slauth v0.0.0
 	gorm.io/driver/mysql v1.6.0
@@ -34,7 +35,6 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect

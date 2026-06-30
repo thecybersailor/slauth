@@ -71,8 +71,9 @@ type VerifyOtpRequest struct {
 }
 
 type VerifyOtpOptions struct {
-	RedirectTo   string `json:"redirect_to,omitempty"`
-	CaptchaToken string `json:"captchaToken,omitempty"`
+	RedirectTo   string         `json:"redirect_to,omitempty"`
+	CaptchaToken string         `json:"captchaToken,omitempty"`
+	Data         map[string]any `json:"data,omitempty"`
 }
 
 // ResetPasswordRequest represents password reset request

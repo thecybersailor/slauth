@@ -325,6 +325,13 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 	}
 
 	slog.Info("VerifyEmailCode request received", "email", req.Email, "token", req.Token)
+	if req.Phone != "" {
+		normalizedPhone, ok := normalizePhone(req.Phone)
+		if !ok {
+			return consts.VALIDATION_FAILED
+		}
+		req.Phone = normalizedPhone
+	}
 
 	// Check token verification rate limit
 	config := a.authService.GetConfig()
@@ -383,6 +390,14 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 
 	slog.Info("Email verification successful", "email", req.Email, "phone", req.Phone)
 
+	if strings.TrimSpace(req.Phone) != "" {
+		var userMetadata map[string]any
+		if req.Options != nil {
+			userMetadata = req.Options.Data
+		}
+		return a.createPhoneOTPSession(c, req.Phone, userMetadata)
+	}
+
 	authHeader := c.GetHeader("Authorization")
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		token := authHeader[7:]
@@ -424,6 +439,43 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 	}
 
 	return c.Render(resp)
+}
+
+func (a *AuthController) createPhoneOTPSession(c *pin.Context, phone string, userMetadata map[string]any) error {
+	user, err := a.authService.GetUserService().GetOrCreatePhoneOTPUser(c.Request.Context(), phone, userMetadata)
+	if err != nil {
+		slog.Error("Phone OTP user lookup/create failed", "error", err, "phone", phone)
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	session, accessToken, refreshToken, expiresAt, err := a.authService.CreateSession(
+		c.Request.Context(), user, types.AALLevel1, []string{"sms"},
+		c.GetHeader("User-Agent"), c.ClientIP(),
+	)
+	if err != nil {
+		slog.Error("Phone OTP session creation failed", "error", err, "phone", phone)
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	userData := convertUserToResponse(a.authService, user.GetModel())
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+	sessionData := &Session{
+		ID:           session.HashID,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    expiresIn,
+		ExpiresAt:    expiresAt,
+		User:         userData,
+	}
+
+	return c.Render(&AuthData{
+		User:    userData,
+		Session: sessionData,
+	})
 }
 
 // isValidEmail validates email format

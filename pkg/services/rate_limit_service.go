@@ -49,6 +49,10 @@ func (s *RateLimitService) generateKey(userKey any, action, instanceId string, c
 }
 
 func (s *RateLimitService) CheckRateLimit(ctx context.Context, userKey any, action, instanceId string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
+	if rateLimit.MaxRequests <= 0 {
+		slog.Info("RateLimit: disabled", "userKey", userKey, "action", action, "instanceId", instanceId)
+		return true, nil
+	}
 	key := s.generateKey(userKey, action, instanceId, cfg.UpdatedAt().Unix())
 
 	now := time.Now()
@@ -141,6 +145,10 @@ func (s *RateLimitService) GetRequestCount(ctx context.Context, userKey any, act
 }
 
 func (s *RateLimitService) CheckAndRecordRequest(ctx context.Context, userKey any, action, instanceId string, rateLimit config.RateLimit, cfg *config.AuthServiceConfig) (bool, error) {
+	if rateLimit.MaxRequests <= 0 {
+		slog.Info("RateLimit: disabled", "userKey", userKey, "action", action, "instanceId", instanceId)
+		return true, nil
+	}
 	configUpdatedAt := cfg.UpdatedAt().Unix()
 	key := s.generateKey(userKey, action, instanceId, configUpdatedAt)
 	now := time.Now()
