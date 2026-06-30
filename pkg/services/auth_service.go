@@ -53,6 +53,8 @@ type AuthService interface {
 	GenerateOTPCode(ctx OTPContext) (string, error)
 	GetOTPService() *OTPService
 	GetDB() *gorm.DB
+	WithDB(db *gorm.DB) AuthService
+	RunInTransaction(ctx context.Context, fn func(txService AuthService) error) error
 
 	GetInstanceId() string
 	GetSecretsProvider() types.InstanceSecretsProvider
