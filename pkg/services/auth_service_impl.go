@@ -422,7 +422,11 @@ func (s *AuthServiceImpl) CreateSessionWithOptions(ctx context.Context, user *Us
 			return nil, "", "", 0, err
 		}
 	}
-	// appMeta is temporarily empty because models.User doesn't have RawAppMetaData field
+	if user.RawAppMetaData != nil {
+		if err := json.Unmarshal(*user.RawAppMetaData, &appMeta); err != nil {
+			return nil, "", "", 0, err
+		}
+	}
 
 	// Generate access token
 	email := ""
@@ -517,6 +521,11 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 	var userMeta, appMeta map[string]any
 	if user.RawUserMetaData != nil {
 		if err := json.Unmarshal(*user.RawUserMetaData, &userMeta); err != nil {
+			return nil, "", "", 0, err
+		}
+	}
+	if user.RawAppMetaData != nil {
+		if err := json.Unmarshal(*user.RawAppMetaData, &appMeta); err != nil {
 			return nil, "", "", 0, err
 		}
 	}
