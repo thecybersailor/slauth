@@ -1,6 +1,7 @@
 # Build and documentation targets
 
 .PHONY: all build-ts-sdk build-admin-ts-sdk build-vue-ui generate-templates generate-schemas regen-schemas clean-schemas docs-install generate-llms
+TS_TO_ZOD_NODE_OPTIONS := $(shell node --no-experimental-webstorage -e "" >/dev/null 2>&1 && echo NODE_OPTIONS=--no-experimental-webstorage)
 
 # Default target
 all: generate-templates generate-schemas build-ts-sdk build-admin-ts-sdk build-vue-ui generate-llms
@@ -49,14 +50,14 @@ generate-schemas: packages/slauth-ts/src/schemas/auth-api.schemas.ts packages/sl
 packages/slauth-ts/src/schemas/auth-api.schemas.ts: packages/slauth-ts/src/types/auth-api.ts packages/slauth-ts/ts-to-zod.config.js
 	@echo "Generating Auth API Zod schemas..."
 	@mkdir -p packages/slauth-ts/src/schemas
-	@cd packages/slauth-ts && NODE_OPTIONS=--no-experimental-webstorage npx ts-to-zod --config auth-api
+	@cd packages/slauth-ts && $(TS_TO_ZOD_NODE_OPTIONS) npx ts-to-zod --config auth-api
 	@echo "Auth API schemas generated successfully!"
 
 # Generate admin API schemas
 packages/slauth-ts/src/schemas/admin-api.schemas.ts: packages/slauth-ts/src/types/admin-api.ts packages/slauth-ts/ts-to-zod.config.js
 	@echo "Generating Admin API Zod schemas..."
 	@mkdir -p packages/slauth-ts/src/schemas
-	@cd packages/slauth-ts && NODE_OPTIONS=--no-experimental-webstorage npx ts-to-zod --config admin-api
+	@cd packages/slauth-ts && $(TS_TO_ZOD_NODE_OPTIONS) npx ts-to-zod --config admin-api
 	@echo "Admin API schemas generated successfully!"
 
 # Clean only schemas (useful for regenerating schemas without full clean)

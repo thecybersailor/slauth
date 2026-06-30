@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/thecybersailor/slauth/pkg/auth"
+	"github.com/thecybersailor/slauth/pkg/services"
+	"github.com/thecybersailor/slauth/pkg/types"
 )
 
 // @title slauth Platform API
@@ -36,9 +38,17 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
-	// Use legacy constructor here to keep this program buildable.
-	// This file is used by swag (AST parsing) and is never executed.
-	userAuth := auth.NewServiceLegacy("docs", "docs-jwt-secret", "docs-app-secret")
+	secretsProvider := services.NewStaticSecretsProvider(&types.InstanceSecrets{
+		PrimaryKeyId: "docs-key",
+		Keys: map[string]*types.SigningKey{
+			"docs-key": {
+				Kid:       "docs-key",
+				Algorithm: types.SignAlgES256,
+			},
+		},
+		AppSecret: "docs-app-secret",
+	})
+	userAuth := auth.NewService("docs", secretsProvider, nil)
 
 	// Register both auth and admin routes
 	userAuth.HandleAuthRequest(r.Group("/auth"))

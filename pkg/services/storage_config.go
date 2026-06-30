@@ -29,7 +29,7 @@ func (c StorageConfig) applyTransactionScope(tx *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	if c.Schema == "" || tx == nil || tx.Dialector == nil || tx.Dialector.Name() != "postgres" {
+	if c.Schema == "" || tx == nil || tx.Dialector == nil || tx.Name() != "postgres" {
 		return nil
 	}
 	return tx.Exec(fmt.Sprintf("SET LOCAL search_path TO %s, public", quotePostgresIdentifier(c.Schema))).Error
