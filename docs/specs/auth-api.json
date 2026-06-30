@@ -1612,6 +1612,10 @@
                 "captchaToken": {
                     "type": "string"
                 },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
                 "redirect_to": {
                     "type": "string"
                 }

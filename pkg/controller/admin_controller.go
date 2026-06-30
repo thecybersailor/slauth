@@ -581,6 +581,8 @@ func (c *AdminController) RevokeAllUserSessions(ctx *pin.Context) error {
 // @Tags Admin
 // @Produce json
 // @Security AdminAuth
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(20)
 // @Success 200 {object} ListSessionsResponse "Sessions retrieved successfully"
 // @Router /admin/sessions [get]
 func (c *AdminController) ListAllSessions(ctx *pin.Context) error {
@@ -727,6 +729,7 @@ func (c *AdminController) GetActiveSessionCount(ctx *pin.Context) error {
 // @Tags Admin
 // @Produce json
 // @Security AdminAuth
+// @Param days query int false "Number of days to include" default(7)
 // @Success 200 {object} map[string]interface{} "Recent signups retrieved successfully"
 // @Router /admin/stats/recent-signups [get]
 func (c *AdminController) GetRecentSignups(ctx *pin.Context) error {
@@ -764,6 +767,7 @@ func (c *AdminController) GetRecentSignups(ctx *pin.Context) error {
 // @Tags Admin
 // @Produce json
 // @Security AdminAuth
+// @Param limit query int false "Maximum number of signins to include" default(50)
 // @Success 200 {object} map[string]interface{} "Recent signins retrieved successfully"
 // @Router /admin/stats/recent-signins [get]
 func (c *AdminController) GetRecentSignins(ctx *pin.Context) error {

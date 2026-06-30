@@ -1,9 +1,9 @@
 # Build and documentation targets
 
-.PHONY: all build-ts-sdk build-vue-ui generate-templates generate-schemas regen-schemas clean-schemas docs-install generate-llms
+.PHONY: all build-ts-sdk build-admin-ts-sdk build-vue-ui generate-templates generate-schemas regen-schemas clean-schemas docs-install generate-llms
 
 # Default target
-all: generate-templates generate-schemas build-ts-sdk build-vue-ui generate-llms
+all: generate-templates generate-schemas build-ts-sdk build-admin-ts-sdk build-vue-ui generate-llms
 
 # Generate templates from templates/ directory
 generate-templates: pkg/consts/tmpl.go
@@ -16,6 +16,16 @@ pkg/consts/tmpl.go: $(shell find templates -name "*.tmpl")
 
 # Build TypeScript SDK (depends on types and documentation)
 build-ts-sdk: packages/slauth-ts/dist/cjs/index.js
+
+# Build generated Admin TypeScript SDK
+build-admin-ts-sdk: packages/slauth-admin-ts-sdk/api.js
+
+packages/slauth-admin-ts-sdk/api.js packages/slauth-admin-ts-sdk/api.ts: docs/specs/admin-api.json
+	@echo "Generating Slauth Admin TypeScript SDK..."
+	@mkdir -p packages/slauth-admin-ts-sdk
+	@cd packages/slauth-ts && npm exec --yes --package swagger-typescript-api@13.0.22 -- swagger-typescript-api -p ../../docs/specs/admin-api.json -o ../slauth-admin-ts-sdk -n api.ts --extract-enums
+	@cd packages/slauth-ts && npm exec --yes --package esbuild@0.27.2 -- esbuild ../slauth-admin-ts-sdk/api.ts --outfile=../slauth-admin-ts-sdk/api.js --platform=node --format=esm --target=node20 --bundle=false --allow-overwrite
+	@echo "Slauth Admin TypeScript SDK generated: packages/slauth-admin-ts-sdk/api.ts"
 
 # TypeScript SDK build depends on generated types and schemas
 packages/slauth-ts/dist/cjs/index.js: packages/slauth-ts/src/types/auth-api.ts packages/slauth-ts/src/types/admin-api.ts packages/slauth-ts/src/schemas/auth-api.schemas.ts packages/slauth-ts/src/schemas/admin-api.schemas.ts
@@ -39,14 +49,14 @@ generate-schemas: packages/slauth-ts/src/schemas/auth-api.schemas.ts packages/sl
 packages/slauth-ts/src/schemas/auth-api.schemas.ts: packages/slauth-ts/src/types/auth-api.ts packages/slauth-ts/ts-to-zod.config.js
 	@echo "Generating Auth API Zod schemas..."
 	@mkdir -p packages/slauth-ts/src/schemas
-	@cd packages/slauth-ts && npx ts-to-zod --config auth-api
+	@cd packages/slauth-ts && NODE_OPTIONS=--no-experimental-webstorage npx ts-to-zod --config auth-api
 	@echo "Auth API schemas generated successfully!"
 
 # Generate admin API schemas
 packages/slauth-ts/src/schemas/admin-api.schemas.ts: packages/slauth-ts/src/types/admin-api.ts packages/slauth-ts/ts-to-zod.config.js
 	@echo "Generating Admin API Zod schemas..."
 	@mkdir -p packages/slauth-ts/src/schemas
-	@cd packages/slauth-ts && npx ts-to-zod --config admin-api
+	@cd packages/slauth-ts && NODE_OPTIONS=--no-experimental-webstorage npx ts-to-zod --config admin-api
 	@echo "Admin API schemas generated successfully!"
 
 # Clean only schemas (useful for regenerating schemas without full clean)
@@ -79,6 +89,7 @@ docs/specs/admin-api.json: tools/prog/main.go $(GO_FILES)
 	@mkdir -p docs/specs
 	swag init -g tools/prog/main.go -o docs/temp/admin --parseDependency --parseInternal --parseDepth 1 --tags Admin
 	@mv docs/temp/admin/swagger.json docs/specs/admin-api.json
+	@node tools/strip-swagger-base-path.mjs docs/specs/admin-api.json /admin
 	@rm -rf docs/temp/admin
 	@echo "Admin API documentation generated: docs/specs/admin-api.json"
 

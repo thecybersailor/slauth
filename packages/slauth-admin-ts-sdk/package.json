@@ -1,0 +1,23 @@
+{
+  "name": "@cybersailor/slauth-admin-ts-sdk",
+  "version": "0.10.12",
+  "description": "Generated Slauth Admin TypeScript SDK",
+  "type": "module",
+  "main": "./api.js",
+  "types": "./api.ts",
+  "exports": {
+    ".": {
+      "types": "./api.ts",
+      "import": "./api.js"
+    },
+    "./api": {
+      "types": "./api.ts",
+      "import": "./api.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "api.ts",
+    "api.js"
+  ]
+}

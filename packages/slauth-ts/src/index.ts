@@ -5,6 +5,8 @@ export { createClients } from './createClients'
 export { AuthApi } from './AuthApi'
 export { AdminApi } from './AdminApi'
 export { SessionManager } from './lib/session-manager'
+export { HttpClient, createHttpClient } from './lib/fetch'
+export type { HttpClientConfig, RequestOptions } from './lib/fetch'
 
 // Type exports
 export * from './lib/types'
