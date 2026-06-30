@@ -28,6 +28,7 @@ type SessionStats struct {
 // AuthServiceImpl implements authentication business logic
 type AuthServiceImpl struct {
 	db              *gorm.DB
+	storageConfig   StorageConfig
 	secretsProvider types.InstanceSecretsProvider
 	configLoader    *ConfigLoader
 	jwtService      *JWTService
@@ -78,6 +79,10 @@ type AuthServiceImpl struct {
 // NewAuthServiceImpl creates a new authentication service with secrets provider
 // This is an internal implementation, use auth.NewService() instead
 func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string) *AuthServiceImpl {
+	return NewAuthServiceImplWithStorage(db, secretsProvider, instanceId, StorageConfig{})
+}
+
+func NewAuthServiceImplWithStorage(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string, storageConfig StorageConfig) *AuthServiceImpl {
 	// Create config loader
 	configLoader := NewConfigLoader(db, secretsProvider, instanceId)
 
@@ -87,6 +92,7 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 	// Create service instance first (without jwtService)
 	s := &AuthServiceImpl{
 		db:              db,
+		storageConfig:   storageConfig,
 		secretsProvider: secretsProvider,
 		configLoader:    configLoader,
 		instanceId:      instanceId,
@@ -169,6 +175,10 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 // NewAuthServiceImplWithPasswordService creates a new authentication service with a custom password service
 // This allows external projects to inject custom password encoding implementations
 func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string, passwordService *PasswordService) *AuthServiceImpl {
+	return NewAuthServiceImplWithPasswordServiceAndStorage(db, secretsProvider, instanceId, passwordService, StorageConfig{})
+}
+
+func NewAuthServiceImplWithPasswordServiceAndStorage(db *gorm.DB, secretsProvider types.InstanceSecretsProvider, instanceId string, passwordService *PasswordService, storageConfig StorageConfig) *AuthServiceImpl {
 	// Create config loader
 	configLoader := NewConfigLoader(db, secretsProvider, instanceId)
 
@@ -178,6 +188,7 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 	// Create service instance first (without jwtService)
 	s := &AuthServiceImpl{
 		db:              db,
+		storageConfig:   storageConfig,
 		secretsProvider: secretsProvider,
 		configLoader:    configLoader,
 		instanceId:      instanceId,
@@ -827,11 +838,21 @@ func (s *AuthServiceImpl) WithDB(db *gorm.DB) AuthService {
 	return &clone
 }
 
+func (s *AuthServiceImpl) StorageConfig() StorageConfig {
+	if s == nil {
+		return StorageConfig{}
+	}
+	return s.storageConfig
+}
+
 func (s *AuthServiceImpl) RunInTransaction(ctx context.Context, fn func(txService AuthService) error) error {
 	if fn == nil {
 		return errors.New("slauth: nil transaction callback")
 	}
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := s.storageConfig.applyTransactionScope(tx); err != nil {
+			return err
+		}
 		return fn(s.WithDB(tx))
 	})
 }
