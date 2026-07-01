@@ -18,7 +18,7 @@ type Session struct {
 	AALExpiresAt *time.Time      `json:"aal_expires_at"`
 	NotAfter     *time.Time      `json:"not_after"`
 	RefreshedAt  *time.Time      `json:"refreshed_at"`
-	UserAgent    *string         `json:"user_agent" gorm:"type:varchar(255)"`
+	UserAgent    *string         `json:"user_agent" gorm:"type:text"`
 	IP           *string         `json:"ip" gorm:"type:varchar(255)"`
 	Tag          *string         `json:"tag" gorm:"type:varchar(255)"`
 	InstanceId   string          `json:"instance_id" gorm:"type:varchar(255)"`
