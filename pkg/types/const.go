@@ -162,6 +162,7 @@ type OneTimeTokenType string
 
 const (
 	OneTimeTokenTypeConfirmation       OneTimeTokenType = "confirmation_token"
+	OneTimeTokenTypeMagicLink          OneTimeTokenType = "magic_link_token"
 	OneTimeTokenTypeReauthentication   OneTimeTokenType = "reauthentication_token"
 	OneTimeTokenTypeRecovery           OneTimeTokenType = "recovery_token"
 	OneTimeTokenTypeEmailChangeNew     OneTimeTokenType = "email_change_token_new"

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -10,6 +11,8 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -98,10 +101,79 @@ func TestPhoneOTPVerifyCreatesSlauthSession(t *testing.T) {
 	}
 }
 
+func TestEmailMagicLinkCreatesSlauthSession(t *testing.T) {
+	router, db, _, emails := newEmailMagicLinkTestRouter(t)
+	email := "magic-login@example.com"
+
+	send := doJSONRequest(t, router, http.MethodPost, "/auth/v1/otp", map[string]any{
+		"email": email,
+		"options": map[string]any{
+			"emailRedirectTo":  "https://app.example.com/auth/callback",
+			"shouldCreateUser": true,
+			"data": map[string]any{
+				"profile_key": "profile_value",
+			},
+		},
+	})
+	if send.Code != http.StatusOK {
+		t.Fatalf("send magic link status = %d, body = %s", send.Code, send.Body.String())
+	}
+	if emails.last == nil {
+		t.Fatalf("expected magic link email to be sent")
+	}
+	if emails.last.subject != "Magic Link" {
+		t.Fatalf("email subject = %q, want Magic Link", emails.last.subject)
+	}
+	token := extractMagicLinkToken(t, emails.last.body)
+
+	verify := doJSONRequest(t, router, http.MethodPost, "/auth/v1/verify", map[string]any{
+		"token": token,
+		"type":  "magiclink",
+	})
+	if verify.Code != http.StatusOK {
+		t.Fatalf("verify magic link status = %d, body = %s", verify.Code, verify.Body.String())
+	}
+	var envelope struct {
+		Data AuthData `json:"data"`
+	}
+	if err := json.Unmarshal(verify.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode verify response: %v", err)
+	}
+	if envelope.Data.User == nil {
+		t.Fatalf("verify response missing user")
+	}
+	if envelope.Data.Session == nil {
+		t.Fatalf("verify response missing session")
+	}
+	if envelope.Data.User.Email != email {
+		t.Fatalf("user email = %q, want %s", envelope.Data.User.Email, email)
+	}
+	if envelope.Data.Session.AccessToken == "" || envelope.Data.Session.RefreshToken == "" {
+		t.Fatalf("verify response missing tokens: %+v", envelope.Data.Session)
+	}
+	if envelope.Data.User.UserMetadata["profile_key"] != "profile_value" {
+		t.Fatalf("slauth should persist magic link user metadata, got %+v", envelope.Data.User.UserMetadata)
+	}
+
+	var saved models.User
+	if err := db.Where("email = ?", email).First(&saved).Error; err != nil {
+		t.Fatalf("load saved user: %v", err)
+	}
+	if saved.EmailConfirmedAt == nil {
+		t.Fatalf("magic link login should confirm email")
+	}
+
+	claims := parseJWTClaims(t, envelope.Data.Session.AccessToken)
+	if claims["email"] != email {
+		t.Fatalf("jwt email claim = %v, want %s", claims["email"], email)
+	}
+}
+
 func newPhoneOTPTestRouter(t *testing.T) (*gin.Engine, *gorm.DB, *services.AuthServiceImpl) {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	dbName := "file:" + strings.NewReplacer("/", "_", " ", "_", "-", "_").Replace(t.Name()) + "?mode=memory&cache=shared"
+	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
@@ -109,6 +181,10 @@ func newPhoneOTPTestRouter(t *testing.T) (*gin.Engine, *gorm.DB, *services.AuthS
 		t.Fatalf("migrate models: %v", err)
 	}
 	cfg := authconfig.NewDefaultAuthServiceConfig()
+	cfg.AuthServiceBaseUrl = "https://account.example.com/auth/v1"
+	cfg.SiteURL = "https://account.example.com"
+	cfg.RedirectURLs = []string{"https://app.example.com/*"}
+	cfg.RatelimitConfig.EmailRateLimit.MaxRequests = 0
 	cfg.RatelimitConfig.TokenVerificationRateLimit.MaxRequests = 0
 	if err := db.Create(&models.AuthInstance{InstanceId: "web_user", ConfigData: cfg}).Error; err != nil {
 		t.Fatalf("create auth instance config: %v", err)
@@ -121,6 +197,15 @@ func newPhoneOTPTestRouter(t *testing.T) (*gin.Engine, *gorm.DB, *services.AuthS
 	router := gin.New()
 	RegisterRoutes(router.Group("/auth/v1"), authService)
 	return router, db, authService
+}
+
+func newEmailMagicLinkTestRouter(t *testing.T) (*gin.Engine, *gorm.DB, *services.AuthServiceImpl, *captureEmailProvider) {
+	t.Helper()
+
+	router, db, authService := newPhoneOTPTestRouter(t)
+	emails := &captureEmailProvider{}
+	authService.SetEmailProvider(emails)
+	return router, db, authService, emails
 }
 
 func storePhoneOTP(t *testing.T, authService *services.AuthServiceImpl, phone string) (string, string) {
@@ -167,6 +252,31 @@ func verifyPhoneOTP(t *testing.T, router *gin.Engine, phone, sessionCode, token 
 		t.Fatalf("decode direct verify response: %v", err)
 	}
 	return direct
+}
+
+func extractMagicLinkToken(t *testing.T, body string) string {
+	t.Helper()
+	matches := regexp.MustCompile(`[?&]token=([a-f0-9]{64})`).FindStringSubmatch(body)
+	if len(matches) != 2 {
+		t.Fatalf("magic link body missing token: %s", body)
+	}
+	return matches[1]
+}
+
+type captureEmailProvider struct {
+	last *capturedEmail
+}
+
+type capturedEmail struct {
+	to      string
+	subject string
+	body    string
+}
+
+func (p *captureEmailProvider) SendEmail(_ context.Context, to string, subject string, body string) (*string, error) {
+	p.last = &capturedEmail{to: to, subject: subject, body: body}
+	messageID := "magic-link-test-email"
+	return &messageID, nil
 }
 
 func doJSONRequest(t *testing.T, router *gin.Engine, method, path string, body any) *httptest.ResponseRecorder {

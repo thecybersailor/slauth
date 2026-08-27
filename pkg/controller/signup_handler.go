@@ -2,7 +2,9 @@ package controller
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/flow/core"
 	"github.com/thecybersailor/slauth/pkg/flow/otp"
 	"github.com/thecybersailor/slauth/pkg/flow/signup"
+	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/services"
 	"github.com/thecybersailor/slauth/pkg/types"
 )
@@ -215,7 +218,7 @@ func (a *AuthController) SignUpWithFlow(c *pin.Context) error {
 // @Success 200 {object} SendOTPResponse "Verification code sent successfully"
 // @Router /otp [post]
 func (a *AuthController) SendVerificationCode(c *pin.Context) error {
-	req := &SendOTPRequest{}
+	req := &SignInWithOtpRequest{}
 	if err := c.BindJSON(req); err != nil {
 		return consts.BAD_JSON
 	}
@@ -228,6 +231,10 @@ func (a *AuthController) SendVerificationCode(c *pin.Context) error {
 
 	if req.Email != "" && !isValidEmail(req.Email) {
 		return consts.VALIDATION_FAILED
+	}
+
+	if shouldSendMagicLink(req) {
+		return a.sendMagicLink(c, req)
 	}
 
 	if req.Phone != "" {
@@ -260,6 +267,159 @@ func (a *AuthController) SendVerificationCode(c *pin.Context) error {
 	}
 
 	return c.Render(resp)
+}
+
+func shouldSendMagicLink(req *SignInWithOtpRequest) bool {
+	if req == nil || strings.TrimSpace(req.Email) == "" || req.Options == nil {
+		return false
+	}
+	return strings.TrimSpace(req.Options.EmailRedirectTo) != "" || strings.TrimSpace(req.Options.RedirectTo) != ""
+}
+
+func (a *AuthController) sendMagicLink(c *pin.Context, req *SignInWithOtpRequest) error {
+	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
+	if !ok {
+		slog.Error("sendMagicLink: invalid auth service type")
+		return consts.UNEXPECTED_FAILURE
+	}
+	email := strings.TrimSpace(req.Email)
+	redirectTo := strings.TrimSpace(req.Options.EmailRedirectTo)
+	if redirectTo == "" {
+		redirectTo = strings.TrimSpace(req.Options.RedirectTo)
+	}
+	if redirectTo == "" {
+		return consts.VALIDATION_FAILED
+	}
+	validator := services.NewValidatorService()
+	if err := validator.ValidateEmail(email); err != nil {
+		return consts.VALIDATION_FAILED
+	}
+	email = validator.SanitizeEmail(email)
+	redirectTo, err := a.createRedirectService().ValidateAndGetRedirectToOrError(redirectTo)
+	if err != nil {
+		slog.Warn("sendMagicLink: redirect URL is not allowed", "redirect_to", redirectTo, "error", err)
+		return consts.VALIDATION_FAILED
+	}
+	allowed, err := authServiceImpl.GetRateLimitService().CheckAndRecordRequest(
+		c.Request.Context(),
+		email,
+		"email_send",
+		a.authService.GetInstanceId(),
+		a.authService.GetConfig().RatelimitConfig.EmailRateLimit,
+		a.authService.GetConfig(),
+	)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return consts.OVER_EMAIL_SEND_RATE_LIMIT
+	}
+	emailProvider := a.authService.GetEmailProvider()
+	if emailProvider == nil {
+		slog.Error("sendMagicLink: email provider not configured")
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	user, err := authServiceImpl.GetUserService().GetByEmail(c.Request.Context(), email)
+	if err != nil {
+		if !req.Options.ShouldCreateUser {
+			slog.Warn("sendMagicLink: user not found and shouldCreateUser is false", "email", email, "error", err)
+			return consts.INVALID_CREDENTIALS
+		}
+		user, err = authServiceImpl.GetUserService().CreateUserWithSource(
+			c.Request.Context(),
+			&services.UserCreateOptions{
+				Email:        &email,
+				UserMetadata: req.Options.Data,
+			},
+			services.UserCreatedSourceMagicLink,
+			nil,
+			c.Request,
+		)
+		if err != nil {
+			slog.Error("sendMagicLink: failed to create user", "email", email, "error", err)
+			return err
+		}
+	}
+
+	plainToken, tokenHash, err := services.GenerateConfirmationToken()
+	if err != nil {
+		slog.Error("sendMagicLink: failed to generate token", "error", err)
+		return consts.UNEXPECTED_FAILURE
+	}
+	if err := authServiceImpl.GetOneTimeTokenService().DeleteByUserIDAndType(
+		c.Request.Context(),
+		user.User.ID,
+		types.OneTimeTokenTypeMagicLink,
+		a.authService.GetInstanceId(),
+	); err != nil {
+		slog.Error("sendMagicLink: failed to delete old token", "email", email, "error", err)
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	expiresAt := time.Now().Add(10 * time.Minute)
+	token := &models.OneTimeToken{
+		UserID:     &user.User.ID,
+		TokenType:  types.OneTimeTokenTypeMagicLink,
+		TokenHash:  tokenHash,
+		RelatesTo:  email,
+		Email:      &email,
+		ExpiresAt:  &expiresAt,
+		InstanceId: a.authService.GetInstanceId(),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if err := authServiceImpl.GetOneTimeTokenService().Create(c.Request.Context(), token); err != nil {
+		slog.Error("sendMagicLink: failed to store token", "email", email, "error", err)
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	confirmationURL, err := magicLinkURL(redirectTo, plainToken)
+	if err != nil {
+		slog.Warn("sendMagicLink: invalid redirect URL", "redirect_to", redirectTo, "error", err)
+		return consts.VALIDATION_FAILED
+	}
+	template, found := a.authService.GetMessageTemplate(a.authService.GetInstanceId(), "email", "magic-link")
+	if !found {
+		slog.Error("sendMagicLink: magic-link template not found")
+		return consts.UNEXPECTED_FAILURE
+	}
+	rendered, err := template.Render(c.Request.Context(), map[string]interface{}{
+		"ConfirmationURL": confirmationURL,
+		"SiteURL":         a.authService.GetConfig().SiteURL,
+		"Email":           email,
+	})
+	if err != nil {
+		slog.Error("sendMagicLink: failed to render template", "error", err)
+		return err
+	}
+	subject := ""
+	if rendered.GetSubject() != nil {
+		subject = *rendered.GetSubject()
+	}
+	messageID, err := emailProvider.SendEmail(c.Request.Context(), email, subject, rendered.GetBody())
+	if err != nil {
+		slog.Error("sendMagicLink: failed to send email", "email", email, "error", err)
+		return err
+	}
+
+	resp := &SendOTPResponse{}
+	if messageID != nil {
+		resp.MessageID = *messageID
+	}
+	return c.Render(resp)
+}
+
+func magicLinkURL(redirectTo string, plainToken string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(redirectTo))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", fmt.Errorf("invalid redirect URL")
+	}
+	values := parsed.Query()
+	values.Set("token", plainToken)
+	values.Set("type", "magiclink")
+	parsed.RawQuery = values.Encode()
+	return parsed.String(), nil
 }
 
 // @Summary Send SMS Verification Code
@@ -325,6 +485,9 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 	}
 
 	slog.Info("VerifyEmailCode request received", "email", req.Email, "token", req.Token)
+	if isMagicLinkVerifyType(req.Type) {
+		return a.verifyMagicLink(c, req)
+	}
 	if req.Phone != "" {
 		normalizedPhone, ok := normalizePhone(req.Phone)
 		if !ok {
@@ -439,6 +602,96 @@ func (a *AuthController) VerifyEmailCode(c *pin.Context) error {
 	}
 
 	return c.Render(resp)
+}
+
+func isMagicLinkVerifyType(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return normalized == "magiclink" || normalized == "magic_link"
+}
+
+func (a *AuthController) verifyMagicLink(c *pin.Context, req *types.VerifyOtpRequest) error {
+	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
+	if !ok {
+		slog.Error("verifyMagicLink: invalid auth service type")
+		return consts.UNEXPECTED_FAILURE
+	}
+	plainToken := strings.TrimSpace(req.Token)
+	if plainToken == "" {
+		return consts.VALIDATION_FAILED
+	}
+
+	tokenHash := services.HashToken(plainToken)
+	stored, err := authServiceImpl.GetOneTimeTokenService().GetWithUser(c.Request.Context(), tokenHash, a.authService.GetInstanceId())
+	if err != nil {
+		slog.Warn("verifyMagicLink: token not found", "error", err)
+		return consts.VALIDATION_FAILED
+	}
+	if stored.TokenType != types.OneTimeTokenTypeMagicLink {
+		slog.Warn("verifyMagicLink: invalid token type", "type", stored.TokenType)
+		return consts.VALIDATION_FAILED
+	}
+	if stored.ExpiresAt == nil || time.Now().After(*stored.ExpiresAt) {
+		slog.Warn("verifyMagicLink: token expired", "token_id", stored.ID)
+		return consts.VALIDATION_FAILED
+	}
+	if stored.User == nil {
+		slog.Error("verifyMagicLink: token missing user", "token_id", stored.ID)
+		return consts.UNEXPECTED_FAILURE
+	}
+	if stored.User.EmailConfirmedAt == nil {
+		if err := authServiceImpl.GetUserService().ConfirmEmail(c.Request.Context(), stored.User.ID, a.authService.GetInstanceId()); err != nil {
+			slog.Error("verifyMagicLink: failed to confirm email", "user_id", stored.User.ID, "error", err)
+			return consts.UNEXPECTED_FAILURE
+		}
+		if err := authServiceImpl.GetDB().WithContext(c.Request.Context()).First(stored.User, stored.User.ID).Error; err != nil {
+			slog.Error("verifyMagicLink: failed to reload confirmed user", "user_id", stored.User.ID, "error", err)
+			return consts.UNEXPECTED_FAILURE
+		}
+	}
+
+	email := ""
+	if stored.User.Email != nil {
+		email = *stored.User.Email
+	}
+	user, err := authServiceImpl.GetUserService().GetByEmail(c.Request.Context(), email)
+	if err != nil {
+		slog.Error("verifyMagicLink: failed to load user service wrapper", "user_id", stored.User.ID, "error", err)
+		return consts.UNEXPECTED_FAILURE
+	}
+	session, accessToken, refreshToken, expiresAt, err := a.authService.CreateSession(
+		c.Request.Context(),
+		user,
+		types.AALLevel1,
+		[]string{string(services.AuthMethodMagicLink)},
+		c.GetHeader("User-Agent"),
+		c.ClientIP(),
+	)
+	if err != nil {
+		slog.Error("verifyMagicLink: session creation failed", "user_id", stored.User.ID, "error", err)
+		return consts.UNEXPECTED_FAILURE
+	}
+	if err := authServiceImpl.GetOneTimeTokenService().DeleteByID(c.Request.Context(), stored.ID, a.authService.GetInstanceId()); err != nil {
+		slog.Warn("verifyMagicLink: failed to delete used token", "token_id", stored.ID, "error", err)
+	}
+
+	userData := convertUserToResponse(a.authService, stored.User)
+	expiresIn := int(expiresAt - time.Now().Unix())
+	if expiresIn < 0 {
+		expiresIn = 0
+	}
+	sessionData := &Session{
+		ID:           session.HashID,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    expiresIn,
+		ExpiresAt:    expiresAt,
+		User:         userData,
+	}
+	return c.Render(&AuthData{
+		User:    userData,
+		Session: sessionData,
+	})
 }
 
 func (a *AuthController) createPhoneOTPSession(c *pin.Context, phone string, userMetadata map[string]any) error {

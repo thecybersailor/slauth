@@ -129,7 +129,8 @@ const handleSubmit = async () => {
     await auth.authClient.signInWithOtp({
       email: form.email,
       options: {
-        emailRedirectTo: redirectTo.value
+        emailRedirectTo: redirectTo.value,
+        shouldCreateUser: true
       }
     })
 
