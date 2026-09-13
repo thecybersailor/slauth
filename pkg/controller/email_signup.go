@@ -39,6 +39,21 @@ func (a *AuthController) ResendEmailSignup(c *pin.Context) error {
 	return c.Render(resp)
 }
 
+func (a *AuthController) VerifyEmailSignup(c *pin.Context) error {
+	req := &types.EmailSignupVerifyRequest{}
+	if err := c.BindJSON(req); err != nil {
+		return consts.BAD_JSON
+	}
+	signup, err := a.newEmailSignupService()
+	if err != nil {
+		return err
+	}
+	if err := signup.Verify(c.Request.Context(), req.ChallengeID, req.Code); err != nil {
+		return err
+	}
+	return c.Render(&types.EmailActionSuccessResponse{Success: true})
+}
+
 func (a *AuthController) newEmailSignupService() (*services.EmailSignupService, error) {
 	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
 	if !ok {

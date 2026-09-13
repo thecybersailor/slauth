@@ -27,6 +27,7 @@ func RegisterRoutes(parent gin.IRouter, authService services.AuthService) {
 	// User Registration & Authentication
 	parent.POST("/signup", pin.HandleFunc(authController.SignUpWithFlow)) // FLOW: User registration - requires user creation, email confirmation, middleware support
 	parent.POST("/signup/email", pin.HandleFunc(authController.StartEmailSignup))
+	parent.POST("/signup/email/verify", pin.HandleFunc(authController.VerifyEmailSignup))
 	parent.POST("/signup/email/resend", pin.HandleFunc(authController.ResendEmailSignup))
 	parent.POST("/token", pin.HandleFunc(func(c *pin.Context) error { // FLOW: Login process - requires authentication, session creation, MFA check
 		return handleTokenEndpoint(c, authService)

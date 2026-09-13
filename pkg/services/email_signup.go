@@ -107,6 +107,41 @@ func (s *EmailSignupService) Resend(ctx context.Context, challengeID string) (*t
 	return signupChallengeResponse(result, now), nil
 }
 
+func (s *EmailSignupService) Verify(ctx context.Context, challengeID, code string) error {
+	token := challengeID + "." + code
+	return s.emailActions.Consume(ctx, s.instanceID, types.EmailActionPurposeSignup, token, func(tx *gorm.DB, challenge *models.EmailActionChallenge) error {
+		if challenge.PendingPasswordHash == nil || *challenge.PendingPasswordHash == "" {
+			return consts.VALIDATION_FAILED
+		}
+		var existing models.User
+		err := tx.Where("instance_id = ? AND email = ?", s.instanceID, challenge.Email).First(&existing).Error
+		if err == nil {
+			return consts.USER_ALREADY_EXISTS
+		}
+		if err != gorm.ErrRecordNotFound {
+			return err
+		}
+		now := s.now()
+		user := &models.User{
+			InstanceId:        s.instanceID,
+			Email:             &challenge.Email,
+			EncryptedPassword: challenge.PendingPasswordHash,
+			EmailConfirmedAt:  &now,
+			ConfirmedAt:       &now,
+			RawUserMetaData:   &models.JSON{},
+			RawAppMetaData:    &models.JSON{},
+			CreatedAt:         now,
+			UpdatedAt:         now,
+			IsAnonymous:       false,
+			IsSSOUser:         false,
+		}
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+		return tx.Model(challenge).Update("pending_password_hash", nil).Error
+	})
+}
+
 func (s *EmailSignupService) sendSignupCode(ctx context.Context, email, code string) error {
 	if s.emailProvider == nil {
 		return consts.UNEXPECTED_FAILURE

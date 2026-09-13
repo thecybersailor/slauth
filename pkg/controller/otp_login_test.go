@@ -186,6 +186,7 @@ func newPhoneOTPTestRouter(t *testing.T) (*gin.Engine, *gorm.DB, *services.AuthS
 	cfg.RedirectURLs = []string{"https://app.example.com/*"}
 	cfg.RatelimitConfig.EmailRateLimit.MaxRequests = 0
 	cfg.RatelimitConfig.TokenVerificationRateLimit.MaxRequests = 0
+	cfg.RatelimitConfig.SignUpSignInRateLimit.MaxRequests = 0
 	if err := db.Create(&models.AuthInstance{InstanceId: "web_user", ConfigData: cfg}).Error; err != nil {
 		t.Fatalf("create auth instance config: %v", err)
 	}

@@ -47,8 +47,17 @@ type EmailSignupResendRequest struct {
 	ChallengeID string `json:"challenge_id"`
 }
 
+type EmailSignupVerifyRequest struct {
+	ChallengeID string `json:"challenge_id"`
+	Code        string `json:"code"`
+}
+
 type EmailSignupChallengeResponse struct {
 	Message     string `json:"message"`
 	ChallengeID string `json:"challenge_id"`
 	ExpiresIn   int64  `json:"expires_in"`
+}
+
+type EmailActionSuccessResponse struct {
+	Success bool `json:"success"`
 }

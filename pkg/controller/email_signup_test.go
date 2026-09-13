@@ -149,6 +149,92 @@ func TestEmailSignupMailFailureDoesNotLeaveChallenge(t *testing.T) {
 	}
 }
 
+func TestEmailSignupVerifyCreatesConfirmedUserWithoutSession(t *testing.T) {
+	router, db, _, emails := newEmailMagicLinkTestRouter(t)
+	start := doJSONRequest(t, router, http.MethodPost, "/auth/v1/signup/email", map[string]any{
+		"email":    "verify@example.com",
+		"password": "correct horse battery staple 2026",
+	})
+	var envelope struct {
+		Data types.EmailSignupChallengeResponse `json:"data"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(emails.last.body)
+
+	wrong := doJSONRequest(t, router, http.MethodPost, "/auth/v1/signup/email/verify", map[string]any{
+		"challenge_id": envelope.Data.ChallengeID,
+		"code":         "000000",
+	})
+	if !strings.Contains(wrong.Body.String(), "auth.bad_code_verifier") {
+		t.Fatalf("wrong code body = %s", wrong.Body.String())
+	}
+	assertAuthCounts(t, db, 0, 0, 0)
+
+	verify := doJSONRequest(t, router, http.MethodPost, "/auth/v1/signup/email/verify", map[string]any{
+		"challenge_id": envelope.Data.ChallengeID,
+		"code":         code,
+	})
+	if verify.Code != http.StatusOK || !strings.Contains(verify.Body.String(), `"success":true`) {
+		t.Fatalf("verify status = %d body = %s", verify.Code, verify.Body.String())
+	}
+	var user models.User
+	if err := db.Where("email = ?", "verify@example.com").First(&user).Error; err != nil {
+		t.Fatalf("load verified user: %v", err)
+	}
+	if user.EmailConfirmedAt == nil || user.EncryptedPassword == nil {
+		t.Fatalf("user was not confirmed with password: %+v", user)
+	}
+	assertAuthCounts(t, db, 1, 0, 0)
+
+	login := doJSONRequest(t, router, http.MethodPost, "/auth/v1/token?grant_type=password", map[string]any{
+		"email":    "verify@example.com",
+		"password": "correct horse battery staple 2026",
+	})
+	if !strings.Contains(login.Body.String(), "access_token") {
+		t.Fatalf("password login failed after verify: %s", login.Body.String())
+	}
+}
+
+func TestEmailSignupVerifyReplayAndConflictDoNotOverwrite(t *testing.T) {
+	router, db, authService, emails := newEmailMagicLinkTestRouter(t)
+	start := doJSONRequest(t, router, http.MethodPost, "/auth/v1/signup/email", map[string]any{
+		"email":    "conflict@example.com",
+		"password": "correct horse battery staple 2026",
+	})
+	var envelope struct {
+		Data types.EmailSignupChallengeResponse `json:"data"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	code := regexp.MustCompile(`\b\d{6}\b`).FindString(emails.last.body)
+	originalHash := "encoded:existing"
+	email := "conflict@example.com"
+	if err := db.Create(&models.User{
+		InstanceId:        authService.GetInstanceId(),
+		Email:             &email,
+		EncryptedPassword: &originalHash,
+	}).Error; err != nil {
+		t.Fatalf("create conflicting user: %v", err)
+	}
+	verify := doJSONRequest(t, router, http.MethodPost, "/auth/v1/signup/email/verify", map[string]any{
+		"challenge_id": envelope.Data.ChallengeID,
+		"code":         code,
+	})
+	if !strings.Contains(verify.Body.String(), "auth.user_already_exists") {
+		t.Fatalf("conflict verify body = %s", verify.Body.String())
+	}
+	var users []models.User
+	if err := db.Where("email = ?", email).Find(&users).Error; err != nil {
+		t.Fatalf("load users: %v", err)
+	}
+	if len(users) != 1 || users[0].EncryptedPassword == nil || *users[0].EncryptedPassword != originalHash {
+		t.Fatalf("conflict overwritten users: %+v", users)
+	}
+}
+
 func assertAuthCounts(t *testing.T, db *gorm.DB, users, sessions, refreshTokens int64) {
 	t.Helper()
 	var gotUsers, gotSessions, gotRefresh int64
