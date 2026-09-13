@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
@@ -88,6 +89,84 @@ func TestPasswordRecoveryRedirectCannotOverrideActionURL(t *testing.T) {
 func TestPasswordRecoveryLegacyDummyTokenRejected(t *testing.T) {
 	if _, _, ok := splitRecoverCompleteTokenForTest("dummy_reset_token"); ok {
 		t.Fatal("dummy reset token should not parse as email action token")
+	}
+}
+
+func TestPasswordRecoveryCompleteUpdatesPasswordAndRevokesSessions(t *testing.T) {
+	router, db, authService, emails := newEmailMagicLinkTestRouter(t)
+	email := "complete-recover@example.com"
+	oldPassword := "correct horse battery staple 2026"
+	hash, err := authService.GetPasswordService().HashPassword(oldPassword)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	now := time.Now()
+	user := models.User{
+		InstanceId:        authService.GetInstanceId(),
+		Email:             &email,
+		EncryptedPassword: &hash,
+		EmailConfirmedAt:  &now,
+		ConfirmedAt:       &now,
+		RawUserMetaData:   &models.JSON{},
+		RawAppMetaData:    &models.JSON{},
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	aal := types.AALLevel1
+	session := models.Session{UserID: user.ID, InstanceId: authService.GetInstanceId(), AAL: &aal}
+	if err := db.Create(&session).Error; err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := db.Create(&models.RefreshToken{Token: "old-refresh-token", UserID: user.ID, SessionID: session.ID, InstanceId: authService.GetInstanceId()}).Error; err != nil {
+		t.Fatalf("create refresh token: %v", err)
+	}
+	doJSONRequest(t, router, http.MethodPost, "/auth/v1/recover", map[string]any{"email": email})
+	tokenMatch := regexp.MustCompile(`#token=([^\\s]+)`).FindStringSubmatch(emails.last.body)
+	if len(tokenMatch) != 2 {
+		t.Fatalf("missing recovery token: %s", emails.last.body)
+	}
+	token := tokenMatch[1]
+
+	weak := doJSONRequest(t, router, http.MethodPost, "/auth/v1/recover/complete", map[string]any{
+		"token":    token,
+		"password": "password",
+	})
+	if !strings.Contains(weak.Body.String(), "auth.weak_password") {
+		t.Fatalf("weak complete body = %s", weak.Body.String())
+	}
+
+	complete := doJSONRequest(t, router, http.MethodPost, "/auth/v1/recover/complete", map[string]any{
+		"token":    token,
+		"password": "new correct horse battery staple 2026",
+	})
+	if complete.Code != http.StatusOK || !strings.Contains(complete.Body.String(), `"success":true`) {
+		t.Fatalf("complete status=%d body=%s", complete.Code, complete.Body.String())
+	}
+	if strings.Contains(complete.Body.String(), "access_token") || strings.Contains(complete.Body.String(), "refresh_token") {
+		t.Fatalf("complete should not create session: %s", complete.Body.String())
+	}
+	oldLogin := doJSONRequest(t, router, http.MethodPost, "/auth/v1/token?grant_type=password", map[string]any{"email": email, "password": oldPassword})
+	if !strings.Contains(oldLogin.Body.String(), "auth.invalid_credentials") {
+		t.Fatalf("old password should fail: %s", oldLogin.Body.String())
+	}
+	newLogin := doJSONRequest(t, router, http.MethodPost, "/auth/v1/token?grant_type=password", map[string]any{"email": email, "password": "new correct horse battery staple 2026"})
+	if !strings.Contains(newLogin.Body.String(), "access_token") {
+		t.Fatalf("new password should login: %s", newLogin.Body.String())
+	}
+	var activeSessions int64
+	if err := db.Model(&models.Session{}).Where("user_id = ? AND (not_after IS NULL OR not_after > ?)", user.ID, time.Now()).Count(&activeSessions).Error; err != nil {
+		t.Fatalf("count active sessions: %v", err)
+	}
+	if activeSessions != 1 {
+		t.Fatalf("expected only new login session active, got %d", activeSessions)
+	}
+	var revoked int64
+	if err := db.Model(&models.RefreshToken{}).Where("user_id = ? AND revoked = ?", user.ID, true).Count(&revoked).Error; err != nil {
+		t.Fatalf("count revoked refresh tokens: %v", err)
+	}
+	if revoked == 0 {
+		t.Fatal("old refresh tokens were not revoked")
 	}
 }
 

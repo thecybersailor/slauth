@@ -6,6 +6,7 @@ import (
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/services"
+	"github.com/thecybersailor/slauth/pkg/types"
 )
 
 // ResetPasswordWithFlow Password reset handler using flow
@@ -41,4 +42,18 @@ func (a *AuthController) ResetPasswordWithFlow(c *pin.Context) error {
 
 	// Return response (always return success for security)
 	return c.Render(map[string]string{"message": "Password reset email sent if account exists"})
+}
+
+func (a *AuthController) CompletePasswordRecovery(c *pin.Context) error {
+	req := &types.PasswordRecoveryCompleteRequest{}
+	if err := c.BindJSON(req); err != nil {
+		return consts.BAD_JSON
+	}
+	if a.authService == nil {
+		return consts.UNEXPECTED_FAILURE
+	}
+	if err := services.NewPasswordRecoveryService(a.authService).Complete(c.Request.Context(), req.Token, req.Password); err != nil {
+		return err
+	}
+	return c.Render(&types.EmailActionSuccessResponse{Success: true})
 }

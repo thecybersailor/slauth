@@ -61,3 +61,8 @@ type EmailSignupChallengeResponse struct {
 type EmailActionSuccessResponse struct {
 	Success bool `json:"success"`
 }
+
+type PasswordRecoveryCompleteRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
