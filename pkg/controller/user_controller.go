@@ -183,7 +183,11 @@ func (u *UserController) Reauthenticate(c *pin.Context) error {
 		return consts.USER_NOT_FOUND
 	}
 
-	result, err := reauth.SendChallenge(c.Request.Context(), u.authService, user, req.Channel)
+	sessionID, err := u.extractSessionIDFromToken(c)
+	if err != nil {
+		return err
+	}
+	result, err := reauth.SendSessionChallenge(c.Request.Context(), u.authService, user, sessionID, req.Channel)
 	if err != nil {
 		return err
 	}
