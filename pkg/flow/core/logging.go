@@ -8,15 +8,15 @@ import (
 func LoggingFlow[T any]() Flow[T] {
 	return func(ctx *Context[T], next func() error) error {
 		start := time.Now()
-		slog.Info("Flow: Logging - Before", "context", ctx.Data)
+		slog.Info("auth flow started")
 
 		err := next()
 
 		duration := time.Since(start)
 		if err != nil {
-			slog.Error("Flow: Logging - After (Error)", "error", err, "duration", duration, "context", ctx.Data)
+			slog.Error("auth flow completed", "success", false, "error", err, "duration", duration)
 		} else {
-			slog.Info("Flow: Logging - After (Success)", "duration", duration, "context", ctx.Data)
+			slog.Info("auth flow completed", "success", true, "duration", duration)
 		}
 		return err
 	}

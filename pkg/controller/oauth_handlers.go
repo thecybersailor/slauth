@@ -440,7 +440,7 @@ func (a *AuthController) SignInWithIdToken(c *pin.Context) error {
 		return consts.BAD_JSON
 	}
 
-	slog.Info("SignInWithIdToken", "provider", req.Provider, "credential", string(req.Credential))
+	slog.Info("SignInWithIdToken", "provider", req.Provider)
 
 	// Validate required fields
 	if req.Provider == "" {
