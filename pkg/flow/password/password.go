@@ -2,6 +2,7 @@ package password
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -270,21 +271,13 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 			return consts.INSUFFICIENT_AAL
 		}
 
-		// If AAL level meets requirement, reset password update rate limit
-		// This allows users to update password immediately after AAL upgrade
-		if types.AALLevel(currentAAL) == types.AALLevel2 {
-			slog.Info("Flow: UpdatePassword - AAL2 detected, resetting rate limit", "userID", ctx.Data.UserID)
-			// Clear password update rate limit record for this user using RateLimitService
-			rateLimitService := passwordCtx.Service().(*services.AuthServiceImpl).GetRateLimitService()
-			if rateLimitService != nil {
-				_ = rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetInstanceId(), config)
-			}
-		}
-
 		// 3. Update password (using previously fetched user object)
 		err = user.UpdatePassword(passwordCtx, ctx.Data.NewPassword)
 		if err != nil {
 			slog.Error("Flow: UpdatePassword - Password update failed", "error", err)
+			if errors.Is(err, consts.WEAK_PASSWORD) || errors.Is(err, consts.VALIDATION_FAILED) {
+				return err
+			}
 			return consts.UNEXPECTED_FAILURE
 		}
 
