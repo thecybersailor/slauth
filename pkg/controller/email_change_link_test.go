@@ -1,7 +1,9 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -232,4 +234,86 @@ func extractEmailActionToken(t *testing.T, body string) string {
 		t.Fatalf("empty action token in body: %s", body)
 	}
 	return token
+}
+
+func TestSecureEmailChangeUsesUnifiedCompletionPath(t *testing.T) {
+	router, db, authService, emails := newEmailMagicLinkTestRouter(t)
+	oldEmail := "legacy-old@example.com"
+	newEmail := "legacy-new@example.com"
+	password := "correct horse battery staple 2026"
+	hash, err := authService.GetPasswordService().HashPassword(password)
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	now := time.Now()
+	userModel := models.User{InstanceId: authService.GetInstanceId(), Email: &oldEmail, EncryptedPassword: &hash, EmailConfirmedAt: &now, ConfirmedAt: &now, RawUserMetaData: &models.JSON{}, RawAppMetaData: &models.JSON{}}
+	if err := db.Create(&userModel).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	user, err := authService.GetUserService().GetByID(t.Context(), userModel.ID, authService.GetInstanceId())
+	if err != nil {
+		t.Fatalf("load user: %v", err)
+	}
+	serviceUser, err := services.NewUserFromModelWithHashIDService(user, authService.GetPasswordService(), services.NewSessionService(db), db, authService.GetInstanceId(), services.NewHashIDService(authService.GetConfig()))
+	if err != nil {
+		t.Fatalf("wrap user: %v", err)
+	}
+	_, accessToken, refreshToken, _, err := authService.CreateSession(t.Context(), serviceUser, types.AALLevel2, []string{"password", "email"}, "test", "127.0.0.1")
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	start := doAuthorizedJSONRequest(t, router, http.MethodPost, "/auth/v1/email/change", accessToken, map[string]any{"email": newEmail})
+	if start.Code != http.StatusOK {
+		t.Fatalf("start status=%d body=%s", start.Code, start.Body.String())
+	}
+	var envelope struct {
+		Data struct {
+			FlowID      string `json:"flow_id"`
+			SessionCode string `json:"session_code"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(start.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode start response: %v body=%s", err, start.Body.String())
+	}
+	if envelope.Data.FlowID == "" || envelope.Data.SessionCode == "" {
+		t.Fatalf("missing flow/session in %s", start.Body.String())
+	}
+	if emails.last == nil || emails.last.to != newEmail {
+		t.Fatalf("expected verification email to new address, got %+v", emails.last)
+	}
+	code := extractVerificationCode(t, emails.last.body)
+	verify := doAuthorizedJSONRequest(t, router, http.MethodPost, "/auth/v1/email/change/verify", accessToken, map[string]any{
+		"flow_id":      envelope.Data.FlowID,
+		"session_code": envelope.Data.SessionCode,
+		"token":        code,
+	})
+	if verify.Code != http.StatusOK || !strings.Contains(verify.Body.String(), `"completed":true`) {
+		t.Fatalf("verify status=%d body=%s", verify.Code, verify.Body.String())
+	}
+	var saved models.User
+	if err := db.First(&saved, userModel.ID).Error; err != nil {
+		t.Fatalf("load user: %v", err)
+	}
+	if saved.Email == nil || *saved.Email != newEmail {
+		t.Fatalf("email = %+v, want %s", saved.Email, newEmail)
+	}
+	var activeSessions int64
+	if err := db.Model(&models.Session{}).Where("user_id = ? AND (not_after IS NULL OR not_after > ?)", userModel.ID, time.Now()).Count(&activeSessions).Error; err != nil {
+		t.Fatalf("count active sessions: %v", err)
+	}
+	if activeSessions != 0 {
+		t.Fatalf("legacy identity_change should use unified completion and revoke sessions, got %d active", activeSessions)
+	}
+	if _, err := authService.ValidateRefreshToken(t.Context(), refreshToken); err == nil {
+		t.Fatal("legacy identity_change should revoke refresh token")
+	}
+}
+
+func extractVerificationCode(t *testing.T, body string) string {
+	t.Helper()
+	matches := regexp.MustCompile(`\b([0-9]{6})\b`).FindStringSubmatch(body)
+	if len(matches) != 2 {
+		t.Fatalf("body missing verification code: %s", body)
+	}
+	return matches[1]
 }

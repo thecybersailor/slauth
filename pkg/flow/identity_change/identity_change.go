@@ -199,7 +199,7 @@ func Verify(
 		return nil, consts.VALIDATION_FAILED
 	}
 
-	if err := persistIdentityChange(ctx, user, state.Kind, state.NewValue); err != nil {
+	if err := persistIdentityChange(ctx, authService, user, state.Kind, state.CurrentValue, state.NewValue); err != nil {
 		return nil, err
 	}
 	state.Stage = StageCompleted
@@ -426,10 +426,10 @@ func verifyChallenge(ctx context.Context, authService services.AuthService, kind
 	return nil
 }
 
-func persistIdentityChange(ctx context.Context, user *services.User, kind Kind, newValue string) error {
+func persistIdentityChange(ctx context.Context, authService services.AuthService, user *services.User, kind Kind, currentValue, newValue string) error {
 	switch kind {
 	case KindEmail:
-		return user.UpdateEmail(ctx, newValue)
+		return services.CompleteVerifiedEmailChange(ctx, authService.GetDB(), authService.GetInstanceId(), user.ID, currentValue, newValue, services.EmailChangeCompletionOptions{})
 	case KindPhone:
 		return user.UpdatePhone(ctx, newValue)
 	default:
