@@ -84,6 +84,7 @@ func registerUserRoutes(parent gin.IRouter, authService services.AuthService) {
 	// Email Management
 	parent.POST("/email/change", pin.HandleFunc(userController.StartSecureEmailChange))
 	parent.POST("/email/change/link", pin.HandleFunc(userController.StartEmailChangeLink))
+	parent.POST("/email/change/link/complete", pin.HandleFunc(userController.CompleteEmailChangeLink))
 	parent.POST("/email/change/verify", pin.HandleFunc(userController.VerifySecureEmailChange))
 	parent.PUT("/email", pin.HandleFunc(userController.UpdateEmail))               // FLOW: Email change - requires code sending, old email confirmation, new email verification
 	parent.POST("/email/verify", pin.HandleFunc(userController.VerifyEmailChange)) // SIMPLE: Email change verification - simple code validation

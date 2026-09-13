@@ -66,3 +66,7 @@ type PasswordRecoveryCompleteRequest struct {
 	Token    string `json:"token"`
 	Password string `json:"password"`
 }
+
+type EmailChangeCompleteRequest struct {
+	Token string `json:"token"`
+}
