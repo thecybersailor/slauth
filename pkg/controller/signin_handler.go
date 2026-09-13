@@ -8,6 +8,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
 	"github.com/thecybersailor/slauth/pkg/flow/signin"
+	"github.com/thecybersailor/slauth/pkg/services"
 )
 
 // SignInWithPasswordWithFlow Password login handler using flow
@@ -46,6 +47,11 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 	if a.authService == nil {
 		slog.Error("AuthService is nil in SignIn")
 		return consts.UNEXPECTED_FAILURE
+	}
+	if authServiceImpl, ok := a.authService.(*services.AuthServiceImpl); ok {
+		if err := authServiceImpl.CheckPasswordSignInRateLimit(c.Request.Context(), identifier.Value, c.ClientIP()); err != nil {
+			return err
+		}
 	}
 
 	// Create signin flow chain

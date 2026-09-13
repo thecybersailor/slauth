@@ -33,6 +33,7 @@ type AuthServiceImpl struct {
 	jwtService        *JWTService
 	passwordService   *PasswordService
 	dummyPasswordHash string
+	emailAuthLimiter  *EmailAuthLimiter
 	otpService        *OTPService
 	validator         *ValidatorService
 	instanceId        string
@@ -130,6 +131,7 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 	s.refreshTokenService = NewRefreshTokenService(db)
 	s.otTokenService = NewOneTimeTokenService(db)
 	s.rateLimitService = NewRateLimitService(cfg.AppSecret)
+	s.emailAuthLimiter = NewEmailAuthLimiter(s.rateLimitService)
 	s.hashIDService = hashIDService
 
 	// Initialize admin service layers
@@ -221,6 +223,7 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 	s.refreshTokenService = NewRefreshTokenService(db)
 	s.otTokenService = NewOneTimeTokenService(db)
 	s.rateLimitService = NewRateLimitService(cfg.AppSecret)
+	s.emailAuthLimiter = NewEmailAuthLimiter(s.rateLimitService)
 	s.hashIDService = hashIDService
 
 	// Initialize admin service layers
@@ -848,6 +851,28 @@ func (s *AuthServiceImpl) GetOneTimeTokenService() *OneTimeTokenService {
 // GetRateLimitService returns the rate limit service
 func (s *AuthServiceImpl) GetRateLimitService() *RateLimitService {
 	return s.rateLimitService
+}
+
+func (s *AuthServiceImpl) SetEmailAuthLimiter(limiter *EmailAuthLimiter) {
+	s.emailAuthLimiter = limiter
+}
+
+func (s *AuthServiceImpl) CheckPasswordSignInRateLimit(ctx context.Context, identifier, ip string) error {
+	cfg := s.GetConfig()
+	limit := cfg.RatelimitConfig.SignUpSignInRateLimit
+	allowed, err := s.emailAuthLimiter.Check(ctx, EmailAuthLimitRequest{
+		InstanceID: s.instanceId,
+		Action:     EmailAuthActionPasswordLogin,
+		Email:      identifier,
+		IP:         ip,
+		EmailLimit: limit,
+		IPLimit:    limit,
+		Config:     cfg,
+	})
+	if err != nil || !allowed {
+		return consts.OVER_REQUEST_RATE_LIMIT
+	}
+	return nil
 }
 
 // GetConfigLoader returns the config loader
