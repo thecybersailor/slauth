@@ -30,6 +30,9 @@ type AuthServiceConfig struct {
 	// Users will need to confirm their email address before signing in for the first time
 	ConfirmEmail *bool `json:"confirm_email"`
 
+	// Enable legacy email magic link sign-in. Recovery and email-change action links are controlled separately.
+	EnableEmailMagicLinkLogin *bool `json:"enable_email_magic_link_login"`
+
 	MFAUpdateRequiredAAL types.AALLevel `json:"mfa_update_required_aal"`
 
 	// Maximum number of per-user MFA factors
@@ -76,6 +79,7 @@ type AuthServiceConfigPatch struct {
 	ManualLinking                      *bool                 `json:"manual_linking,omitempty"`
 	AnonymousSignIns                   *bool                 `json:"anonymous_sign_ins,omitempty"`
 	ConfirmEmail                       *bool                 `json:"confirm_email,omitempty"`
+	EnableEmailMagicLinkLogin          *bool                 `json:"enable_email_magic_link_login,omitempty"`
 	MFAUpdateRequiredAAL               *types.AALLevel       `json:"mfa_update_required_aal,omitempty"`
 	MaximumMfaFactors                  *int                  `json:"maximum_mfa_factors,omitempty"`
 	MaximumMfaFactorValidationAttempts *int                  `json:"maximum_mfa_factor_validation_attempts,omitempty"`
@@ -93,6 +97,7 @@ func NewDefaultAuthServiceConfig() *AuthServiceConfig {
 		ManualLinking:                      boolPtr(false),
 		AnonymousSignIns:                   boolPtr(false),
 		ConfirmEmail:                       boolPtr(true),
+		EnableEmailMagicLinkLogin:          boolPtr(true),
 		MaximumMfaFactors:                  10,
 		MaximumMfaFactorValidationAttempts: 5,
 		EnableCaptcha:                      boolPtr(false),

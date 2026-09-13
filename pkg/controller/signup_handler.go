@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/flaboy/pin"
+	authconfig "github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/flow/core"
 	"github.com/thecybersailor/slauth/pkg/flow/otp"
@@ -277,6 +278,9 @@ func shouldSendMagicLink(req *SignInWithOtpRequest) bool {
 }
 
 func (a *AuthController) sendMagicLink(c *pin.Context, req *SignInWithOtpRequest) error {
+	if !emailMagicLinkLoginEnabled(a.authService.GetConfig()) {
+		return consts.OTP_DISABLED
+	}
 	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
 	if !ok {
 		slog.Error("sendMagicLink: invalid auth service type")
@@ -609,7 +613,14 @@ func isMagicLinkVerifyType(value string) bool {
 	return normalized == "magiclink" || normalized == "magic_link"
 }
 
+func emailMagicLinkLoginEnabled(cfg *authconfig.AuthServiceConfig) bool {
+	return cfg == nil || cfg.EnableEmailMagicLinkLogin == nil || *cfg.EnableEmailMagicLinkLogin
+}
+
 func (a *AuthController) verifyMagicLink(c *pin.Context, req *types.VerifyOtpRequest) error {
+	if !emailMagicLinkLoginEnabled(a.authService.GetConfig()) {
+		return consts.OTP_DISABLED
+	}
 	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
 	if !ok {
 		slog.Error("verifyMagicLink: invalid auth service type")

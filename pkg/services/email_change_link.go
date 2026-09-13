@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"net/url"
 	"time"
 
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -50,7 +49,7 @@ func (s *EmailChangeLinkService) Start(ctx context.Context, user *User, sessionI
 	if err != nil {
 		return err
 	}
-	link, err := emailChangeActionURL(s.authService.GetConfig().SiteURL, issued.Token)
+	link, err := emailActionURL(s.authService.GetConfig().SiteURL, types.EmailActionPurposeEmailChange, issued.Token)
 	if err != nil {
 		return err
 	}
@@ -106,16 +105,4 @@ func (s *EmailChangeLinkService) Complete(ctx context.Context, user *User, sessi
 		}
 	}
 	return nil
-}
-
-func emailChangeActionURL(siteURL, token string) (string, error) {
-	u, err := url.Parse(siteURL)
-	if err != nil || u == nil || u.Host == "" || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		return "", consts.VALIDATION_FAILED
-	}
-	u.Path = "/change-email"
-	u.RawPath = ""
-	u.RawQuery = ""
-	u.Fragment = url.Values{"token": []string{token}}.Encode()
-	return u.String(), nil
 }

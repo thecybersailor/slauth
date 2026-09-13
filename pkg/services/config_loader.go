@@ -226,6 +226,10 @@ func MergeAuthServiceConfig(current, next *config.AuthServiceConfig) *config.Aut
 		val := *next.ConfirmEmail
 		merged.ConfirmEmail = &val
 	}
+	if next.EnableEmailMagicLinkLogin != nil {
+		val := *next.EnableEmailMagicLinkLogin
+		merged.EnableEmailMagicLinkLogin = &val
+	}
 	if next.EnableCaptcha != nil {
 		val := *next.EnableCaptcha
 		merged.EnableCaptcha = &val
@@ -287,6 +291,10 @@ func ApplyAuthServiceConfigPatch(current *config.AuthServiceConfig, patch *confi
 	if patch.ConfirmEmail != nil {
 		val := *patch.ConfirmEmail
 		merged.ConfirmEmail = &val
+	}
+	if patch.EnableEmailMagicLinkLogin != nil {
+		val := *patch.EnableEmailMagicLinkLogin
+		merged.EnableEmailMagicLinkLogin = &val
 	}
 	if patch.MFAUpdateRequiredAAL != nil {
 		merged.MFAUpdateRequiredAAL = *patch.MFAUpdateRequiredAAL

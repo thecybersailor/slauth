@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/thecybersailor/slauth/pkg/consts"
@@ -51,7 +49,7 @@ func (s *PasswordRecoveryService) Request(ctx context.Context, email string) err
 	if err != nil {
 		return err
 	}
-	link, err := recoveryActionURL(s.authService.GetConfig().SiteURL, issued.Token)
+	link, err := emailActionURL(s.authService.GetConfig().SiteURL, types.EmailActionPurposeRecovery, issued.Token)
 	if err != nil {
 		return err
 	}
@@ -108,16 +106,4 @@ func (s *PasswordRecoveryService) Complete(ctx context.Context, token, password 
 			Where("user_id = ? AND instance_id = ?", user.ID, instanceID).
 			Updates(map[string]any{"revoked": true, "updated_at": now}).Error
 	})
-}
-
-func recoveryActionURL(siteURL, token string) (string, error) {
-	u, err := url.Parse(siteURL)
-	if err != nil || u == nil || u.Host == "" || u.User != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		return "", consts.VALIDATION_FAILED
-	}
-	u.Path = "/reset-password"
-	u.RawPath = ""
-	u.RawQuery = ""
-	u.Fragment = url.Values{"token": []string{token}}.Encode()
-	return strings.TrimRight(u.String(), "/"), nil
 }

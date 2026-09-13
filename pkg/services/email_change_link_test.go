@@ -76,19 +76,6 @@ func TestEmailChangeLinkCompleteConflictDoesNotConsumeToken(t *testing.T) {
 	}
 }
 
-func TestEmailChangeActionURLUsesFixedFragmentPath(t *testing.T) {
-	got, err := emailChangeActionURL("https://account.example.com/anything?redirect=https://evil.example", "id.secret")
-	if err != nil {
-		t.Fatalf("url: %v", err)
-	}
-	if got != "https://account.example.com/change-email#token=id.secret" {
-		t.Fatalf("email change url = %s", got)
-	}
-	if strings.Contains(got, "evil.example") {
-		t.Fatalf("url retained caller-controlled redirect: %s", got)
-	}
-}
-
 func newEmailChangeServiceTestAuth(t *testing.T) (*gorm.DB, *AuthServiceImpl) {
 	t.Helper()
 	dbName := "file:" + strings.NewReplacer("/", "_", " ", "_", "-", "_").Replace(t.Name()) + "?mode=memory&cache=shared"

@@ -131,3 +131,20 @@ func TestNormalizeAuthServiceConfigFromRaw_DoesNotAliasDefaultBoolPointers(t *te
 		t.Fatalf("expected confirm_email to be false after raw normalization")
 	}
 }
+
+func TestApplyAuthServiceConfigPatch_UpdatesEmailMagicLinkLoginFlag(t *testing.T) {
+	current := config.NewDefaultAuthServiceConfig()
+	if current.EnableEmailMagicLinkLogin == nil || !*current.EnableEmailMagicLinkLogin {
+		t.Fatalf("expected magic link login to default enabled")
+	}
+	disabled := false
+	next := ApplyAuthServiceConfigPatch(current, &config.AuthServiceConfigPatch{
+		EnableEmailMagicLinkLogin: &disabled,
+	})
+	if next.EnableEmailMagicLinkLogin == nil || *next.EnableEmailMagicLinkLogin {
+		t.Fatalf("expected magic link login disabled after patch")
+	}
+	if next.ConfirmEmail == nil || !*next.ConfirmEmail {
+		t.Fatalf("magic link patch should not reset confirm_email")
+	}
+}
