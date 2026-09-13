@@ -146,22 +146,21 @@ func (suite *ReauthenticationTestSuite) TestReauthenticationVerifyRejectsExpired
 	code := suite.extractLastVerificationCode()
 	suite.NotEmpty(code)
 
-	var token models.OneTimeToken
+	var challenge models.EmailActionChallenge
 	suite.Require().NoError(
 		suite.DB.
-			Where("session_code = ? AND instance_id = ? AND token_type = ?", sessionCode, suite.TestInstance, types.OneTimeTokenTypeReauthentication).
-			First(&token).Error,
+			Where("id = ? AND instance_id = ? AND purpose = ?", sessionCode, suite.TestInstance, string(types.EmailActionPurposeReauthentication)).
+			First(&challenge).Error,
 	)
 	expiredAt := time.Now().Add(-24 * time.Hour)
 	suite.Require().NoError(
-		suite.DB.Model(&models.OneTimeToken{}).
-			Where("id = ?", token.ID).
-			Update("expires_at", &expiredAt).Error,
+		suite.DB.Model(&models.EmailActionChallenge{}).
+			Where("id = ?", challenge.ID).
+			Update("expires_at", expiredAt).Error,
 	)
-	var expiredToken models.OneTimeToken
-	suite.Require().NoError(suite.DB.First(&expiredToken, token.ID).Error)
-	suite.Require().NotNil(expiredToken.ExpiresAt)
-	suite.True(expiredToken.ExpiresAt.Before(time.Now()))
+	var expiredChallenge models.EmailActionChallenge
+	suite.Require().NoError(suite.DB.First(&expiredChallenge, "id = ?", challenge.ID).Error)
+	suite.True(expiredChallenge.ExpiresAt.Before(time.Now()))
 
 	verifyResponse := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/reauthenticate/verify", S{
 		"token":        code,

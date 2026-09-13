@@ -26,6 +26,7 @@ func (suite *PasswordManagementTestSuite) SetupSuite() {
 	updateConfigReq := S{
 		"config": S{
 			"confirm_email": false,
+			"site_url":      "https://account.example.com",
 		},
 	}
 	suite.helper.MakePUTRequest(suite.T(), "/admin/config", updateConfigReq, nil)
@@ -82,8 +83,8 @@ func (suite *PasswordManagementTestSuite) TestPasswordRecovery() {
 	lastEmail := mockEmailProvider.GetLastEmail()
 	suite.NotNil(lastEmail, "Should have sent an email for existing user")
 	suite.Equal(email, lastEmail.To, "Email should be sent to the registered user")
-	suite.Equal("Reset Password", lastEmail.Subject, "Email subject should be correct")
-	suite.Contains(lastEmail.Body, "reset", "Email body should contain reset information")
+	suite.Equal("Reset your password", lastEmail.Subject, "Email subject should be correct")
+	suite.Contains(lastEmail.Body, "https://account.example.com/reset-password#token=", "Email body should contain reset link")
 }
 
 func (suite *PasswordManagementTestSuite) TestPasswordRecoveryNonExistentUser() {
@@ -647,7 +648,7 @@ func (suite *PasswordManagementTestSuite) TestPasswordUpdateRateLimit() {
 	accessToken := loginAndUpgradeToAAL2(currentPassword)
 
 	for i := 1; i <= 3; i++ {
-		newPassword := fmt.Sprintf("Password%d!", i)
+		newPassword := fmt.Sprintf("PasswordUpdateAAL2_%d_Strong2026!", i)
 
 		updatePasswordRequestBody := S{
 			"password": newPassword,
@@ -671,7 +672,7 @@ func (suite *PasswordManagementTestSuite) TestPasswordUpdateRateLimit() {
 	accessToken = loginAndUpgradeToAAL2(currentPassword)
 
 	updatePasswordRequestBody4 := S{
-		"password": "Password4!",
+		"password": "PasswordUpdateAAL2_4_Strong2026!",
 	}
 
 	updatePasswordHeaders4 := map[string]string{
@@ -680,66 +681,9 @@ func (suite *PasswordManagementTestSuite) TestPasswordUpdateRateLimit() {
 
 	updatePasswordResponse4 := suite.helper.MakePUTRequest(suite.T(), "/auth/password", updatePasswordRequestBody4, updatePasswordHeaders4)
 
-	if updatePasswordResponse4.ResponseRecorder.Code == 200 {
-		suite.T().Logf("✅ 4th password update succeeded - AAL2 upgrade correctly cleared rate limit")
-	} else {
-		suite.T().Logf("⚠️  Unexpected: 4th password update failed despite AAL2 upgrade")
-		if updatePasswordResponse4.Error != nil {
-			suite.T().Logf("Error: %v", updatePasswordResponse4.Error)
-		}
-	}
-
-	loginRequestBodyAAL1 := S{
-		"grant_type": "password",
-		"email":      email,
-		"password":   "Password4!",
-	}
-
-	loginResponseAAL1 := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", loginRequestBodyAAL1)
-
-	// Debug: Print login response
-	if loginResponseAAL1.Error != nil {
-		suite.T().Logf("DEBUG: AAL1 login failed with error: %+v", loginResponseAAL1.Error)
-		suite.T().Logf("DEBUG: Trying to login with password: Password4!")
-	}
-
-	// AAL1 login should succeed
-	suite.Nil(loginResponseAAL1.Error, "AAL1 login should succeed without error")
-
-	responseDataAAL1, ok := loginResponseAAL1.Data.(map[string]any)
-	suite.True(ok, "AAL1 login response data should be a map")
-
-	sessionAAL1, ok := responseDataAAL1["session"].(map[string]any)
-	suite.True(ok, "AAL1 session data should be a map")
-
-	accessTokenAAL1, ok := sessionAAL1["access_token"].(string)
-	suite.True(ok, "AAL1 access token should be a string")
-
-	for i := 1; i <= 3; i++ {
-		newPassword := fmt.Sprintf("PasswordAAL1_%d!", i)
-
-		updatePasswordRequestBody := S{
-			"password": newPassword,
-		}
-
-		updatePasswordHeaders := map[string]string{
-			"Authorization": "Bearer " + accessTokenAAL1,
-		}
-
-		updatePasswordResponse := suite.helper.MakePUTRequest(suite.T(), "/auth/password", updatePasswordRequestBody, updatePasswordHeaders)
-
-		if i <= 3 {
-
-			suite.Equal(200, updatePasswordResponse.ResponseRecorder.Code, fmt.Sprintf("AAL1 password update %d should succeed", i))
-			suite.T().Logf("✅ AAL1 password update %d succeeded", i)
-		} else {
-
-			if updatePasswordResponse.ResponseRecorder.Code != 200 {
-				suite.T().Logf("✅ AAL1 password update %d correctly rejected by rate limit", i)
-			} else {
-				suite.T().Logf("⚠️  AAL1 password update %d unexpectedly succeeded (rate limit may not be working)", i)
-			}
-		}
+	suite.NotNil(updatePasswordResponse4.Error, "4th password update should return a rate limit error")
+	if updatePasswordResponse4.Error != nil {
+		suite.Contains(updatePasswordResponse4.Error.Key, "auth.over_request_rate_limit")
 	}
 
 	suite.T().Logf("Password update rate limit test completed successfully")
