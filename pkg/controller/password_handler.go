@@ -5,8 +5,7 @@ import (
 
 	"github.com/flaboy/pin"
 	"github.com/thecybersailor/slauth/pkg/consts"
-	"github.com/thecybersailor/slauth/pkg/flow/core"
-	"github.com/thecybersailor/slauth/pkg/flow/password"
+	"github.com/thecybersailor/slauth/pkg/services"
 )
 
 // ResetPasswordWithFlow Password reset handler using flow
@@ -33,33 +32,12 @@ func (a *AuthController) ResetPasswordWithFlow(c *pin.Context) error {
 		return consts.UNEXPECTED_FAILURE
 	}
 
-	// Create password reset context
-	passwordCtx := password.NewPasswordContext(c.Request.Context(), a.authService, c.Request, req)
-
-	ctx := &core.Context[core.PasswordResetData]{
-		Data: core.PasswordResetData{
-			Email:  req.Email,
-			Phone:  req.Phone,
-			Action: "password_reset",
-		},
-	}
-
-	// Execute password reset flow
-	requestFlow := password.RequestPasswordResetFlow(passwordCtx)
-	err := requestFlow(ctx, func() error {
-		// Send reset email
-		if req.Email != "" {
-			emailFlow := password.SendResetEmailFlow(passwordCtx)
-			return emailFlow(ctx, func() error { return nil })
+	if req.Email != "" {
+		if err := services.NewPasswordRecoveryService(a.authService).Request(c.Request.Context(), req.Email); err != nil {
+			slog.Error("ResetPassword request failed", "error", err)
+			return err
 		}
-		return nil
-	})
-	if err != nil {
-		slog.Error("ResetPassword flow failed", "error", err)
-		return consts.UNEXPECTED_FAILURE
 	}
-
-	// Token generation and email sending are handled in flow, no additional check needed
 
 	// Return response (always return success for security)
 	return c.Render(map[string]string{"message": "Password reset email sent if account exists"})
