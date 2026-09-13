@@ -16,6 +16,7 @@ import (
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type EmailActionService struct {
@@ -79,6 +80,70 @@ func (s *EmailActionService) Issue(ctx context.Context, req types.EmailActionIss
 	}, nil
 }
 
+func (s *EmailActionService) Consume(ctx context.Context, instanceID string, purpose types.EmailActionPurpose, token string, operation func(tx *gorm.DB, challenge *models.EmailActionChallenge) error) error {
+	id, secret, ok := splitEmailActionToken(token)
+	if !ok || !isValidEmailActionPurpose(purpose) {
+		return consts.VALIDATION_FAILED
+	}
+
+	var resultErr error
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var challenge models.EmailActionChallenge
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND instance_id = ? AND purpose = ?", id, instanceID, string(purpose)).
+			First(&challenge).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				resultErr = consts.VALIDATION_FAILED
+				return nil
+			}
+			return err
+		}
+		if challenge.ConsumedAt != nil {
+			resultErr = consts.VALIDATION_FAILED
+			return nil
+		}
+		if !challenge.ExpiresAt.After(s.now()) {
+			resultErr = consts.OTP_EXPIRED
+			return nil
+		}
+		if challenge.Attempts >= 5 {
+			resultErr = consts.VALIDATION_FAILED
+			return nil
+		}
+
+		expected := emailActionDigest(s.appSecret, instanceID, string(purpose), id, secret)
+		if !hmac.Equal([]byte(expected), []byte(challenge.SecretDigest)) {
+			if err := tx.Model(&challenge).Update("attempts", challenge.Attempts+1).Error; err != nil {
+				return err
+			}
+			resultErr = consts.BAD_CODE_VERIFIER
+			return nil
+		}
+
+		if operation != nil {
+			if err := operation(tx, &challenge); err != nil {
+				return err
+			}
+		}
+		consumedAt := s.now()
+		result := tx.Model(&models.EmailActionChallenge{}).
+			Where("id = ? AND consumed_at IS NULL", challenge.ID).
+			Updates(map[string]any{"consumed_at": consumedAt, "updated_at": consumedAt})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			resultErr = consts.VALIDATION_FAILED
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return resultErr
+}
+
 func emailActionDigest(key, instance, purpose, id, secret string) string {
 	mac := hmac.New(sha256.New, []byte(key))
 	for _, value := range []string{instance, purpose, id, secret} {
@@ -87,6 +152,14 @@ func emailActionDigest(key, instance, purpose, id, secret string) string {
 		mac.Write([]byte(value))
 	}
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func splitEmailActionToken(token string) (string, string, bool) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func generateEmailActionSecret(kind types.EmailActionSecretKind) (string, error) {
