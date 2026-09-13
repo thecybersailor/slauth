@@ -37,3 +37,18 @@ type EmailActionIssueResult struct {
 	Token     string    `json:"token,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
+
+type EmailSignupStartRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type EmailSignupResendRequest struct {
+	ChallengeID string `json:"challenge_id"`
+}
+
+type EmailSignupChallengeResponse struct {
+	Message     string `json:"message"`
+	ChallengeID string `json:"challenge_id"`
+	ExpiresIn   int64  `json:"expires_in"`
+}
