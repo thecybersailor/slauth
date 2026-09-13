@@ -97,8 +97,8 @@ func (a *AuthController) SignInWithPasswordWithFlow(c *pin.Context) error {
 	slog.Info("SignInWithPassword: Creating session response",
 		"ctxDataSessionID", ctx.Data.SessionID,
 		"ctxDataSessionIDLength", len(ctx.Data.SessionID),
-		"ctxDataAccessToken", ctx.Data.AccessToken,
-		"ctxDataRefreshToken", ctx.Data.RefreshToken,
+		"ctxDataAccessToken", ctx.Data.AccessToken != "",
+		"ctxDataRefreshToken", ctx.Data.RefreshToken != "",
 		"signinCtxResponseSession", signinCtx.Response().Session != nil)
 
 	// ctx.Data.ExpiresIn is absolute timestamp from flow
