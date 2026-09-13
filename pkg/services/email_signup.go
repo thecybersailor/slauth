@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
@@ -18,6 +19,7 @@ type EmailSignupService struct {
 	emailActions    *EmailActionService
 	emailProvider   types.EmailProvider
 	validator       *ValidatorService
+	policy          config.EmailAuthPolicy
 	now             func() time.Time
 }
 
@@ -29,8 +31,26 @@ func NewEmailSignupService(db *gorm.DB, instanceID string, passwordService *Pass
 		emailActions:    emailActions,
 		emailProvider:   emailProvider,
 		validator:       NewValidatorService(),
+		policy:          defaultEmailAuthPolicy(),
 		now:             time.Now,
 	}
+}
+
+func (s *EmailSignupService) WithEmailAuthPolicy(policy config.EmailAuthPolicy) *EmailSignupService {
+	if policy.CodeTTL > 0 {
+		s.policy.CodeTTL = policy.CodeTTL
+	}
+	if policy.LinkTTL > 0 {
+		s.policy.LinkTTL = policy.LinkTTL
+	}
+	if policy.MaxAttempts > 0 {
+		s.policy.MaxAttempts = policy.MaxAttempts
+		s.emailActions.WithMaxAttempts(policy.MaxAttempts)
+	}
+	if policy.ResendInterval > 0 {
+		s.policy.ResendInterval = policy.ResendInterval
+	}
+	return s
 }
 
 func (s *EmailSignupService) Start(ctx context.Context, email, password string) (*types.EmailSignupChallengeResponse, error) {
@@ -61,7 +81,7 @@ func (s *EmailSignupService) Start(ctx context.Context, email, password string) 
 		SecretKind:          types.EmailActionSecretKindCode,
 		Email:               email,
 		PendingPasswordHash: pendingHash,
-		TTL:                 10 * time.Minute,
+		TTL:                 s.policy.CodeTTL,
 	})
 	if err != nil {
 		return nil, err
@@ -85,7 +105,7 @@ func (s *EmailSignupService) Resend(ctx context.Context, challengeID string) (*t
 		return nil, err
 	}
 	now := s.now()
-	if now.Sub(challenge.LastSentAt) < time.Minute {
+	if now.Sub(challenge.LastSentAt) < s.policy.ResendInterval {
 		return nil, consts.OVER_EMAIL_SEND_RATE_LIMIT
 	}
 	secret, err := generateEmailActionSecret(types.EmailActionSecretKindCode)

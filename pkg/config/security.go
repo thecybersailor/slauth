@@ -20,6 +20,8 @@ type AALPolicyPatch struct {
 type SecurityConfig struct {
 	AALPolicy AALPolicy `json:"aal_policy"`
 
+	EmailAuthPolicy EmailAuthPolicy `json:"email_auth_policy"`
+
 	PasswordUpdateConfig PasswordUpdateConfig `json:"password_update_config"`
 
 	PasswordStrengthConfig PasswordStrengthConfig `json:"password_strength_config"`
@@ -31,10 +33,25 @@ type SecurityConfig struct {
 
 type SecurityConfigPatch struct {
 	AALPolicy              *AALPolicyPatch              `json:"aal_policy,omitempty"`
+	EmailAuthPolicy        *EmailAuthPolicyPatch        `json:"email_auth_policy,omitempty"`
 	PasswordUpdateConfig   *PasswordUpdateConfigPatch   `json:"password_update_config,omitempty"`
 	PasswordStrengthConfig *PasswordStrengthConfigPatch `json:"password_strength_config,omitempty"`
 	EmailChangeConfig      *IdentityChangeConfigPatch   `json:"email_change_config,omitempty"`
 	PhoneChangeConfig      *IdentityChangeConfigPatch   `json:"phone_change_config,omitempty"`
+}
+
+type EmailAuthPolicy struct {
+	CodeTTL        time.Duration `json:"code_ttl"`
+	LinkTTL        time.Duration `json:"link_ttl"`
+	MaxAttempts    int           `json:"max_attempts"`
+	ResendInterval time.Duration `json:"resend_interval"`
+}
+
+type EmailAuthPolicyPatch struct {
+	CodeTTL        *time.Duration `json:"code_ttl,omitempty"`
+	LinkTTL        *time.Duration `json:"link_ttl,omitempty"`
+	MaxAttempts    *int           `json:"max_attempts,omitempty"`
+	ResendInterval *time.Duration `json:"resend_interval,omitempty"`
 }
 
 type PasswordUpdateConfig struct {
@@ -84,6 +101,12 @@ func GetDefaultSecurityConfig() *SecurityConfig {
 		AALPolicy: AALPolicy{
 			AALTimeout:     30 * time.Minute,
 			AllowDowngrade: true,
+		},
+		EmailAuthPolicy: EmailAuthPolicy{
+			CodeTTL:        10 * time.Minute,
+			LinkTTL:        30 * time.Minute,
+			MaxAttempts:    5,
+			ResendInterval: time.Minute,
 		},
 		PasswordUpdateConfig: PasswordUpdateConfig{
 			UpdateRequiredAAL:   types.AALLevel2,

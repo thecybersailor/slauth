@@ -59,12 +59,13 @@ func (a *AuthController) newEmailSignupService() (*services.EmailSignupService, 
 	if !ok {
 		return nil, consts.UNEXPECTED_FAILURE
 	}
-	emailActions := services.NewEmailActionService(a.authService.GetDB(), a.authService.GetConfig().AppSecret)
+	policy := services.EmailAuthPolicyFromConfig(a.authService.GetConfig())
+	emailActions := services.NewEmailActionService(a.authService.GetDB(), a.authService.GetConfig().AppSecret).WithMaxAttempts(policy.MaxAttempts)
 	return services.NewEmailSignupService(
 		a.authService.GetDB(),
 		a.authService.GetInstanceId(),
 		a.authService.GetPasswordService(),
 		emailActions,
 		authServiceImpl.GetEmailProvider(),
-	), nil
+	).WithEmailAuthPolicy(policy), nil
 }

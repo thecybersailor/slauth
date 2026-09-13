@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
@@ -14,13 +15,16 @@ type PasswordRecoveryService struct {
 	authService  AuthService
 	emailActions *EmailActionService
 	validator    *ValidatorService
+	policy       config.EmailAuthPolicy
 }
 
 func NewPasswordRecoveryService(authService AuthService) *PasswordRecoveryService {
+	policy := EmailAuthPolicyFromConfig(authService.GetConfig())
 	return &PasswordRecoveryService{
 		authService:  authService,
-		emailActions: NewEmailActionService(authService.GetDB(), authService.GetConfig().AppSecret),
+		emailActions: NewEmailActionService(authService.GetDB(), authService.GetConfig().AppSecret).WithMaxAttempts(policy.MaxAttempts),
 		validator:    NewValidatorService(),
+		policy:       policy,
 	}
 }
 
@@ -44,7 +48,7 @@ func (s *PasswordRecoveryService) Request(ctx context.Context, email string) err
 		UserID:           &user.User.ID,
 		Email:            email,
 		CredentialDigest: HashToken(credential),
-		TTL:              30 * time.Minute,
+		TTL:              s.policy.LinkTTL,
 	})
 	if err != nil {
 		return err

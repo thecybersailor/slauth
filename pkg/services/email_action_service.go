@@ -20,21 +20,30 @@ import (
 )
 
 type EmailActionService struct {
-	db        *gorm.DB
-	appSecret string
-	now       func() time.Time
+	db          *gorm.DB
+	appSecret   string
+	now         func() time.Time
+	maxAttempts int
 }
 
 func NewEmailActionService(db *gorm.DB, appSecret string) *EmailActionService {
 	return &EmailActionService{
-		db:        db,
-		appSecret: appSecret,
-		now:       time.Now,
+		db:          db,
+		appSecret:   appSecret,
+		now:         time.Now,
+		maxAttempts: defaultEmailAuthPolicy().MaxAttempts,
 	}
 }
 
 func (s *EmailActionService) WithClock(now func() time.Time) *EmailActionService {
 	s.now = now
+	return s
+}
+
+func (s *EmailActionService) WithMaxAttempts(maxAttempts int) *EmailActionService {
+	if maxAttempts > 0 {
+		s.maxAttempts = maxAttempts
+	}
 	return s
 }
 
@@ -107,7 +116,7 @@ func (s *EmailActionService) Consume(ctx context.Context, instanceID string, pur
 			resultErr = consts.OTP_EXPIRED
 			return nil
 		}
-		if challenge.Attempts >= 5 {
+		if challenge.Attempts >= s.maxAttempts {
 			resultErr = consts.VALIDATION_FAILED
 			return nil
 		}

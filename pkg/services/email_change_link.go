@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/consts"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
@@ -14,10 +15,11 @@ import (
 type EmailChangeLinkService struct {
 	authService AuthService
 	validator   *ValidatorService
+	policy      config.EmailAuthPolicy
 }
 
 func NewEmailChangeLinkService(authService AuthService) *EmailChangeLinkService {
-	return &EmailChangeLinkService{authService: authService, validator: NewValidatorService()}
+	return &EmailChangeLinkService{authService: authService, validator: NewValidatorService(), policy: EmailAuthPolicyFromConfig(authService.GetConfig())}
 }
 
 func (s *EmailChangeLinkService) Start(ctx context.Context, user *User, sessionID uint, currentAAL types.AALLevel, newEmail string) error {
@@ -36,7 +38,7 @@ func (s *EmailChangeLinkService) Start(ctx context.Context, user *User, sessionI
 	} else if err != gorm.ErrRecordNotFound {
 		return err
 	}
-	issued, err := NewEmailActionService(s.authService.GetDB(), s.authService.GetConfig().AppSecret).Issue(ctx, types.EmailActionIssueRequest{
+	issued, err := NewEmailActionService(s.authService.GetDB(), s.authService.GetConfig().AppSecret).WithMaxAttempts(s.policy.MaxAttempts).Issue(ctx, types.EmailActionIssueRequest{
 		InstanceID:    s.authService.GetInstanceId(),
 		Purpose:       types.EmailActionPurposeEmailChange,
 		SecretKind:    types.EmailActionSecretKindLink,
@@ -44,7 +46,7 @@ func (s *EmailChangeLinkService) Start(ctx context.Context, user *User, sessionI
 		SessionID:     &sessionID,
 		Email:         newEmail,
 		OriginalEmail: user.GetEmail(),
-		TTL:           30 * time.Minute,
+		TTL:           s.policy.LinkTTL,
 	})
 	if err != nil {
 		return err
@@ -68,7 +70,7 @@ func (s *EmailChangeLinkService) Complete(ctx context.Context, user *User, sessi
 	instanceID := s.authService.GetInstanceId()
 	var originalEmail string
 	var changedEmail string
-	emailActions := NewEmailActionService(s.authService.GetDB(), s.authService.GetConfig().AppSecret)
+	emailActions := NewEmailActionService(s.authService.GetDB(), s.authService.GetConfig().AppSecret).WithMaxAttempts(s.policy.MaxAttempts)
 	err := emailActions.Consume(ctx, instanceID, types.EmailActionPurposeEmailChange, token, func(tx *gorm.DB, challenge *models.EmailActionChallenge) error {
 		if challenge.UserID == nil || *challenge.UserID != user.User.ID || challenge.SessionID == nil || *challenge.SessionID != sessionID {
 			return consts.VALIDATION_FAILED

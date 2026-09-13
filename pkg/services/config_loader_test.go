@@ -148,3 +148,28 @@ func TestApplyAuthServiceConfigPatch_UpdatesEmailMagicLinkLoginFlag(t *testing.T
 		t.Fatalf("magic link patch should not reset confirm_email")
 	}
 }
+
+func TestApplyAuthServiceConfigPatch_UpdatesEmailAuthPolicyFields(t *testing.T) {
+	current := config.NewDefaultAuthServiceConfig()
+	codeTTL := 11 * time.Minute
+	linkTTL := 31 * time.Minute
+	maxAttempts := 7
+	resendInterval := 90 * time.Second
+	next := ApplyAuthServiceConfigPatch(current, &config.AuthServiceConfigPatch{
+		SecurityConfig: &config.SecurityConfigPatch{
+			EmailAuthPolicy: &config.EmailAuthPolicyPatch{
+				CodeTTL:        &codeTTL,
+				LinkTTL:        &linkTTL,
+				MaxAttempts:    &maxAttempts,
+				ResendInterval: &resendInterval,
+			},
+		},
+	})
+	got := next.SecurityConfig.EmailAuthPolicy
+	if got.CodeTTL != codeTTL || got.LinkTTL != linkTTL || got.MaxAttempts != maxAttempts || got.ResendInterval != resendInterval {
+		t.Fatalf("email auth policy = %+v", got)
+	}
+	if next.SecurityConfig.PasswordStrengthConfig.MinLength != current.SecurityConfig.PasswordStrengthConfig.MinLength {
+		t.Fatalf("email auth policy patch should not reset password policy")
+	}
+}

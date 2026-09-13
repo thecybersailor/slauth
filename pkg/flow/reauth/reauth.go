@@ -70,14 +70,15 @@ func SendSessionChallenge(ctx context.Context, authService services.AuthService,
 	}
 
 	if channel == ChannelEmail {
-		issued, err := services.NewEmailActionService(authService.GetDB(), authService.GetConfig().AppSecret).Issue(ctx, types.EmailActionIssueRequest{
+		policy := services.EmailAuthPolicyFromConfig(authService.GetConfig())
+		issued, err := services.NewEmailActionService(authService.GetDB(), authService.GetConfig().AppSecret).WithMaxAttempts(policy.MaxAttempts).Issue(ctx, types.EmailActionIssueRequest{
 			InstanceID: authService.GetInstanceId(),
 			Purpose:    types.EmailActionPurposeReauthentication,
 			SecretKind: types.EmailActionSecretKindCode,
 			UserID:     &user.User.ID,
 			SessionID:  &sessionID,
 			Email:      target,
-			TTL:        10 * time.Minute,
+			TTL:        policy.CodeTTL,
 		})
 		if err != nil {
 			return nil, err
@@ -170,7 +171,8 @@ func VerifyChallenge(
 	expiresAt := time.Now().Add(aalTimeout)
 
 	if channel == ChannelEmail {
-		err := services.NewEmailActionService(authService.GetDB(), authService.GetConfig().AppSecret).Consume(ctx, authService.GetInstanceId(), types.EmailActionPurposeReauthentication, sessionCode+"."+token, func(tx *gorm.DB, challenge *models.EmailActionChallenge) error {
+		policy := services.EmailAuthPolicyFromConfig(authService.GetConfig())
+		err := services.NewEmailActionService(authService.GetDB(), authService.GetConfig().AppSecret).WithMaxAttempts(policy.MaxAttempts).Consume(ctx, authService.GetInstanceId(), types.EmailActionPurposeReauthentication, sessionCode+"."+token, func(tx *gorm.DB, challenge *models.EmailActionChallenge) error {
 			if challenge.UserID == nil || *challenge.UserID != user.User.ID || challenge.SessionID == nil || *challenge.SessionID != sessionID {
 				return consts.REAUTHENTICATION_NOT_VALID
 			}

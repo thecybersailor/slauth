@@ -445,6 +445,9 @@ func mergeSecurityConfig(current, next *config.SecurityConfig) *config.SecurityC
 	if next.AALPolicy != (config.AALPolicy{}) {
 		merged.AALPolicy = mergeAALPolicy(merged.AALPolicy, next.AALPolicy)
 	}
+	if next.EmailAuthPolicy != (config.EmailAuthPolicy{}) {
+		merged.EmailAuthPolicy = mergeEmailAuthPolicy(merged.EmailAuthPolicy, next.EmailAuthPolicy)
+	}
 	if next.PasswordUpdateConfig != (config.PasswordUpdateConfig{}) {
 		merged.PasswordUpdateConfig = mergePasswordUpdateConfig(merged.PasswordUpdateConfig, next.PasswordUpdateConfig)
 	}
@@ -471,6 +474,7 @@ func applySecurityConfigPatch(current *config.SecurityConfig, patch *config.Secu
 
 	merged := *current
 	merged.AALPolicy = applyAALPolicyPatch(merged.AALPolicy, patch.AALPolicy)
+	merged.EmailAuthPolicy = applyEmailAuthPolicyPatch(merged.EmailAuthPolicy, patch.EmailAuthPolicy)
 	merged.PasswordUpdateConfig = applyPasswordUpdateConfigPatch(merged.PasswordUpdateConfig, patch.PasswordUpdateConfig)
 	merged.PasswordStrengthConfig = applyPasswordStrengthConfigPatch(merged.PasswordStrengthConfig, patch.PasswordStrengthConfig)
 	merged.EmailChangeConfig = applyIdentityChangeConfigPatch(merged.EmailChangeConfig, patch.EmailChangeConfig)
@@ -499,6 +503,43 @@ func applyAALPolicyPatch(current config.AALPolicy, patch *config.AALPolicyPatch)
 	}
 	if patch.AllowDowngrade != nil {
 		merged.AllowDowngrade = *patch.AllowDowngrade
+	}
+	return merged
+}
+
+func mergeEmailAuthPolicy(current, next config.EmailAuthPolicy) config.EmailAuthPolicy {
+	merged := current
+	if next.CodeTTL > 0 {
+		merged.CodeTTL = next.CodeTTL
+	}
+	if next.LinkTTL > 0 {
+		merged.LinkTTL = next.LinkTTL
+	}
+	if next.MaxAttempts > 0 {
+		merged.MaxAttempts = next.MaxAttempts
+	}
+	if next.ResendInterval > 0 {
+		merged.ResendInterval = next.ResendInterval
+	}
+	return merged
+}
+
+func applyEmailAuthPolicyPatch(current config.EmailAuthPolicy, patch *config.EmailAuthPolicyPatch) config.EmailAuthPolicy {
+	merged := current
+	if patch == nil {
+		return merged
+	}
+	if patch.CodeTTL != nil {
+		merged.CodeTTL = *patch.CodeTTL
+	}
+	if patch.LinkTTL != nil {
+		merged.LinkTTL = *patch.LinkTTL
+	}
+	if patch.MaxAttempts != nil {
+		merged.MaxAttempts = *patch.MaxAttempts
+	}
+	if patch.ResendInterval != nil {
+		merged.ResendInterval = *patch.ResendInterval
 	}
 	return merged
 }
