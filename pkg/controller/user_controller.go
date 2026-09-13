@@ -752,25 +752,7 @@ func (u *UserController) UpdatePasswordWithFlow(c *pin.Context) error {
 		return consts.UNEXPECTED_FAILURE
 	}
 
-	user, err := u.authService.GetUserService().GetByHashID(c.Request.Context(), userID)
-	if err != nil {
-		slog.Error("Failed to get user after password update", "error", err)
-
-		resp := &UserResponse{
-			User: &User{
-				ID: userID,
-			},
-		}
-		return c.Render(resp)
-	}
-
-	userResp := convertUserToResponse(u.authService, user.GetModel())
-
-	resp := &UserResponse{
-		User: userResp,
-	}
-
-	return c.Render(resp)
+	return c.Render(&types.EmailActionSuccessResponse{Success: true})
 }
 
 // UpdateEmail updates user email
