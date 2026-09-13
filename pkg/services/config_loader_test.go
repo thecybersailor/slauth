@@ -93,6 +93,33 @@ func TestApplyAuthServiceConfigPatch_PreservesTopLevelBoolPointers(t *testing.T)
 	}
 }
 
+func TestApplyAuthServiceConfigPatch_UpdatesPasswordPolicyFields(t *testing.T) {
+	current := config.NewDefaultAuthServiceConfig()
+	minScore := 3
+	minLength := 15
+	maxLength := 128
+	maxBytes := 512
+	patch := config.AuthServiceConfigPatch{
+		SecurityConfig: &config.SecurityConfigPatch{
+			PasswordStrengthConfig: &config.PasswordStrengthConfigPatch{
+				MinScore:  &minScore,
+				MinLength: &minLength,
+				MaxLength: &maxLength,
+				MaxBytes:  &maxBytes,
+			},
+		},
+	}
+
+	next := ApplyAuthServiceConfigPatch(current, &patch)
+	got := next.SecurityConfig.PasswordStrengthConfig
+	if got.MinScore != minScore || got.MinLength != minLength || got.MaxLength != maxLength || got.MaxBytes != maxBytes {
+		t.Fatalf("password policy = %+v, want score=%d min=%d max=%d max_bytes=%d", got, minScore, minLength, maxLength, maxBytes)
+	}
+	if next.SecurityConfig.PasswordUpdateConfig.RateLimit.MaxRequests != current.SecurityConfig.PasswordUpdateConfig.RateLimit.MaxRequests {
+		t.Fatalf("password policy patch should not reset sibling password update config")
+	}
+}
+
 func TestNormalizeAuthServiceConfigFromRaw_DoesNotAliasDefaultBoolPointers(t *testing.T) {
 	raw := []byte(`{"allow_new_users":true,"confirm_email":false}`)
 

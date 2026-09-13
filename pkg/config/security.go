@@ -52,11 +52,17 @@ type PasswordUpdateConfigPatch struct {
 }
 
 type PasswordStrengthConfig struct {
-	MinScore int `json:"min_score"`
+	MinScore  int `json:"min_score"`
+	MinLength int `json:"min_length"`
+	MaxLength int `json:"max_length"`
+	MaxBytes  int `json:"max_bytes"`
 }
 
 type PasswordStrengthConfigPatch struct {
-	MinScore *int `json:"min_score,omitempty"`
+	MinScore  *int `json:"min_score,omitempty"`
+	MinLength *int `json:"min_length,omitempty"`
+	MaxLength *int `json:"max_length,omitempty"`
+	MaxBytes  *int `json:"max_bytes,omitempty"`
 }
 
 type IdentityChangeConfig struct {
@@ -89,7 +95,10 @@ func GetDefaultSecurityConfig() *SecurityConfig {
 			},
 		},
 		PasswordStrengthConfig: PasswordStrengthConfig{
-			MinScore: 2,
+			MinScore:  2,
+			MinLength: 8,
+			MaxLength: 128,
+			MaxBytes:  512,
 		},
 		EmailChangeConfig: IdentityChangeConfig{
 			RequiredAAL:                     types.AALLevel2,

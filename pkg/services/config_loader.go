@@ -527,6 +527,15 @@ func mergePasswordStrengthConfig(current, next config.PasswordStrengthConfig) co
 	if next.MinScore > 0 {
 		merged.MinScore = next.MinScore
 	}
+	if next.MinLength > 0 {
+		merged.MinLength = next.MinLength
+	}
+	if next.MaxLength > 0 {
+		merged.MaxLength = next.MaxLength
+	}
+	if next.MaxBytes > 0 {
+		merged.MaxBytes = next.MaxBytes
+	}
 	return merged
 }
 
@@ -537,6 +546,15 @@ func applyPasswordStrengthConfigPatch(current config.PasswordStrengthConfig, pat
 	}
 	if patch.MinScore != nil {
 		merged.MinScore = *patch.MinScore
+	}
+	if patch.MinLength != nil {
+		merged.MinLength = *patch.MinLength
+	}
+	if patch.MaxLength != nil {
+		merged.MaxLength = *patch.MaxLength
+	}
+	if patch.MaxBytes != nil {
+		merged.MaxBytes = *patch.MaxBytes
 	}
 	return merged
 }

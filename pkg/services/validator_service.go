@@ -82,19 +82,7 @@ func (v *ValidatorService) ValidatePhone(phone string) error {
 
 // ValidatePassword validates password requirements
 func (v *ValidatorService) ValidatePassword(password string) error {
-	if password == "" {
-		return consts.VALIDATION_FAILED
-	}
-
-	if len(password) < 8 {
-		return consts.WEAK_PASSWORD
-	}
-
-	if len(password) > 128 {
-		return consts.VALIDATION_FAILED
-	}
-
-	return nil
+	return validatePasswordLength(password, 8, 128, 512)
 }
 
 // ValidateUserMetadata validates user metadata

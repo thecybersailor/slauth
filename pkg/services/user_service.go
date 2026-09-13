@@ -153,14 +153,8 @@ func (s *UserService) CreateUserWithSource(
 		if opts.Password != nil {
 			password = *opts.Password
 			if password != "" {
-				if err := validator.ValidatePassword(password); err != nil {
+				if err := passwordService.ValidateNewPassword(password); err != nil {
 					return err
-				}
-
-				valid := passwordService.ValidatePasswordStrength(password)
-				if !valid {
-					slog.Error("Password strength validation failed")
-					return consts.WEAK_PASSWORD
 				}
 			}
 		}
@@ -1252,6 +1246,9 @@ func (u *User) UpdatePhone(ctx context.Context, phone string) error {
 }
 
 func (u *User) UpdatePassword(ctx context.Context, newPassword string) error {
+	if err := u.passwordService.ValidateNewPassword(newPassword); err != nil {
+		return err
+	}
 	hashedPassword, err := u.passwordService.HashPassword(newPassword)
 	if err != nil {
 		return err

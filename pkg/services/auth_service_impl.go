@@ -27,14 +27,15 @@ type SessionStats struct {
 
 // AuthServiceImpl implements authentication business logic
 type AuthServiceImpl struct {
-	db              *gorm.DB
-	secretsProvider types.InstanceSecretsProvider
-	configLoader    *ConfigLoader
-	jwtService      *JWTService
-	passwordService *PasswordService
-	otpService      *OTPService
-	validator       *ValidatorService
-	instanceId      string
+	db                *gorm.DB
+	secretsProvider   types.InstanceSecretsProvider
+	configLoader      *ConfigLoader
+	jwtService        *JWTService
+	passwordService   *PasswordService
+	dummyPasswordHash string
+	otpService        *OTPService
+	validator         *ValidatorService
+	instanceId        string
 
 	// External providers
 	captchaProvider          types.CaptchaProvider
@@ -114,13 +115,14 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 	hashIDService := NewHashIDService(cfg)
 	SetGlobalHashIDService(hashIDService)
 
-	passwordService := NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore)
+	passwordService := NewPasswordServiceWithPolicy(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig)
 	userService := NewUserServiceWithInstance(db, instanceId).SetPasswordService(passwordService).SetHashIDService(hashIDService)
 	sessionService := NewSessionService(db)
 
 	// Set all fields
 	s.jwtService = jwtService
 	s.passwordService = passwordService
+	s.dummyPasswordHash = mustHashDummyPassword(passwordService)
 	s.otpService = NewOTPService(cfg.AuthServiceBaseUrl)
 	s.validator = NewValidatorService()
 	s.userService = userService
@@ -133,7 +135,7 @@ func NewAuthServiceImpl(db *gorm.DB, secretsProvider types.InstanceSecretsProvid
 	// Initialize admin service layers
 	s.adminSessionService = NewAdminSessionServiceWithHashIDService(db, sessionService, hashIDService)
 	s.adminIdentityService = NewAdminIdentityService(db)
-	s.adminSystemService = NewAdminSystemService(db, userService, NewPasswordService(nil, cfg.AppSecret, cfg.SecurityConfig.PasswordStrengthConfig.MinScore), instanceId)
+	s.adminSystemService = NewAdminSystemService(db, userService, passwordService, instanceId)
 
 	// Initialize middleware slices
 	s.signupMiddlewares = make([]func(ctx SignupContext, next func() error) error, 0)
@@ -211,6 +213,7 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 	// Set all fields
 	s.jwtService = jwtService
 	s.passwordService = passwordService // Use the provided password service
+	s.dummyPasswordHash = mustHashDummyPassword(passwordService)
 	s.otpService = NewOTPService(cfg.AuthServiceBaseUrl)
 	s.validator = NewValidatorService()
 	s.userService = userService
@@ -256,6 +259,21 @@ func NewAuthServiceImplWithPasswordService(db *gorm.DB, secretsProvider types.In
 	return s
 }
 
+func mustHashDummyPassword(passwordService *PasswordService) string {
+	hash, err := passwordService.HashPassword("slauth dummy password verification value")
+	if err != nil {
+		return ""
+	}
+	return hash
+}
+
+func (s *AuthServiceImpl) verifyDummyPassword(password string) {
+	if s.dummyPasswordHash == "" {
+		return
+	}
+	_, _ = s.passwordService.VerifyPassword(password, s.dummyPasswordHash)
+}
+
 // AuthenticateUser authenticates user with email/phone and password
 func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, password string) (*User, error) {
 	slog.Info("AuthenticateUser called",
@@ -267,6 +285,9 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	if emailOrPhone == "" || password == "" {
 		slog.Error("Missing email/phone or password")
 		return nil, consts.VALIDATION_FAILED
+	}
+	if err := s.passwordService.ValidatePasswordLoginInput(password); err != nil {
+		return nil, err
 	}
 
 	// Find user
@@ -293,6 +314,7 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	if err := query.First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			slog.Error("User not found in database", "emailOrPhone", emailOrPhone)
+			s.verifyDummyPassword(password)
 			return nil, consts.INVALID_CREDENTIALS
 		}
 		slog.Error("Database error during user lookup", "error", err)
@@ -313,6 +335,7 @@ func (s *AuthServiceImpl) AuthenticateUser(ctx context.Context, emailOrPhone, pa
 	// Verify password
 	if user.EncryptedPassword == nil {
 		slog.Error("User has no encrypted password", "userID", user.ID)
+		s.verifyDummyPassword(password)
 		return nil, consts.INVALID_CREDENTIALS
 	}
 
