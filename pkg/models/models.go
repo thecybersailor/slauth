@@ -51,6 +51,7 @@ func AllModels() []interface{} {
 		&MFAChallenge{},
 		&MFAAMRClaim{},
 		&OneTimeToken{},
+		&EmailActionChallenge{},
 		&FlowState{},
 		&SAMLRelayState{},
 		&SSOProvider{},
