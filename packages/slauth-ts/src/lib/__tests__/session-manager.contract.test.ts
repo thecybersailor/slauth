@@ -158,4 +158,108 @@ describe('SessionManager hard-cut contract', () => {
 
     expect(clientA).toBe(clientB)
   })
+
+  it('authClient.refreshSession adopts a newer stored session instead of refreshing a stale one', async () => {
+    const storage = new MemoryStorage()
+    const storageKey = 'test.auth.token'
+    storage.setItem(
+      storageKey,
+      JSON.stringify({
+        access_token: 'stale-access-token',
+        refresh_token: 'stale-refresh-token',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: { id: '1', email: 'test@example.com' }
+      })
+    )
+
+    const { authClient } = createClients({
+      auth: { url: 'http://localhost:8080/auth' },
+      storage: storage as any,
+      storageKey,
+      persistSession: true,
+      autoRefreshToken: true,
+      debug: false
+    })
+
+    await expect(authClient!.getSession()).resolves.toMatchObject({
+      refresh_token: 'stale-refresh-token'
+    })
+
+    storage.setItem(
+      storageKey,
+      JSON.stringify({
+        access_token: 'fresh-access-token',
+        refresh_token: 'fresh-refresh-token',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: { id: '1', email: 'test@example.com' }
+      })
+    )
+
+    const authMock = new MockAdapter((authClient as any).api.client)
+    authMock.onPost('http://localhost:8080/auth/token?grant_type=refresh_token').reply(401, {
+      error: { message: 'Session not found. Please sign in again.', key: 'auth.refresh_token_not_found' }
+    })
+
+    await expect(authClient!.refreshSession()).resolves.toMatchObject({
+      session: {
+        access_token: 'fresh-access-token',
+        refresh_token: 'fresh-refresh-token'
+      }
+    })
+    expect(authMock.history.post).toHaveLength(0)
+
+    authMock.restore()
+  })
+
+  it('SessionManager adopts a newer stored session after a stale refresh token fails', async () => {
+    const storage = new MemoryStorage()
+    const storageKey = 'test.auth.token'
+    storage.setItem(
+      storageKey,
+      JSON.stringify({
+        access_token: 'stale-access-token',
+        refresh_token: 'stale-refresh-token',
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: { id: '1', email: 'test@example.com' }
+      })
+    )
+
+    const { authClient } = createClients({
+      auth: { url: 'http://localhost:8080/auth' },
+      storage: storage as any,
+      storageKey,
+      persistSession: true,
+      autoRefreshToken: true,
+      debug: false
+    })
+
+    await expect(authClient!.getSession()).resolves.toMatchObject({
+      refresh_token: 'stale-refresh-token'
+    })
+
+    const authMock = new MockAdapter((authClient as any).api.client)
+    authMock.onPost('http://localhost:8080/auth/token?grant_type=refresh_token').reply(() => {
+      storage.setItem(
+        storageKey,
+        JSON.stringify({
+          access_token: 'fresh-access-token',
+          refresh_token: 'fresh-refresh-token',
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: { id: '1', email: 'test@example.com' }
+        })
+      )
+      return [401, {
+        error: { message: 'Session not found. Please sign in again.', key: 'auth.refresh_token_not_found' }
+      }]
+    })
+
+    await expect(authClient!.refreshSession()).resolves.toMatchObject({
+      session: {
+        access_token: 'fresh-access-token',
+        refresh_token: 'fresh-refresh-token'
+      }
+    })
+
+    authMock.restore()
+  })
 })

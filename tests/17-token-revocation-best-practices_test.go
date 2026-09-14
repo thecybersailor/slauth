@@ -476,7 +476,8 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestLocalVsGlobalLogout() {
 // Expected Behavior:
 // - Each refresh generates a new refresh token
 // - Old refresh token is revoked
-// - Attempting to reuse old token should fail
+// - Reusing old token inside RefreshTokenReuseInterval returns the rotated token
+// - Reusing old token after RefreshTokenReuseInterval fails
 func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 	email := "token-rotation@example.com"
 	password := "MySecurePassword2024!"
@@ -513,23 +514,42 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 	// Verify new token is different
 	suite.NotEqual(oldRefreshToken, newRefreshToken, "New refresh token should be different")
 
-	// Step 3: CRITICAL TEST - Old refresh token should be revoked
+	// Step 3: Old refresh token is reusable inside RefreshTokenReuseInterval
 	reuseOldTokenRequest := S{
 		"grant_type":    "refresh_token",
 		"refresh_token": oldRefreshToken,
 	}
 	reuseResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", reuseOldTokenRequest)
-	suite.Equal(401, reuseResponse.ResponseRecorder.Code,
-		"Refresh request returns 200 (Pin Response format)")
-	suite.helper.HasError(suite.T(), reuseResponse, "refresh_token_not_found",
-		"SECURITY: Old refresh token MUST be rejected after rotation")
+	suite.Equal(200, reuseResponse.ResponseRecorder.Code,
+		"Old refresh token should be reusable inside RefreshTokenReuseInterval")
+	reuseData := reuseResponse.Data.(map[string]any)
+	reusedSession := reuseData["session"].(map[string]any)
+	reusedRefreshToken := reusedSession["refresh_token"].(string)
+	suite.Equal(newRefreshToken, reusedRefreshToken,
+		"Old refresh token reuse should return the already rotated refresh token")
 
-	suite.T().Log("✅ Security Best Practice: Token rotation revokes old tokens")
+	// Step 4: Old refresh token should fail after RefreshTokenReuseInterval
+	expiredUpdatedAt := time.Now().Add(-11 * time.Second)
+	err := suite.DB.Exec(
+		"UPDATE refresh_tokens SET updated_at = ? WHERE token = ? AND instance_id = ?",
+		expiredUpdatedAt,
+		oldRefreshToken,
+		suite.TestInstance,
+	).Error
+	suite.Require().NoError(err)
+
+	expiredReuseResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", reuseOldTokenRequest)
+	suite.Equal(401, expiredReuseResponse.ResponseRecorder.Code,
+		"Old refresh token should fail after RefreshTokenReuseInterval")
+	suite.helper.HasError(suite.T(), expiredReuseResponse, "refresh_token_not_found",
+		"SECURITY: Old refresh token MUST be rejected after reuse window")
+
+	suite.T().Log("✅ Security Best Practice: Token rotation allows bounded reuse and rejects stale replay")
 }
 
-// TestConcurrentRefreshTokenRotation verifies the problem with concurrent refresh requests
+// TestRefreshTokenReuseInterval verifies repeated refresh requests share rotation output
 //
-// Problem Scenario:
+// Former Problem Scenario:
 // - Multiple requests use the same refresh token simultaneously
 // - First request succeeds, creates new token, revokes old token
 // - Other requests fail because old token was already revoked
@@ -539,8 +559,8 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenRotation() {
 // - Within reuse interval (10 seconds), same refresh token can be used multiple times
 // - Only one new refresh token should be created
 // - Other concurrent requests should reuse the same refresh token or wait
-func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRotation() {
-	email := "concurrent-refresh@example.com"
+func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenReuseInterval() {
+	email := "refresh-reuse-interval@example.com"
 	password := "MySecurePassword2024!"
 
 	// Step 1: Create user and login
@@ -560,54 +580,50 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRo
 	session := loginData["session"].(map[string]any)
 	originalRefreshToken := session["refresh_token"].(string)
 
-	// Step 2: Simulate concurrent refresh requests (3 requests using same token)
-	// This simulates multiple browser tabs or API calls refreshing simultaneously
+	// Step 2: Reuse the same old refresh token several times inside the reuse interval.
+	// This simulates browser tabs that did not observe the first token rotation yet.
 	type refreshResult struct {
 		success bool
 		code    int
 		error   string
 		token   string
 	}
-	results := make(chan refreshResult, 3)
+	results := make([]refreshResult, 0, 3)
 
 	for i := 0; i < 3; i++ {
-		go func() {
-			refreshRequest := S{
-				"grant_type":    "refresh_token",
-				"refresh_token": originalRefreshToken,
-			}
-			refreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", refreshRequest)
+		refreshRequest := S{
+			"grant_type":    "refresh_token",
+			"refresh_token": originalRefreshToken,
+		}
+		refreshResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", refreshRequest)
 
-			result := refreshResult{
-				success: refreshResponse.ResponseRecorder.Code == 200,
-				code:    refreshResponse.ResponseRecorder.Code,
-			}
+		result := refreshResult{
+			success: refreshResponse.Error == nil && refreshResponse.Data != nil,
+			code:    refreshResponse.ResponseRecorder.Code,
+		}
 
-			// Extract error key if present
-			if refreshResponse.Error != nil {
-				result.error = refreshResponse.Error.Key
-			}
+		if refreshResponse.Error != nil {
+			result.error = refreshResponse.Error.Key
+		}
 
-			if result.success && refreshResponse.Data != nil {
-				if refreshData, ok := refreshResponse.Data.(map[string]any); ok {
-					if session, ok := refreshData["session"].(map[string]any); ok {
-						if token, ok := session["refresh_token"].(string); ok {
-							result.token = token
-						}
+		if result.success {
+			if refreshData, ok := refreshResponse.Data.(map[string]any); ok {
+				if session, ok := refreshData["session"].(map[string]any); ok {
+					if token, ok := session["refresh_token"].(string); ok {
+						result.token = token
 					}
 				}
 			}
+		}
 
-			results <- result
-		}()
+		results = append(results, result)
 	}
 
 	// Collect results
 	var successCount int
 	var failureCount int
 	var refreshTokens []string
-	for i := 0; i < 3; i++ {
-		result := <-results
+	for _, result := range results {
 		if result.success {
 			successCount++
 			if result.token != "" {
@@ -619,20 +635,9 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRo
 		}
 	}
 
-	// Step 3: Analyze the problem
-	// Current implementation: Only 1 request succeeds, others fail with refresh_token_not_found
-	// This is the root cause of the infinite refresh loop in frontend
-	suite.T().Logf("Concurrent refresh results: %d succeeded, %d failed", successCount, failureCount)
-
-	if failureCount > 0 {
-		suite.T().Logf("❌ PROBLEM CONFIRMED: %d concurrent requests failed", failureCount)
-		suite.T().Logf("   Root cause: Token rotation happens immediately, causing race condition")
-		suite.T().Logf("   Expected: RefreshTokenReuseInterval should allow reuse within 10 seconds")
-		suite.T().Logf("   Actual: Each refresh immediately revokes old token")
-		suite.T().Logf("   This causes refresh_token_not_found errors and infinite refresh loops")
-	} else {
-		suite.T().Logf("✅ All concurrent requests succeeded (RefreshTokenReuseInterval working)")
-	}
+	suite.T().Logf("Refresh reuse results: %d succeeded, %d failed", successCount, failureCount)
+	suite.Equal(3, successCount, "all refresh token reuse requests should succeed inside reuse interval")
+	suite.Equal(0, failureCount, "no refresh token reuse request should fail inside reuse interval")
 
 	// Verify unique tokens (if multiple succeeded, they should be different due to rotation)
 	uniqueTokens := make(map[string]bool)
@@ -640,6 +645,138 @@ func (suite *TokenRevocationBestPracticesTestSuite) TestConcurrentRefreshTokenRo
 		uniqueTokens[token] = true
 	}
 	suite.T().Logf("Unique refresh tokens generated: %d", len(uniqueTokens))
+	suite.Len(uniqueTokens, 1, "refresh token reuse requests should return the same rotated refresh token")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenReuseIntervalDisabledRejectsOldToken() {
+	originalInterval := suite.AuthService.GetConfig().SessionConfig.RefreshTokenReuseInterval
+	suite.AuthService.GetConfig().SessionConfig.RefreshTokenReuseInterval = 0
+	defer func() {
+		suite.AuthService.GetConfig().SessionConfig.RefreshTokenReuseInterval = originalInterval
+	}()
+
+	oldRefreshToken := suite.createLoggedInRefreshToken("refresh-reuse-disabled@example.com")
+	firstRefresh := suite.refreshWithToken(oldRefreshToken)
+	suite.Equal(200, firstRefresh.ResponseRecorder.Code, "First refresh should succeed")
+
+	reuseResponse := suite.refreshWithToken(oldRefreshToken)
+	suite.Equal(401, reuseResponse.ResponseRecorder.Code, "Old token should fail when reuse interval is disabled")
+	suite.helper.HasError(suite.T(), reuseResponse, "refresh_token_not_found",
+		"Old refresh token should not be reusable when RefreshTokenReuseInterval is disabled")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenReuseIntervalRejectsRevokedTokenWithoutChild() {
+	oldRefreshToken := suite.createLoggedInRefreshToken("refresh-reuse-no-child@example.com")
+	err := suite.AuthService.RevokeRefreshToken(context.Background(), oldRefreshToken)
+	suite.Require().NoError(err)
+
+	reuseResponse := suite.refreshWithToken(oldRefreshToken)
+	suite.Equal(401, reuseResponse.ResponseRecorder.Code, "Revoked token without a rotated child should fail")
+	suite.helper.HasError(suite.T(), reuseResponse, "refresh_token_not_found",
+		"Revoked refresh token should not be reusable when no child token exists")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenReturnsSessionExpiredForActiveToken() {
+	refreshToken := suite.createLoggedInRefreshToken("refresh-active-session-expired@example.com")
+	suite.expireSessionForRefreshToken(refreshToken)
+
+	refreshResponse := suite.refreshWithToken(refreshToken)
+	suite.Equal(401, refreshResponse.ResponseRecorder.Code, "Refresh should fail when the active token session is expired")
+	suite.helper.HasError(suite.T(), refreshResponse, "session_expired",
+		"Active refresh token should report session_expired when its session has expired")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenReturnsSessionExpiredForReusableChild() {
+	oldRefreshToken := suite.createLoggedInRefreshToken("refresh-child-session-expired@example.com")
+	firstRefresh := suite.refreshWithToken(oldRefreshToken)
+	suite.Equal(200, firstRefresh.ResponseRecorder.Code, "First refresh should succeed")
+
+	suite.expireSessionForRefreshToken(oldRefreshToken)
+
+	reuseResponse := suite.refreshWithToken(oldRefreshToken)
+	suite.Equal(401, reuseResponse.ResponseRecorder.Code, "Reuse should fail when the rotated child's session is expired")
+	suite.helper.HasError(suite.T(), reuseResponse, "session_expired",
+		"Reusable child refresh token should report session_expired when its session has expired")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) TestRefreshTokenReturnsExistingChildAndRevokesParent() {
+	oldRefreshToken := suite.createLoggedInRefreshToken("refresh-existing-child@example.com")
+
+	var parent models.RefreshToken
+	err := suite.DB.Where("token = ? AND instance_id = ?", oldRefreshToken, suite.TestInstance).First(&parent).Error
+	suite.Require().NoError(err)
+
+	childToken := "manual-child-" + oldRefreshToken
+	err = suite.DB.Create(&models.RefreshToken{
+		Token:      childToken,
+		UserID:     parent.UserID,
+		SessionID:  parent.SessionID,
+		InstanceId: suite.TestInstance,
+		Revoked:    false,
+		Parent:     &parent.ID,
+	}).Error
+	suite.Require().NoError(err)
+
+	refreshResponse := suite.refreshWithToken(oldRefreshToken)
+	suite.Equal(200, refreshResponse.ResponseRecorder.Code, "Refresh should return the already rotated child token")
+	returnedRefreshToken := refreshTokenFromResponse(suite.T(), refreshResponse)
+	suite.Equal(childToken, returnedRefreshToken, "Refresh should reuse the existing child refresh token")
+
+	var reloadedParent models.RefreshToken
+	err = suite.DB.First(&reloadedParent, parent.ID).Error
+	suite.Require().NoError(err)
+	suite.True(reloadedParent.Revoked, "Parent refresh token should be revoked after returning existing child")
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) createLoggedInRefreshToken(email string) string {
+	password := "MySecurePassword2024!"
+	suite.helper.MakePOSTRequest(suite.T(), "/auth/signup", S{
+		"email":    email,
+		"password": password,
+	})
+
+	loginResponse := suite.helper.MakePOSTRequest(suite.T(), "/auth/token", S{
+		"grant_type": "password",
+		"email":      email,
+		"password":   password,
+	})
+	suite.Equal(200, loginResponse.ResponseRecorder.Code, "Login should succeed")
+	return refreshTokenFromResponse(suite.T(), loginResponse)
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) refreshWithToken(refreshToken string) *PinResponse {
+	return suite.helper.MakePOSTRequest(suite.T(), "/auth/token?grant_type=refresh_token", S{
+		"grant_type":    "refresh_token",
+		"refresh_token": refreshToken,
+	})
+}
+
+func (suite *TokenRevocationBestPracticesTestSuite) expireSessionForRefreshToken(refreshToken string) {
+	var token models.RefreshToken
+	err := suite.DB.Where("token = ? AND instance_id = ?", refreshToken, suite.TestInstance).First(&token).Error
+	suite.Require().NoError(err)
+
+	err = suite.DB.Model(&models.Session{}).
+		Where("id = ?", token.SessionID).
+		Update("not_after", time.Now().Add(-time.Minute)).Error
+	suite.Require().NoError(err)
+}
+
+func refreshTokenFromResponse(t *testing.T, response *PinResponse) string {
+	t.Helper()
+	data, ok := response.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("response data should be an object, got %#v", response.Data)
+	}
+	session, ok := data["session"].(map[string]any)
+	if !ok {
+		t.Fatalf("response session should be an object, got %#v", data["session"])
+	}
+	refreshToken, ok := session["refresh_token"].(string)
+	if !ok || refreshToken == "" {
+		t.Fatalf("response refresh_token should be a non-empty string, got %#v", session["refresh_token"])
+	}
+	return refreshToken
 }
 
 func TestTokenRevocationBestPracticesTestSuite(t *testing.T) {

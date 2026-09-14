@@ -471,36 +471,18 @@ export class AuthApi {
   }
 
   async refreshSession(): Promise<Types.AuthData> {
-    const session = await this.requireSession()
-    if (!session.refresh_token) {
+    const session = await this.sessionManager.refreshSession()
+    if (!session) {
       return Promise.reject({
-        message: 'No refresh token',
-        key: 'no_refresh_token'
+        message: 'No session',
+        key: 'no_session'
       })
     }
 
-    const requestBody: Types.RefreshTokenRequest = {
-      refresh_token: session.refresh_token
+    return {
+      session,
+      ...(session.user ? { user: session.user } : {})
     }
-
-    // Mark this request to skip auto refresh to prevent infinite loop
-    const { data, error } = await this.api.postWithValidation<Types.AuthData>(
-      '/token?grant_type=refresh_token',
-      requestBody,
-      Schemas.RefreshTokenRequestSchema,
-      Schemas.AuthDataSchema,
-      { _skipAutoRefresh: true } as any
-    )
-
-    if (error || !data) {
-      return Promise.reject(error || { message: 'No data returned', key: 'no_data' })
-    }
-
-    if (data.session) {
-      await this.sessionManager.setSession(data.session as Types.Session)
-    }
-
-    return data
   }
 
   async updatePassword(request: Types.UpdatePasswordRequest): Promise<Record<string, any>> {

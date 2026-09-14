@@ -187,7 +187,7 @@ export class SessionManager {
     }
 
     this.refreshInFlight = (async () => {
-      const refreshImpl = async (): Promise<Types.Session | null> => {
+      const adoptFreshStorageSession = async (): Promise<Types.Session | null> => {
         const latestSession = this.persistSession ? await this.storage.loadSession() : null
         const latestNotExpired = latestSession && !this.isExpired(latestSession as Types.Session)
         const latestChanged =
@@ -201,6 +201,16 @@ export class SessionManager {
           return adopted
         }
 
+        return null
+      }
+
+      const refreshImpl = async (): Promise<Types.Session | null> => {
+        const adopted = await adoptFreshStorageSession()
+        if (adopted) {
+          return adopted
+        }
+
+        const latestSession = this.persistSession ? await this.storage.loadSession() : null
         const sessionToRefresh = (latestSession as Types.Session | null) ?? seedSession ?? this.currentSession
         if (!sessionToRefresh?.refresh_token || !this.refreshApi) {
           return null
@@ -215,7 +225,7 @@ export class SessionManager {
         )
 
         if (error || !data?.session) {
-          return null
+          return adoptFreshStorageSession()
         }
 
         const refreshed = await this.applySession(data.session as Types.Session, { persist: this.persistSession })

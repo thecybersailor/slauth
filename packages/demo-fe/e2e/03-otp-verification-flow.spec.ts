@@ -352,8 +352,11 @@ test.describe('OTP Verification Flow', () => {
       
       expect(verifyResponse.status()).toBe(200)
       const verifyData = await verifyResponse.json()
-      expect(verifyData.data.success).toBe(true)
-      console.log('📱 SMS OTP verification successful:', verifyData.data.message)
+      expect(verifyData.data.user).toBeDefined()
+      expect(verifyData.data.session).toBeDefined()
+      expect(verifyData.data.session.access_token).toBeTruthy()
+      expect(verifyData.data.session.refresh_token).toBeTruthy()
+      console.log('📱 SMS OTP verification successful, session created')
     })
 
     // ==================== Step 5: Verify SMS OTP verification success ====================

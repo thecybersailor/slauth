@@ -36,36 +36,40 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		return consts.VALIDATION_FAILED
 	}
 
-	// Validate refresh token
-	refreshTokenRecord, err := a.authService.ValidateRefreshToken(c.Request.Context(), req.RefreshToken)
+	// Check token refresh rate limit
+	config := a.authService.GetConfig()
+	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
+	if !ok {
+		return consts.UNEXPECTED_FAILURE
+	}
+
+	refreshTokenRecord, reusedRefreshToken, err := authServiceImpl.ResolveRefreshToken(c.Request.Context(), req.RefreshToken)
 	if err != nil {
 		slog.Warn("RefreshToken: Invalid refresh token", "error", err)
 		return err
 	}
 
-	slog.Info("RefreshToken: Refresh token validated", "userID", refreshTokenRecord.UserID, "sessionID", refreshTokenRecord.SessionID)
+	slog.Info("RefreshToken: Refresh token validated",
+		"userID", refreshTokenRecord.UserID,
+		"sessionID", refreshTokenRecord.SessionID,
+		"reusedRefreshToken", reusedRefreshToken)
 
-	// Check token refresh rate limit
-	config := a.authService.GetConfig()
-	authServiceImpl, ok := a.authService.(*services.AuthServiceImpl)
-	if ok {
-		rateLimitService := authServiceImpl.GetRateLimitService()
-		allowed, err := rateLimitService.CheckAndRecordRequest(
-			c.Request.Context(),
-			refreshTokenRecord.UserID,
-			"token_refresh",
-			a.authService.GetInstanceId(),
-			config.RatelimitConfig.TokenRefreshRateLimit,
-			config,
-		)
-		if err != nil {
-			slog.Error("RefreshToken: Rate limit check failed", "error", err)
-			return err
-		}
-		if !allowed {
-			slog.Warn("RefreshToken: Rate limit exceeded", "userID", refreshTokenRecord.UserID)
-			return consts.OVER_REQUEST_RATE_LIMIT
-		}
+	rateLimitService := authServiceImpl.GetRateLimitService()
+	allowed, err := rateLimitService.CheckAndRecordRequest(
+		c.Request.Context(),
+		refreshTokenRecord.UserID,
+		"token_refresh",
+		a.authService.GetInstanceId(),
+		config.RatelimitConfig.TokenRefreshRateLimit,
+		config,
+	)
+	if err != nil {
+		slog.Error("RefreshToken: Rate limit check failed", "error", err)
+		return err
+	}
+	if !allowed {
+		slog.Warn("RefreshToken: Rate limit exceeded", "userID", refreshTokenRecord.UserID)
+		return consts.OVER_REQUEST_RATE_LIMIT
 	}
 
 	// Get user by real ID (since refresh token stores real ID)
@@ -78,21 +82,15 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 
 	// Create user object with hashid
 	appSecret := a.authService.GetConfig().AppSecret
-	hashIDService := (*services.HashIDService)(nil)
-	if impl, ok := a.authService.(*services.AuthServiceImpl); ok {
-		hashIDService = impl.GetHashIDService()
-	}
-	if hashIDService == nil {
-		hashIDService = services.NewHashIDService(a.authService.GetConfig())
-	}
+	hashIDService := authServiceImpl.GetHashIDService()
 	userObj, err := services.NewUserWithHashIDService(hashIDService, user, a.authService.GetUserService(), services.NewPasswordService(nil, appSecret, 2), services.NewSessionService(a.authService.GetDB()), a.authService.GetDB(), a.authService.GetInstanceId())
 	if err != nil {
 		return consts.UNEXPECTED_FAILURE
 	}
 
 	// Refresh existing session (reuse session per best practice)
-	sessionObj, accessToken, newRefreshToken, expiresAt, err := a.authService.RefreshSession(
-		c.Request.Context(), userObj, refreshTokenRecord.SessionID, "aal1", []string{"refresh_token"},
+	sessionObj, accessToken, newRefreshToken, expiresAt, err := authServiceImpl.RefreshSessionWithRefreshToken(
+		c.Request.Context(), userObj, refreshTokenRecord, reusedRefreshToken, "aal1", []string{"refresh_token"},
 		c.GetHeader("User-Agent"), c.ClientIP(),
 	)
 	if err != nil {
@@ -105,12 +103,6 @@ func (a *AuthController) RefreshToken(c *pin.Context) error {
 		"sessionID", sessionObj.HashID,
 		"expiresAt", time.Unix(expiresAt, 0).Format(time.RFC3339),
 		"accessTokenLength", len(accessToken))
-
-	// Revoke old refresh token (token rotation)
-	if err := a.authService.RevokeRefreshToken(c.Request.Context(), req.RefreshToken); err != nil {
-		slog.Error("RefreshToken: Failed to revoke old refresh token", "error", err)
-		return consts.UNEXPECTED_FAILURE
-	}
 
 	// Convert user to response format
 	userResp := convertUserToResponse(a.authService, userObj.GetModel())

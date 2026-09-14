@@ -511,6 +511,110 @@ func (s *AuthServiceImpl) CreateSessionWithOptions(ctx context.Context, user *Us
 
 // RefreshSession refreshes an existing session with new tokens (reuses session per best practice)
 func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessionID uint, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error) {
+	return s.refreshSession(ctx, user, sessionID, aal, amr, userAgent, ip, nil, "")
+}
+
+// ResolveRefreshToken resolves either an active refresh token or a recently
+// rotated token that is still inside the configured reuse interval.
+func (s *AuthServiceImpl) ResolveRefreshToken(ctx context.Context, tokenString string) (*models.RefreshToken, bool, error) {
+	token, err := s.ValidateRefreshToken(ctx, tokenString)
+	if err == nil {
+		return token, false, nil
+	}
+	if !errors.Is(err, consts.REFRESH_TOKEN_NOT_FOUND) {
+		return nil, false, err
+	}
+
+	var rotatedToken models.RefreshToken
+	if lookupErr := s.db.WithContext(ctx).Preload("Session").
+		Where("token = ? AND instance_id = ?", tokenString, s.instanceId).
+		First(&rotatedToken).Error; lookupErr != nil {
+		if errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			return nil, false, consts.REFRESH_TOKEN_NOT_FOUND
+		}
+		return nil, false, lookupErr
+	}
+
+	childToken, ok, childErr := s.reusableChildRefreshToken(ctx, &rotatedToken)
+	if childErr != nil {
+		return nil, false, childErr
+	}
+	if !ok {
+		return nil, false, consts.REFRESH_TOKEN_NOT_FOUND
+	}
+
+	return childToken, true, nil
+}
+
+// RefreshSessionWithRefreshToken refreshes a session while preserving refresh
+// token rotation lineage. If reused is true, refreshTokenRecord is the already
+// issued child token and no additional refresh token is created.
+func (s *AuthServiceImpl) RefreshSessionWithRefreshToken(ctx context.Context, user *User, refreshTokenRecord *models.RefreshToken, reused bool, aal types.AALLevel, amr []string, userAgent, ip string) (*Session, string, string, int64, error) {
+	if reused {
+		return s.refreshSession(ctx, user, refreshTokenRecord.SessionID, aal, amr, userAgent, ip, nil, refreshTokenRecord.Token)
+	}
+
+	if childToken, ok, err := s.reusableChildRefreshToken(ctx, refreshTokenRecord); err != nil {
+		return nil, "", "", 0, err
+	} else if ok {
+		if !refreshTokenRecord.Revoked {
+			if err := s.RevokeRefreshToken(ctx, refreshTokenRecord.Token); err != nil && !errors.Is(err, consts.REFRESH_TOKEN_NOT_FOUND) {
+				return nil, "", "", 0, err
+			}
+		}
+		return s.refreshSession(ctx, user, childToken.SessionID, aal, amr, userAgent, ip, nil, childToken.Token)
+	}
+
+	sessionObj, accessToken, refreshToken, expiresAt, err := s.refreshSession(ctx, user, refreshTokenRecord.SessionID, aal, amr, userAgent, ip, &refreshTokenRecord.ID, "")
+	if err != nil {
+		return nil, "", "", 0, err
+	}
+
+	if err := s.RevokeRefreshToken(ctx, refreshTokenRecord.Token); err != nil {
+		return nil, "", "", 0, err
+	}
+
+	return sessionObj, accessToken, refreshToken, expiresAt, nil
+}
+
+func (s *AuthServiceImpl) reusableChildRefreshToken(ctx context.Context, parentToken *models.RefreshToken) (*models.RefreshToken, bool, error) {
+	if parentToken == nil || !s.isRefreshTokenWithinReuseInterval(parentToken) {
+		return nil, false, nil
+	}
+
+	var childToken models.RefreshToken
+	err := s.db.WithContext(ctx).Preload("Session").
+		Where("parent = ? AND instance_id = ? AND session_id = ? AND (revoked IS NULL OR revoked = false)",
+			parentToken.ID, s.instanceId, parentToken.SessionID).
+		Order("id ASC").
+		First(&childToken).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+
+	if childToken.Session != nil && childToken.Session.NotAfter != nil {
+		dbNow := GetDatabaseNow(s.db)
+		if childToken.Session.NotAfter.Before(dbNow) || childToken.Session.NotAfter.Equal(dbNow) {
+			return nil, false, consts.SESSION_EXPIRED
+		}
+	}
+
+	return &childToken, true, nil
+}
+
+func (s *AuthServiceImpl) isRefreshTokenWithinReuseInterval(token *models.RefreshToken) bool {
+	interval := s.GetConfig().SessionConfig.RefreshTokenReuseInterval
+	if interval <= 0 {
+		return false
+	}
+
+	return time.Since(token.UpdatedAt) <= time.Duration(interval)*time.Second
+}
+
+func (s *AuthServiceImpl) refreshSession(ctx context.Context, user *User, sessionID uint, aal types.AALLevel, amr []string, userAgent, ip string, parentRefreshTokenID *uint, existingRefreshToken string) (*Session, string, string, int64, error) {
 	// Get existing session
 	var session models.Session
 	if err := s.db.First(&session, sessionID).Error; err != nil {
@@ -568,23 +672,39 @@ func (s *AuthServiceImpl) RefreshSession(ctx context.Context, user *User, sessio
 		return nil, "", "", 0, err
 	}
 
-	// Generate new refresh token
-	refreshToken, err := s.jwtService.GenerateRefreshToken()
-	if err != nil {
-		return nil, "", "", 0, err
-	}
+	refreshToken := existingRefreshToken
+	if refreshToken == "" {
+		var err error
+		refreshToken, err = s.jwtService.GenerateRefreshToken()
+		if err != nil {
+			return nil, "", "", 0, err
+		}
 
-	// Store new refresh token
-	refreshTokenRecord := &models.RefreshToken{
-		Token:      refreshToken,
-		UserID:     user.ID,
-		SessionID:  session.ID,
-		InstanceId: s.instanceId,
-		Revoked:    false,
-	}
+		// Store new refresh token
+		refreshTokenRecord := &models.RefreshToken{
+			Token:      refreshToken,
+			UserID:     user.ID,
+			SessionID:  session.ID,
+			InstanceId: s.instanceId,
+			Revoked:    false,
+			Parent:     parentRefreshTokenID,
+		}
 
-	if err := s.db.Create(refreshTokenRecord).Error; err != nil {
-		return nil, "", "", 0, err
+		if err := s.db.Create(refreshTokenRecord).Error; err != nil {
+			if parentRefreshTokenID == nil {
+				return nil, "", "", 0, err
+			}
+
+			var childToken models.RefreshToken
+			if lookupErr := s.db.WithContext(ctx).
+				Where("parent = ? AND instance_id = ? AND session_id = ? AND (revoked IS NULL OR revoked = false)",
+					*parentRefreshTokenID, s.instanceId, session.ID).
+				Order("id ASC").
+				First(&childToken).Error; lookupErr != nil {
+				return nil, "", "", 0, err
+			}
+			refreshToken = childToken.Token
+		}
 	}
 
 	// Wrap as Session
@@ -624,7 +744,10 @@ func (s *AuthServiceImpl) ValidateRefreshToken(ctx context.Context, tokenString 
 func (s *AuthServiceImpl) RevokeRefreshToken(ctx context.Context, tokenString string) error {
 	result := s.db.Model(&models.RefreshToken{}).
 		Where("token = ? AND instance_id = ?", tokenString, s.instanceId).
-		Update("revoked", true)
+		Updates(map[string]any{
+			"revoked":    true,
+			"updated_at": time.Now(),
+		})
 
 	if result.Error != nil {
 		return result.Error

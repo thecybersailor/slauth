@@ -11,7 +11,7 @@ type RefreshToken struct {
 	Revoked    bool      `json:"revoked"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
-	Parent     *uint     `json:"parent"`
+	Parent     *uint     `json:"parent" gorm:"uniqueIndex:idx_refresh_tokens_parent"`
 	SessionID  uint      `json:"session_id"`
 	InstanceId string    `json:"instance_id" gorm:"type:varchar(255)"`
 
