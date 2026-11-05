@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/thecybersailor/slauth/pkg/config"
 	"github.com/thecybersailor/slauth/pkg/models"
 	"github.com/thecybersailor/slauth/pkg/types"
 )
@@ -182,4 +183,46 @@ func (suite *ReauthenticationTestSuite) TestReauthenticationRejectsUnauthenticat
 
 func TestReauthenticationTestSuite(t *testing.T) {
 	suite.Run(t, new(ReauthenticationTestSuite))
+}
+
+func (suite *ReauthenticationTestSuite) TestPasswordQuotaStartsAfterReauthentication() {
+	cfg := suite.AuthService.GetConfig()
+	original := cfg.SecurityConfig.PasswordUpdateConfig
+	defer func() {
+		cfg.SecurityConfig.PasswordUpdateConfig = original
+		suite.Require().NoError(suite.AuthService.SaveConfig(cfg))
+	}()
+	cfg.SecurityConfig.PasswordUpdateConfig.UpdateRequiredAAL = types.AALLevel2
+	cfg.SecurityConfig.PasswordUpdateConfig.RateLimit = config.RateLimit{MaxRequests: 2, WindowDuration: time.Hour}
+	suite.Require().NoError(suite.AuthService.SaveConfig(cfg))
+	accessToken := suite.signUpAndLogin(fmt.Sprintf("reauth-quota-%d@example.com", time.Now().UnixNano()), "ReauthPassword123!")
+	headers := map[string]string{"Authorization": "Bearer " + accessToken}
+	for i := 0; i < 4; i++ {
+		response := suite.helper.MakePUTRequest(suite.T(), "/auth/password", S{"password": "ChangedPassword123!"}, headers)
+		suite.Require().NotNil(response.Error)
+		suite.Equal("auth.insufficient_aal", response.Error.Key, "unverified attempt %d must not exhaust quota", i+1)
+	}
+	start := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/reauthenticate", S{}, headers)
+	suite.Require().Nil(start.Error)
+	sessionCode := suite.helper.MustDataString(suite.T(), start, "session_code")
+	code := suite.extractLastVerificationCode()
+	suite.Require().NotEmpty(code)
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+	failed := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/reauthenticate/verify", S{"token": wrong, "session_code": sessionCode}, headers)
+	suite.Require().NotNil(failed.Error)
+	response := suite.helper.MakePUTRequest(suite.T(), "/auth/password", S{"password": "ChangedPassword123!"}, headers)
+	suite.Require().NotNil(response.Error)
+	suite.Equal("auth.insufficient_aal", response.Error.Key)
+	verified := suite.helper.MakePOSTRequestWithHeaders(suite.T(), "/auth/reauthenticate/verify", S{"token": code, "session_code": sessionCode}, headers)
+	suite.Require().Nil(verified.Error)
+	for i := 0; i < 2; i++ {
+		response := suite.helper.MakePUTRequest(suite.T(), "/auth/password", S{"password": fmt.Sprintf("ChangedPassword%d!", i)}, headers)
+		suite.Require().Nil(response.Error, "verified attempt %d must retain its quota", i+1)
+	}
+	limited := suite.helper.MakePUTRequest(suite.T(), "/auth/password", S{"password": "ChangedPasswordFinal!"}, headers)
+	suite.Require().NotNil(limited.Error, "AAL2 must not reset the password quota")
+	suite.Equal("auth.over_request_rate_limit", limited.Error.Key)
 }

@@ -177,6 +177,51 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 		config := passwordCtx.Service().GetConfig()
 		rateLimit := config.SecurityConfig.PasswordUpdateConfig.RateLimit
 
+		// Authenticate before accessing or consuming the password update quota.
+		requiredAAL := config.SecurityConfig.PasswordUpdateConfig.UpdateRequiredAAL
+
+		authHeader := passwordCtx.HttpRequest().Header.Get("Authorization")
+		if authHeader == "" {
+			slog.Error("Flow: UpdatePassword - No authorization header")
+			return consts.NO_AUTHORIZATION
+		}
+
+		token := ""
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			token = authHeader[7:]
+		}
+
+		if token == "" {
+			slog.Error("Flow: UpdatePassword - Invalid token format")
+			return consts.BAD_JWT
+		}
+
+		claims, err := passwordCtx.Service().ValidateJWT(token)
+		if err != nil {
+			slog.Error("Flow: UpdatePassword - JWT validation failed", "error", err)
+			return consts.BAD_JWT
+		}
+
+		aalValue := claims["aal"]
+
+		var currentAAL string
+		switch v := aalValue.(type) {
+		case string:
+			currentAAL = v
+		case types.AALLevel:
+			currentAAL = string(v)
+		default:
+			slog.Error("Flow: UpdatePassword - AAL has unexpected type", "type", fmt.Sprintf("%T", aalValue), "value", aalValue)
+			return consts.BAD_JWT
+		}
+
+		slog.Info("Flow: UpdatePassword - AAL check", "currentAAL", currentAAL, "requiredAAL", requiredAAL)
+
+		if types.AALLevel(currentAAL) != requiredAAL {
+			slog.Error("Flow: UpdatePassword - Insufficient AAL level", "current", currentAAL, "required", requiredAAL)
+			return consts.INSUFFICIENT_AAL
+		}
+
 		authServiceImpl, ok := passwordCtx.Service().(*services.AuthServiceImpl)
 		if !ok {
 			slog.Error("Flow: UpdatePassword - Failed to cast AuthService")
@@ -224,62 +269,6 @@ func UpdatePasswordFlow(passwordCtx services.PasswordUpdateContext) core.Flow[co
 		}
 
 		slog.Info("Flow: UpdatePassword - Rate limit check passed", "userID", ctx.Data.UserID)
-
-		// 2. Check AAL level
-		requiredAAL := config.SecurityConfig.PasswordUpdateConfig.UpdateRequiredAAL
-
-		authHeader := passwordCtx.HttpRequest().Header.Get("Authorization")
-		if authHeader == "" {
-			slog.Error("Flow: UpdatePassword - No authorization header")
-			return consts.NO_AUTHORIZATION
-		}
-
-		token := ""
-		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-			token = authHeader[7:]
-		}
-
-		if token == "" {
-			slog.Error("Flow: UpdatePassword - Invalid token format")
-			return consts.BAD_JWT
-		}
-
-		claims, err := passwordCtx.Service().ValidateJWT(token)
-		if err != nil {
-			slog.Error("Flow: UpdatePassword - JWT validation failed", "error", err)
-			return consts.BAD_JWT
-		}
-
-		aalValue := claims["aal"]
-
-		var currentAAL string
-		switch v := aalValue.(type) {
-		case string:
-			currentAAL = v
-		case types.AALLevel:
-			currentAAL = string(v)
-		default:
-			slog.Error("Flow: UpdatePassword - AAL has unexpected type", "type", fmt.Sprintf("%T", aalValue), "value", aalValue)
-			return consts.BAD_JWT
-		}
-
-		slog.Info("Flow: UpdatePassword - AAL check", "currentAAL", currentAAL, "requiredAAL", requiredAAL)
-
-		if types.AALLevel(currentAAL) != requiredAAL {
-			slog.Error("Flow: UpdatePassword - Insufficient AAL level", "current", currentAAL, "required", requiredAAL)
-			return consts.INSUFFICIENT_AAL
-		}
-
-		// If AAL level meets requirement, reset password update rate limit
-		// This allows users to update password immediately after AAL upgrade
-		if types.AALLevel(currentAAL) == types.AALLevel2 {
-			slog.Info("Flow: UpdatePassword - AAL2 detected, resetting rate limit", "userID", ctx.Data.UserID)
-			// Clear password update rate limit record for this user using RateLimitService
-			rateLimitService := passwordCtx.Service().(*services.AuthServiceImpl).GetRateLimitService()
-			if rateLimitService != nil {
-				_ = rateLimitService.ClearUserActionRateLimit(ctx.Context, userModel.ID, "password_update", passwordCtx.Service().GetInstanceId(), config)
-			}
-		}
 
 		// 3. Update password (using previously fetched user object)
 		err = user.UpdatePassword(passwordCtx, ctx.Data.NewPassword)
